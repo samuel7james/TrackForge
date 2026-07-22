@@ -1,0 +1,48 @@
+// TrackForge — Prisma schema
+// Milestone 1 subset. See PROJECT_PLAN.md §7 for the full data model rationale.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Track {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String   @default("")
+
+  // Anonymous-creator model for Milestone 1 (see PROJECT_PLAN.md §8).
+  // authorId is a stable client-generated id that becomes the User FK once real auth lands.
+  authorId    String
+  editToken   String
+
+  // The current TrackDocument (see modules/track-format/schema.ts). Validated with Zod
+  // at every read/write boundary — Prisma only guarantees it's valid JSON, not a valid document.
+  document    Json
+
+  isPublished Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions    TrackVersion[]
+
+  @@index([authorId])
+}
+
+// One row per save. Empty of product features until Milestone 3 (version history UI),
+// but capturing the trail from day one avoids a backfill later.
+model TrackVersion {
+  id        String   @id @default(cuid())
+  trackId   String
+  track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  document  Json
+  createdAt DateTime @default(now())
+
+  @@index([trackId])
+}

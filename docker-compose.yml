@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: trackforge
+      POSTGRES_PASSWORD: trackforge
+      POSTGRES_DB: trackforge
+    ports:
+      - "5432:5432"
+    volumes:
+      - trackforge-postgres:/var/lib/postgresql/data
+
+volumes:
+  trackforge-postgres:
