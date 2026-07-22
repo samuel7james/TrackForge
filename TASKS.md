@@ -167,13 +167,60 @@ Triggered by direct feedback that the vertical slice wasn't yet at a demoable ba
 
 ---
 
-## Milestone 2 — Editor Expansion (high-level, refine when reached)
-- [ ] Terrain sculpting (raise/lower/flatten/smooth/noise) + texture painting
-- [ ] Object placement system + prop registry + instancing
-- [ ] Weather/lighting presets, real-time updates
-- [ ] Additional camera modes (Free Fly, Cinematic, Top View)
-- [ ] Advanced spline editing (tangent handles, split/merge, snapping, elevation/banking UI)
-- [ ] Track validation hardening (unreachable-area detection, etc.)
+## Milestone 2 — Editor Expansion
+
+Phased in dependency order: spline editing gets richer first (still the only thing on
+screen), then terrain (the ground those splines sit on), then objects (placed on that
+terrain), then weather/lighting and camera modes (how it's all viewed), then validation
+hardening once tracks are complex enough to need it. Each phase follows the same
+implement → verify in browser → update TASKS.md → propose commit → stop for approval
+loop as Milestone 1.
+
+### Phase 11 — Advanced Spline Editing
+
+- [ ] Per-point tangent handles (manual + auto/Catmull-Rom toggle) for corner shaping
+- [ ] Split segment (insert a point mid-segment) and merge/delete-with-rejoin
+- [ ] Snapping (grid snap, angle snap, snap-to-existing-point)
+- [ ] Elevation & banking editing UI (inspector fields + gizmo, building on the
+      `position.y`/width fields already in `InspectorPanel`)
+- [ ] Fix the known ribbon self-intersection-at-sharp-corners limitation (Phase 3) now
+      that miter/min-radius handling has a real reason to exist
+
+### Phase 12 — Terrain Sculpting
+
+- [ ] Ground plane becomes a sculptable heightfield (raise/lower/flatten/smooth/noise brushes)
+- [ ] Terrain collider stays in sync with the visual mesh (Rapier heightfield or regenerated trimesh)
+- [ ] Texture painting (at least 2-3 blendable ground textures)
+- [ ] Track validation accounts for terrain (car's actual driving surface, not just the spline)
+
+### Phase 13 — Object Placement System
+
+- [ ] Prop registry (a small initial set: cones, barriers, trees/rocks, start-line props)
+- [ ] Placement tool (click to place, drag to move/rotate/scale, delete)
+- [ ] Instancing for perf (props are the first thing in the scene with real repeat-count)
+- [ ] Props persist in `TrackDocument` and round-trip through save/load
+
+### Phase 14 — Weather & Lighting Presets
+
+- [ ] A handful of presets (e.g. Clear Day, Overcast, Sunset, Night) driving sun angle/
+      color, sky, ambient/fog
+- [ ] Real-time preview while editing (no reload needed)
+- [ ] Preset choice persists as part of the track document
+
+### Phase 15 — Additional Camera Modes
+
+- [ ] Free Fly (editor-only, decoupled from OrbitControls' target)
+- [ ] Cinematic (scripted flythrough along the track spline)
+- [ ] Top View (orthographic, useful for layout work)
+- [ ] Mode switch wired into the existing camera-rig architecture (§ ModeController)
+
+### Phase 16 — Track Validation Hardening
+
+- [ ] Unreachable-area detection (props/terrain blocking the drivable path)
+- [ ] Extend `validateTrack` beyond "closed loop + enough points" now that terrain/objects
+      can make a technically-closed loop undriveable
+- [ ] Surface new issue types through the existing `TrackStatus`/`PublishDialog` UI (no new
+      feedback mechanism needed — Phase 10 already built it)
 
 ## Milestone 3 — Creator Platform (high-level)
 - [ ] Real auth + `User` model, migrate anonymous `authorId`s
