@@ -123,6 +123,20 @@ export const trackDocumentSchema = z.object({
 });
 export type TrackDocument = z.infer<typeof trackDocumentSchema>;
 
+const DEFAULT_ROAD_WIDTH = 8;
+
+export function createControlPoint(position: Vec3): RoadControlPoint {
+  return {
+    id: crypto.randomUUID(),
+    position,
+    tangentIn: { x: 0, y: 0, z: 0 },
+    tangentOut: { x: 0, y: 0, z: 0 },
+    width: DEFAULT_ROAD_WIDTH,
+    banking: 0,
+    elevation: 0,
+  };
+}
+
 export function createEmptyTrackDocument(name = "Untitled Track"): TrackDocument {
   const now = new Date().toISOString();
   return {
@@ -139,7 +153,10 @@ export function createEmptyTrackDocument(name = "Untitled Track"): TrackDocument
       updatedAt: now,
     },
     environment: { weather: "sunny", timeOfDay: 12, fogDensity: 0.02 },
-    splines: [],
+    // Milestone 1 UI only ever manages a single spline, so it always exists
+    // (even empty) rather than being lazily created — this keeps the Add/
+    // Remove control point commands simple (see modules/editor/commands).
+    splines: [{ id: crypto.randomUUID(), closed: false, points: [] }],
     terrain: {
       size: { width: 500, depth: 500 },
       resolution: 1,

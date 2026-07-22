@@ -45,11 +45,12 @@ Goal: create a road with splines, edit it live, play it, record a lap, save/relo
 - **Known limitation:** the ribbon offset is naive (no miter/min-radius handling), so a corner tighter than the road's half-width can self-intersect. Only shows up on unrealistically sharp turns; revisit if it matters once real tracks are being built (candidate for Milestone 2 spline/validation work).
 
 ### Phase 4 — Editor Shell, Commands, Undo/Redo
-- [ ] `ToolRegistry` + `EditorEngine` (pointer/keyboard dispatch, no switch statements)
-- [ ] `CommandStack` (undo/redo) wired to control-point add/move/delete
-- [ ] Floating toolbar UI (Select, Road tools)
-- [ ] Inspector panel (selected point: position, width — banking/elevation fields stubbed for Milestone 2)
-- [ ] Keyboard shortcuts: `V` select, `G` road tool, `Ctrl+Z` / `Ctrl+Shift+Z`
+- [x] `ToolRegistry` (`modules/editor/core/tool-registry.ts`) + `EditorEngine` (`modules/editor/core/editor-engine.tsx`) — adapted honestly for R3F: the registry drives the toolbar and which tool's behavior is active, while low-level pointer dispatch stays declarative through R3F's own event system rather than a hand-rolled raycasting dispatcher (reinventing that would fight the framework, not avoid a switch statement)
+- [x] `CommandStack` (`modules/editor/core/command-stack.ts`) — undo/redo wired to control-point add (`AddControlPointCommand`), update/move (`UpdateControlPointCommand`, covers both drag and inspector edits), and remove (`RemoveControlPointCommand`, restores original index on undo)
+- [x] Floating toolbar UI (Select, Road tools) — `modules/editor/ui/toolbar.tsx`
+- [x] Inspector panel (selected point: position, width — banking/elevation fields stubbed for Milestone 2) — `modules/editor/ui/inspector-panel.tsx`
+- [x] Keyboard shortcuts: `V` select, `G` road tool, `Ctrl+Z` / `Ctrl+Shift+Z` — with an input-focus guard so shortcuts don't hijack typing in inspector fields
+- [x] Verified in-browser via Playwright: tool switching (click + shortcut), Road-adds/Select-doesn't, inspector width edits, full undo/redo cycles for add/update/remove (including order-preserving delete-undo), input-focus guard (Backspace in a field edits the field, not the point), zero console errors
 
 ### Phase 5 — Track Validation
 - [ ] Auto-generate start/finish line from spline start

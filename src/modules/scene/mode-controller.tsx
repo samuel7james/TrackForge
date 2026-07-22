@@ -1,13 +1,14 @@
 "use client";
 
 import { useEditorStore } from "@/store/editor-store";
-import { RoadEditingLayer } from "@/modules/editor/tools/road-editing-layer";
+import { EditorEngine } from "@/modules/editor/core/editor-engine";
 import { EditorCameraRig } from "./editor-camera-rig";
 import { PlayModeCameraRig } from "./play-mode-camera-rig";
 
 // Swaps camera rig + controller subtree on mode change. SceneRoot is never
 // touched, which is what makes the edit/play switch instant (PROJECT_PLAN.md §10).
-// Editing interactions (RoadEditingLayer) only mount in edit mode.
+// EditorEngine (tool shortcuts + active tool's interaction layer) only mounts
+// in edit mode.
 export function ModeController() {
   const mode = useEditorStore((s) => s.mode);
 
@@ -15,7 +16,7 @@ export function ModeController() {
     return (
       <>
         <EditorCameraRig />
-        <RoadEditingLayer />
+        <EditorEngine />
       </>
     );
   }

@@ -7,6 +7,11 @@ interface EditorState {
   setMode: (mode: EditorMode) => void;
   toggleMode: () => void;
 
+  // Which tool is active — driven by the ToolRegistry, read by the toolbar
+  // and by PointEditingLayer to decide whether ground-clicks add a point.
+  activeToolId: string;
+  setActiveToolId: (id: string) => void;
+
   // Selection is cross-cutting (shared by Select/Road/Terrain/Object tools
   // once they exist) — see PROJECT_PLAN.md §5.
   selectedPointId: string | null;
@@ -24,6 +29,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   mode: "edit",
   setMode: (mode) => set({ mode }),
   toggleMode: () => set({ mode: get().mode === "edit" ? "play" : "edit" }),
+
+  activeToolId: "road",
+  setActiveToolId: (id) => set({ activeToolId: id }),
 
   selectedPointId: null,
   setSelectedPointId: (id) => set({ selectedPointId: id }),
