@@ -4,21 +4,34 @@ import { Grid } from "@react-three/drei";
 import { useTrackStore } from "@/store/track-store";
 import { Road } from "@/modules/spline/road";
 import { TrackMarkers } from "./track-markers";
+import { SkyDome } from "./sky-dome";
+
+const SUN_POSITION: [number, number, number] = [80, 22, -40];
 
 // Renders the track document as a scene — the one part of the app that both
 // the editor and Play mode mount unchanged (see PROJECT_PLAN.md §4).
+//
+// Sky is a custom gradient dome (SkyDome), not an HDRI Environment preset —
+// those fetch from a third-party CDN at runtime, an unnecessary external
+// dependency for basic scene lighting that can silently fail (verified: no
+// network path to it at all in this dev sandbox). drei's <Sky> shader was
+// also tried and rendered solid black here for reasons not worth chasing
+// further; the gradient dome uses the same reliable canvas-texture approach
+// already used elsewhere in this codebase (curb striping, asphalt grain).
 export function SceneRoot() {
   const splines = useTrackStore((s) => s.document.splines);
 
   return (
     <>
-      <color attach="background" args={["#0b0b10"]} />
-      <fog attach="fog" args={["#0b0b10", 60, 220]} />
+      <fog attach="fog" args={["#2a2436", 50, 220]} />
+      <SkyDome />
 
-      <ambientLight intensity={0.5} />
+      <hemisphereLight args={["#8fa3c9", "#2b2438", 0.7]} />
+      <ambientLight intensity={0.25} />
       <directionalLight
-        position={[24, 32, 12]}
-        intensity={1.5}
+        position={SUN_POSITION}
+        intensity={2.4}
+        color="#ffddb0"
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-50}
@@ -29,7 +42,7 @@ export function SceneRoot() {
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[500, 500]} />
-        <meshStandardMaterial color="#1c1f26" />
+        <meshStandardMaterial color="#23212b" roughness={0.95} metalness={0} />
       </mesh>
 
       <Grid

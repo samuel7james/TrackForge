@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { RapierRigidBody } from "@react-three/rapier";
 import { useKeyboardInput } from "./use-keyboard-input";
+import { vehicleVisualState } from "./vehicle-visual-state";
 
 export const VEHICLE_MASS = 900; // kg — kept in sync with Vehicle's RigidBody mass prop
 
@@ -82,5 +83,11 @@ export function useVehicleController(rigidBodyRef: RefObject<RapierRigidBody | n
       .add(right.clone().multiplyScalar(newLateralSpeed));
     corrected.y = lv.y; // preserve vertical velocity (gravity)
     body.setLinvel(corrected, true);
+
+    // Cosmetic-only state for CarModel's lean/wheel animation — read in its
+    // own useFrame, never fed back into physics.
+    vehicleVisualState.forwardSpeed = forwardSpeed;
+    vehicleVisualState.steerInput = steer;
+    vehicleVisualState.throttleInput = throttle;
   });
 }

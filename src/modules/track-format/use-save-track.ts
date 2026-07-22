@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useTrackStore } from "@/store/track-store";
 
 export function editTokenStorageKey(slug: string): string {
@@ -16,13 +15,14 @@ let saveInFlight = false;
 // Saves the current document — creates the track on first save (no slug
 // yet) or updates it thereafter (PATCH, guarded by the edit token kept in
 // localStorage; never round-tripped through the Zustand store). On first
-// save, redirects to /editor/[slug] so reloading the page keeps working —
-// this is a client-side navigation, so trackStore's in-memory document
-// (a module-level singleton, not tied to the page component) survives the
-// transition intact.
+// save, the URL updates to /editor/[slug] via the native History API
+// rather than next/navigation's router -- router.replace() across two
+// different dynamic route segments (/editor/new -> /editor/[slug]) fully
+// unmounts and remounts the page, which would tear down and reset an
+// in-progress Play session if autosave fired mid-drive (verified: it does,
+// reproducibly, a few seconds after entering Play). history.replaceState
+// updates the address bar for reload/sharing without touching React at all.
 export function useSaveTrack() {
-  const router = useRouter();
-
   return useCallback(async () => {
     if (saveInFlight) return;
     saveInFlight = true;
@@ -43,7 +43,7 @@ export function useSaveTrack() {
         const data = await res.json();
         localStorage.setItem(editTokenStorageKey(data.slug), data.editToken);
         useTrackStore.getState().setSlug(data.slug);
-        router.replace(`/editor/${data.slug}`);
+        window.history.replaceState(null, "", `/editor/${data.slug}`);
         return;
       }
 
@@ -63,5 +63,5 @@ export function useSaveTrack() {
     } finally {
       saveInFlight = false;
     }
-  }, [router]);
+  }, []);
 }
