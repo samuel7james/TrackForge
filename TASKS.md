@@ -415,10 +415,55 @@ loop as Milestone 1.
 
 ### Phase 15 — Additional Camera Modes
 
-- [ ] Free Fly (editor-only, decoupled from OrbitControls' target)
-- [ ] Cinematic (scripted flythrough along the track spline)
-- [ ] Top View (orthographic, useful for layout work)
-- [ ] Mode switch wired into the existing camera-rig architecture (§ ModeController)
+- [x] Free Fly (editor-only, decoupled from OrbitControls' target)
+- [x] Cinematic (scripted flythrough along the track spline)
+- [x] Top View (orthographic, useful for layout work)
+- [x] Mode switch wired into the existing camera-rig architecture (§ ModeController)
+
+**Notes:**
+
+- `editorStore` gained `cameraMode` (`"orbit" | "freefly" | "topview" | "cinematic"`,
+  editor-only -- Play mode always uses `PlayModeCameraRig` regardless). `EditorCameraRig`
+  now just picks which of four self-contained rigs to mount, the same "swap the
+  subtree" pattern `ModeController` already uses for edit/play, so switching modes is
+  just remounting a different rig, never touching `SceneRoot`.
+- **Free Fly** (`camera-modes/free-fly-camera-rig.tsx`): WASD to move (+ Space/Ctrl for
+  up/down, Shift to boost), hold the *right* mouse button and drag to look around --
+  right-click specifically, not left (which stays free for tool interactions -- placing a
+  point/object, etc. -- so nothing needed to change there) and not the browser Pointer
+  Lock API (simpler, no permission/fallback UI to build). Computes its own look delta from
+  `clientX`/`clientY` rather than trusting `movementX`/`movementY`, and clamps the
+  per-event delta as a defensive backstop against any single spurious/duplicated pointer
+  event.
+  - Spent a while chasing what looked like a real bug here (a big single simulated drag
+    left the view showing only sky/horizon, no grid) before realizing it wasn't one:
+    verified by rotating back the same amount immediately afterward, which restored the
+    exact original framing. A free camera rotated far enough legitimately points away from
+    whatever you were looking at -- correct behavior for an unlimited-look camera, not
+    corrupted state. Worth recording since it cost real debugging time on a false lead.
+- **Top View** (`camera-modes/top-view-camera-rig.tsx`): an orthographic camera plus
+  drei's `MapControls` (the same OrbitControls machinery with rotation disabled and pan
+  remapped to left-drag) -- directly inspired by mrdoob's Starter-Kit-Racing track editor,
+  which edits from exactly this kind of flat, precise, non-perspective viewpoint. Disabled
+  while a control point/object is being dragged, same reason (and same fix) as the orbit
+  rig already disables `OrbitControls` mid-drag: native listeners bound directly to the
+  canvas, so stopping propagation on the drag handler alone wouldn't stop it from also
+  panning the camera.
+  - Found a real bug here: the first version placed the camera 200 units up, relying on
+    orthographic zoom (not distance) to frame the scene -- correct for framing, but
+    `FogExp2` still cares about actual distance regardless of projection type, and at 200
+    units even the default Clear Day fog density washed the whole view out to a ~70%
+    fogged haze. Fixed by keeping the camera low (45 units) and letting zoom alone control
+    how much ground is visible.
+- **Cinematic** (`camera-modes/cinematic-camera-rig.tsx`): a no-input scripted flythrough
+  along `sampleRoadCenterline` (the same function `Road`/`TrackPhysics`/lap-time
+  estimation already share), looping seamlessly on a closed spline or ping-ponging on an
+  open one. A scripted preview of the finished circuit, not an editing camera.
+- Verified in-browser: all four modes reachable from the new header `CameraModeMenu` and
+  switch cleanly with no console errors; Top View pans/zooms correctly; Free Fly's WASD
+  movement and right-drag look both work and are fully reversible; Cinematic advances
+  smoothly along the track over time. Reran the full Milestone 1 loop as a regression
+  check -- zero console errors.
 
 ### Phase 16 — Track Validation Hardening
 

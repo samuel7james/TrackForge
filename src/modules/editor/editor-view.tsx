@@ -16,6 +16,7 @@ import { TrackStatus } from "@/modules/editor/ui/track-status";
 import { SaveButton } from "@/modules/editor/ui/save-button";
 import { PublishDialog } from "@/modules/editor/ui/publish-dialog";
 import { EnvironmentDialog } from "@/modules/editor/ui/environment-dialog";
+import { CameraModeMenu } from "@/modules/editor/ui/camera-mode-menu";
 import { EmptyStateHint } from "@/modules/editor/ui/empty-state-hint";
 import { CommandPalette } from "@/modules/editor/ui/command-palette";
 import { RaceHud } from "@/modules/race/timing/race-hud";
@@ -115,6 +116,7 @@ export function EditorView({ slug }: EditorViewProps) {
                 >
                   <UndoRedoControls />
                   <TrackStatus />
+                  <CameraModeMenu />
                   <EnvironmentDialog />
                   <SaveButton />
                   <PublishDialog />
