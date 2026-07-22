@@ -37,8 +37,11 @@ export type Weather = z.infer<typeof weatherSchema>;
 export const roadControlPointSchema = z.object({
   id: z.string(),
   position: vec3Schema,
-  // Hermite-style tangent handles for manual editing — unused by the
-  // Catmull-Rom auto-smoothing in Phase 3, wired up in Milestone 2.
+  // "auto" derives tangentIn/tangentOut from neighboring points (Catmull-Rom
+  // equivalent, via RoadCurve in modules/spline/road-curve.ts) every time the
+  // spline changes; "manual" freezes them as authored vectors, editable via
+  // the draggable tangent handles in TangentHandles.tsx (Phase 11).
+  tangentMode: z.enum(["auto", "manual"]).default("auto"),
   tangentIn: vec3Schema,
   tangentOut: vec3Schema,
   width: z.number().positive(),
@@ -129,6 +132,7 @@ export function createControlPoint(position: Vec3): RoadControlPoint {
   return {
     id: crypto.randomUUID(),
     position,
+    tangentMode: "auto",
     tangentIn: { x: 0, y: 0, z: 0 },
     tangentOut: { x: 0, y: 0, z: 0 },
     width: DEFAULT_ROAD_WIDTH,

@@ -155,8 +155,8 @@ export function EditorView({ slug }: EditorViewProps) {
               </motion.div>
               <p className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
                 {activeToolId === "road"
-                  ? "Road tool: click ground to add a point · drag to move · select + Delete to remove"
-                  : "Select tool: drag a point to move it · select + Delete to remove"}{" "}
+                  ? "Road tool: click ground to add a point (Shift angle-snap, Ctrl grid-snap) · drag to move · select + Delete to remove"
+                  : "Select tool: drag a point to move it · click the road to split it · select + Delete to remove"}{" "}
                 · V/G switch tools · Ctrl+Z / Ctrl+Shift+Z undo/redo · Ctrl+K commands
               </p>
             </motion.div>

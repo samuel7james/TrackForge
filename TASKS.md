@@ -178,13 +178,81 @@ loop as Milestone 1.
 
 ### Phase 11 — Advanced Spline Editing
 
-- [ ] Per-point tangent handles (manual + auto/Catmull-Rom toggle) for corner shaping
-- [ ] Split segment (insert a point mid-segment) and merge/delete-with-rejoin
-- [ ] Snapping (grid snap, angle snap, snap-to-existing-point)
-- [ ] Elevation & banking editing UI (inspector fields + gizmo, building on the
+- [x] Per-point tangent handles (manual + auto/Catmull-Rom toggle) for corner shaping
+- [x] Split segment (insert a point mid-segment) and merge/delete-with-rejoin
+- [x] Snapping (grid snap, angle snap, snap-to-existing-point)
+- [x] Elevation & banking editing UI (inspector fields + gizmo, building on the
       `position.y`/width fields already in `InspectorPanel`)
-- [ ] Fix the known ribbon self-intersection-at-sharp-corners limitation (Phase 3) now
+- [x] Fix the known ribbon self-intersection-at-sharp-corners limitation (Phase 3) now
       that miter/min-radius handling has a real reason to exist
+
+**Notes:**
+
+- Schema: control points gained `tangentMode: "auto" | "manual"` (default `"auto"`,
+  backward-compatible with existing documents via Zod's `.default()`).
+- `modules/spline/road-curve.ts` (new): `RoadCurve extends THREE.Curve<Vector3>`, a cubic
+  Hermite spline that replaces the old direct `THREE.CatmullRomCurve3` usage in
+  `catmull-rom.ts`. "Auto" points compute their tangent with the standard
+  Catmull-Rom-to-Hermite identity (half the chord to neighbors, one-sided at open
+  endpoints) -- mathematically identical to the old curve, so an all-auto spline renders
+  pixel-identical to before. "Manual" points substitute their authored
+  `tangentIn`/`tangentOut` instead, so reshaping one corner doesn't affect neighboring
+  auto corners (unlike a global interpolation-mode swap). Extending `THREE.Curve` gets
+  arc-length parameterization (`getPointAt`/`getTangentAt`) for free, so every existing
+  consumer (`Road`, `TrackPhysics`'s collider, `estimateLapTimeMs`) needed zero changes.
+- Banking: `RoadSample` gained a `bank` field (interpolated per-point `banking` degrees,
+  same lerp pattern as `width`); `road-mesh.ts`'s cross-section `right` vector now rolls
+  around the tangent by the bank angle, which raises the outer edge and lowers the inner
+  one exactly like a real banked corner -- and since the physics collider is built from
+  the same geometry, cars now physically feel the banking too.
+  - Elevation UI is just the existing Position Y field -- the schema's separate
+    `elevation` field was already unused/dead before this phase and stays that way; adding
+    a second competing "height" concept would have made the model more confusing, not less.
+- Sharp-corner self-intersection fix: `road-mesh.ts` now estimates the local turn radius
+  at each sample (finite difference of tangent direction over a several-sample window)
+  and clamps the half-width offset to a safe fraction of that radius, narrowing the road
+  through tight corners instead of letting the two edges cross. Verified: a realistic
+  tight hairpin (control points spaced reasonably apart) now renders cleanly with no
+  crossing; an intentionally pathological hairpin (control points closer together than
+  the road's own width) still shows a small residual artifact, which is a genuine
+  degenerate-input limit (the centerline itself nearly folds back on itself within less
+  than one road-width) rather than a regression.
+- Viewport additions: `TangentHandles` (draggable green handles + connecting lines, shown
+  only while the selected point's Corner style is Manual) and `ElevationHandle` (a yellow
+  cone above the selected point, drag it vertically to change Position Y) -- both mounted
+  in `EditorEngine` alongside the existing `PointEditingLayer`. The elevation handle uses
+  a drag plane containing the vertical axis through the point and rotated to face the
+  camera, the standard technique for a reliable single-axis gizmo drag.
+- Snapping (`point-editing-layer.tsx`): point-snap is always on (new points and drags
+  within 1.5m of an existing point lock exactly onto it -- useful for closing a loop
+  precisely); grid-snap while holding Ctrl/Cmd (rounds to the visible Grid's 2m cell
+  size); angle-snap while holding Shift, but only when placing a *new* point relative to
+  the previous one (constrains the direction to the nearest 15°, keeping the click's
+  distance) -- the standard vector-tool convention, so no toolbar UI was needed for any of
+  the three.
+- Split-segment: clicking directly on the road surface while the Select tool is active
+  (not the Road tool, which still just appends) inserts a new point at the nearest spot on
+  the sampled centerline, at the correct index via `AddControlPointCommand`'s new optional
+  `index` param. Implemented as an invisible proxy mesh reusing the same
+  `sampleRoadCenterline`/`buildRoadGeometry` pipeline the visible `Road` uses, elevated
+  slightly above the visible surface. Hit a real bug while verifying this in-browser: the
+  proxy's material had no explicit `side`, defaulting to `FrontSide`, and silently never
+  registered a single raycast hit despite being geometrically correct -- `Road`'s own
+  material needs `side={THREE.DoubleSide}` to render from this editor's camera angles, so
+  the same default-side proxy was being raycast against its non-existent front face. Fixed
+  by matching `Road`'s `DoubleSide`.
+- Merge/delete-with-rejoin needed no new code: since the curve is always recomputed from
+  whatever's left in the `points` array, deleting a point already reconnects its neighbors
+  automatically. Verified directly (delete a point, confirm no crash and the inspector
+  closes) rather than building something that already existed.
+- Verified in-browser via Playwright: point-snap/grid-snap/angle-snap all confirmed via
+  exact-value readback from the inspector (not just visual inspection); banking and
+  tangent-mode-toggle read back correctly; split-segment selects a new point on ribbon
+  click and undo removes it; delete-rejoin doesn't crash. Also reran the full Milestone 1
+  create→edit→play→save→reload→publish→share→race loop end-to-end as a regression check
+  (the spline/road-mesh pipeline is shared by rendering, physics, and lap-time estimation)
+  -- passed with zero console errors, confirming the Hermite-curve swap didn't change
+  behavior for existing all-auto tracks.
 
 ### Phase 12 — Terrain Sculpting
 

@@ -5,6 +5,8 @@ import { useEditorStore } from "@/store/editor-store";
 import { useCommandStack } from "./command-stack";
 import { TOOLS } from "./tool-registry";
 import { PointEditingLayer } from "@/modules/editor/tools/point-editing-layer";
+import { TangentHandles } from "@/modules/editor/tools/tangent-handles";
+import { ElevationHandle } from "@/modules/editor/tools/elevation-handle";
 
 function isTypingIntoField(target: EventTarget | null): boolean {
   const tag = (target as HTMLElement | null)?.tagName;
@@ -38,5 +40,11 @@ export function EditorEngine() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [setActiveToolId, undo, redo]);
 
-  return <PointEditingLayer />;
+  return (
+    <>
+      <PointEditingLayer />
+      <TangentHandles />
+      <ElevationHandle />
+    </>
+  );
 }
