@@ -62,11 +62,16 @@ Goal: create a road with splines, edit it live, play it, record a lap, save/relo
 - [x] Verified in-browser via Playwright: issue badge at 0/2 points, Close Loop appearing at 3+ points, closing/reopening updates the badge and the rendered loop shape, start line + checkpoint gates render correctly, undo/redo of the close-loop toggle both work, zero console errors
 
 ### Phase 6 — Instant Play Mode
-- [ ] Rapier physics world, activated only in `mode === "play"`
-- [ ] Collider generation from road geometry (reuse spline pipeline output)
-- [ ] Vehicle controller (keyboard input → throttle/brake/steer forces), tuned for Mr.doob-Starter-Kit-like feel
-- [ ] `RaceCameraRig` (chase cam)
-- [ ] Play/ESC toggle — verify zero reload, zero flash, sub-frame transition
+- [x] Rapier `<Physics>` world mounted only in `ModeController`'s play branch (`modules/scene/mode-controller.tsx`) — unmounts fully on Esc, so every Play press starts fresh at the start line
+- [x] Colliders generated from the same spline → geometry pipeline the visual Road uses (`modules/race/physics/track-physics.tsx`), plus a flat ground collider so driving off-track doesn't fall through the world
+- [x] Vehicle controller (`modules/race/vehicle/use-vehicle-controller.ts`): arcade-style force model on a single dynamic rigid body — speed-scaled direct angular velocity for steering, lateral-velocity damping for grip — rather than Rapier's raycast wheel controller, which is harder to tune for arcade feel and overkill for the "Mr.doob simplicity" the brief asks for
+- [x] `PlayModeCameraRig` replaced with a real smoothed chase camera (exponential-decay position/look-at follow, frame-rate independent)
+- [x] Procedural placeholder `CarModel` (no external assets yet)
+- [x] Play/Esc toggle verified zero-reload/instant (already proven structurally in Phase 2; Phase 6 just gives the play branch real content)
+- **Two real bugs found and fixed during in-browser verification** (both confirmed via temporary position/velocity logging, not just visual inspection):
+  1. The controller read `forwardSpeed`/`lateralSpeed` from velocity *before* calling `applyImpulse`, then overwrote velocity via `setLinvel` using those stale pre-impulse values — silently discarding every frame's engine force (car had exactly zero horizontal velocity despite full throttle). Fixed by resolving forward/lateral speed as scalars and committing one `setLinvel` per frame instead of mixing `applyImpulse` and `setLinvel`.
+  2. `@react-three/rapier`'s mesh-based collider auto-fit (`colliders="cuboid"`/`"trimesh"` on a `<RigidBody>` wrapping a `visible={false}` mesh) silently produced no collider at all — the car fell through both the ground and the road forever with no error. Fixed by switching to explicit `<CuboidCollider>` / `<TrimeshCollider>` components, which is also clearer to read than relying on implicit mesh auto-fit.
+- [x] Verified in-browser via Playwright with temporary debug logging: car rests correctly on the road surface, accelerates/steers/grips in response to input, drives off-track onto the ground plane without falling through, Esc returns instantly to editing, zero console errors
 
 ### Phase 7 — Lap Timing
 - [ ] Checkpoint-order tracking, lap start/finish detection

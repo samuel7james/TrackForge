@@ -7,6 +7,7 @@ import { Toolbar } from "@/modules/editor/ui/toolbar";
 import { InspectorPanel } from "@/modules/editor/ui/inspector-panel";
 import { UndoRedoControls } from "@/modules/editor/ui/undo-redo-controls";
 import { TrackStatus } from "@/modules/editor/ui/track-status";
+import { RaceHud } from "@/modules/race/timing/race-hud";
 import { useEditorStore } from "@/store/editor-store";
 import { useTrackStore } from "@/store/track-store";
 
@@ -65,9 +66,12 @@ export default function NewTrackEditorPage() {
           </>
         )}
         {mode === "play" && (
-          <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
-            Press Esc to return to editing
-          </p>
+          <>
+            <RaceHud />
+            <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
+              WASD / arrows to drive · Esc to return to editing
+            </p>
+          </>
         )}
       </div>
     </div>

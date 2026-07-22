@@ -1,0 +1,86 @@
+"use client";
+
+import type { RefObject } from "react";
+import * as THREE from "three";
+import { useFrame } from "@react-three/fiber";
+import type { RapierRigidBody } from "@react-three/rapier";
+import { useKeyboardInput } from "./use-keyboard-input";
+
+export const VEHICLE_MASS = 900; // kg — kept in sync with Vehicle's RigidBody mass prop
+
+const ENGINE_FORCE = 9000; // N
+const BRAKE_FORCE = 7000; // N (also used for reverse)
+const MAX_FORWARD_SPEED = 32; // m/s soft cap
+const MAX_REVERSE_SPEED = 10; // m/s soft cap
+const MAX_STEER_RATE = 2.2; // rad/s at full speed
+const MIN_STEER_FACTOR = 0.35; // fraction of steer authority available at a standstill
+const GRIP = 8; // higher = less sideways sliding
+const MAX_DELTA = 1 / 30; // clamp huge steps (tab-switch, slow frame)
+
+const CAR_FORWARD = new THREE.Vector3(0, 0, 1);
+const CAR_RIGHT = new THREE.Vector3(1, 0, 0);
+
+// Arcade-style force model on a single dynamic rigid body rather than
+// Rapier's raycast wheel controller — steering is a direct speed-scaled
+// angular velocity (not torque) and lateral velocity is damped toward zero
+// each frame to simulate tire grip. Simpler to tune than a full wheel/
+// suspension sim, closer to the "Mr.doob simplicity" the brief asks for.
+//
+// Everything is resolved in the car's own forward/lateral scalar speeds and
+// applied as a single setLinvel per frame -- mixing applyImpulse with a
+// later setLinvel in the same frame would silently discard the impulse
+// (setLinvel replaces velocity outright; it doesn't add to it).
+export function useVehicleController(rigidBodyRef: RefObject<RapierRigidBody | null>) {
+  const input = useKeyboardInput();
+
+  useFrame((_, rawDelta) => {
+    const body = rigidBodyRef.current;
+    if (!body) return;
+    const delta = Math.min(rawDelta, MAX_DELTA);
+
+    const r = body.rotation();
+    const quat = new THREE.Quaternion(r.x, r.y, r.z, r.w);
+    const forward = CAR_FORWARD.clone().applyQuaternion(quat);
+    const right = CAR_RIGHT.clone().applyQuaternion(quat);
+
+    const lv = body.linvel();
+    const velocity = new THREE.Vector3(lv.x, lv.y, lv.z);
+    let forwardSpeed = velocity.dot(forward);
+    const lateralSpeed = velocity.dot(right);
+
+    const { throttle, steer } = input.current;
+
+    // Steering: direct angular velocity, scaled by current speed so the car
+    // doesn't spin in place at a standstill but still turns tightly when slow.
+    const speedFactor = THREE.MathUtils.clamp(
+      Math.abs(forwardSpeed) / MAX_FORWARD_SPEED,
+      0,
+      1
+    );
+    const steerAngVel =
+      steer * MAX_STEER_RATE * (MIN_STEER_FACTOR + (1 - MIN_STEER_FACTOR) * speedFactor);
+    body.setAngvel({ x: 0, y: steerAngVel, z: 0 }, true);
+
+    // Engine / brake acceleration along the car's forward axis, soft-capped,
+    // integrated directly into the scalar forward speed.
+    let accel = 0;
+    if (throttle > 0 && forwardSpeed < MAX_FORWARD_SPEED) {
+      accel = (throttle * ENGINE_FORCE) / VEHICLE_MASS;
+    } else if (throttle < 0 && forwardSpeed > -MAX_REVERSE_SPEED) {
+      accel = (throttle * BRAKE_FORCE) / VEHICLE_MASS;
+    }
+    forwardSpeed += accel * delta;
+
+    // Lateral grip: exponentially decay sideways speed toward zero so the
+    // car reads as gripping the road instead of ice-skating through turns.
+    const gripAlpha = 1 - Math.exp(-GRIP * delta);
+    const newLateralSpeed = lateralSpeed * (1 - gripAlpha);
+
+    const corrected = forward
+      .clone()
+      .multiplyScalar(forwardSpeed)
+      .add(right.clone().multiplyScalar(newLateralSpeed));
+    corrected.y = lv.y; // preserve vertical velocity (gravity)
+    body.setLinvel(corrected, true);
+  });
+}
