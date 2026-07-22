@@ -17,7 +17,9 @@ import { useMemo } from "react";
 // enough to push its fragments outside the representable range). 180 is
 // comfortably past the grid's own fade distance (150) while staying well
 // inside the range that renders correctly.
-function useSkyGradientTexture() {
+// Six bottom-to-top stops -- matches WeatherPreset.skyGradient (Phase 14),
+// so each weather preset paints its own mood onto the same dome geometry.
+function useSkyGradientTexture(stops: readonly [string, string, string, string, string, string]) {
   return useMemo(() => {
     const width = 2;
     const height = 256;
@@ -26,22 +28,26 @@ function useSkyGradientTexture() {
     canvas.height = height;
     const ctx = canvas.getContext("2d")!;
     const gradient = ctx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, "#12102a");
-    gradient.addColorStop(0.35, "#3a2a55");
-    gradient.addColorStop(0.55, "#8a4f6b");
-    gradient.addColorStop(0.7, "#e0824f");
-    gradient.addColorStop(0.85, "#ffb45c");
-    gradient.addColorStop(1, "#ffd9a0");
+    gradient.addColorStop(0, stops[0]);
+    gradient.addColorStop(0.35, stops[1]);
+    gradient.addColorStop(0.55, stops[2]);
+    gradient.addColorStop(0.7, stops[3]);
+    gradient.addColorStop(0.85, stops[4]);
+    gradient.addColorStop(1, stops[5]);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
-  }, []);
+  }, [stops]);
 }
 
-export function SkyDome() {
-  const texture = useSkyGradientTexture();
+interface SkyDomeProps {
+  gradient: readonly [string, string, string, string, string, string];
+}
+
+export function SkyDome({ gradient }: SkyDomeProps) {
+  const texture = useSkyGradientTexture(gradient);
 
   return (
     <mesh scale={180}>

@@ -370,10 +370,48 @@ loop as Milestone 1.
 
 ### Phase 14 — Weather & Lighting Presets
 
-- [ ] A handful of presets (e.g. Clear Day, Overcast, Sunset, Night) driving sun angle/
+- [x] A handful of presets (e.g. Clear Day, Overcast, Sunset, Night) driving sun angle/
       color, sky, ambient/fog
-- [ ] Real-time preview while editing (no reload needed)
-- [ ] Preset choice persists as part of the track document
+- [x] Real-time preview while editing (no reload needed)
+- [x] Preset choice persists as part of the track document
+
+**Notes:**
+
+- All 7 of the schema's existing `weather` enum values got a preset (Clear Day, Sunset,
+  Night, Rain, Snow, Fog, Cloudy) rather than just the 4 examples in the phase
+  description, since the schema already committed to that enum back in Milestone 1.
+- `modules/environment/weather-presets.ts`: each preset sets sun color/base intensity,
+  hemisphere sky/ground colors, ambient intensity, a 6-stop sky gradient (feeding
+  `SkyDome`, now parametrized instead of hardcoded), and a default time-of-day/fog-density
+  to seed when that preset is chosen. Sun *position* is computed separately, continuously,
+  from `environment.timeOfDay` (`sunPositionAndFactor`): elevation follows a sunrise-6/
+  noon-12/sunset-18/midnight-0 arc, and the resulting elevation factor further scales
+  whatever the preset's base sun intensity is -- so the discrete preset (mood) and the
+  continuous time-of-day dial (actual sun position/darkness) compose instead of
+  fighting each other. Picking "Night" then dragging the time slider to noon doesn't stay
+  pitch black, and picking "Clear Day" at midnight still goes dark.
+- Fixed a pre-existing inconsistency along the way: `environment.fogDensity` was always
+  named for exponential falloff, but `SceneRoot` used a linear `<fog near far>` with
+  hardcoded distances that never read it. Switched to `<fogExp2 density={...}>`, which
+  actually uses the field it's named after.
+- Also fixed a cosmetic mismatch: the schema's default `weather: "sunny"` produced a
+  moody purple-dusk look (the *old* hardcoded gradient), not anything resembling "sunny".
+  That gradient is now specifically the Sunset preset; Clear Day is an actual bright blue
+  sky.
+- No literal rain/snow particle effects -- Rain/Snow/Fog presets are lighting/sky/fog mood
+  only (desaturated tones, denser fog for wet/snowy/foggy readability). Real precipitation
+  particles would be a substantial separate effort better scoped as its own follow-up
+  than folded into "lighting presets."
+- `EnvironmentDialog` (new header button, next to Publish): a preset grid plus time-of-day
+  and fog-density sliders. Sliders apply live to the store on every `onValueChange` (real-
+  time preview) but record exactly one `UpdateEnvironmentCommand` on `onValueCommitted`
+  (drag release) -- same "apply live, commit once" shape as control-point dragging and
+  terrain brush strokes, so dragging a slider doesn't flood the undo stack.
+- Verified in-browser: all 7 presets produce visually distinct, correct scenes; the
+  time-of-day slider updates the live scene and its label continuously; a chosen preset
+  survives a real save -> full page reload round-trip; undo reverts an environment change.
+  Reran the full Milestone 1 loop and the Phase 13 object-placement suite as a regression
+  check given how central `SceneRoot` is -- zero console errors throughout.
 
 ### Phase 15 — Additional Camera Modes
 

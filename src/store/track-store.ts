@@ -8,6 +8,8 @@ import {
   type TrackDocument,
 } from "@/modules/track-format/schema";
 
+type EnvironmentPatch = Partial<TrackDocument["environment"]>;
+
 export interface TrackMetaPatch {
   name?: string;
   description?: string;
@@ -28,6 +30,7 @@ interface TrackState {
   insertPlacedObject: (object: PlacedObject) => void;
   removePlacedObjectById: (objectId: string) => void;
   patchPlacedObject: (objectId: string, patch: Partial<PlacedObject>) => void;
+  patchEnvironment: (patch: EnvironmentPatch) => void;
 
   // Persistence-related — bypass the Command stack entirely (system actions,
   // not user edits; undo shouldn't un-assign a slug or un-load a document).
@@ -136,6 +139,11 @@ export const useTrackStore = create<TrackState>((set) => ({
           o.id === objectId ? { ...o, ...patch } : o
         ),
       },
+    })),
+
+  patchEnvironment: (patch) =>
+    set((state) => ({
+      document: { ...state.document, environment: { ...state.document.environment, ...patch } },
     })),
 
   setSlug: (slug) =>
