@@ -27,11 +27,12 @@ Goal: create a road with splines, edit it live, play it, record a lap, save/relo
 - [x] Base app shell: `/` (placeholder home), `/editor/new` route stub
 
 ### Phase 2 — Scene Core (One Scene, Two Modes)
-- [ ] `TrackForgeCanvas` — single persistent `<Canvas>`
-- [ ] `SceneRoot` — renders from an (initially empty) `trackStore`
-- [ ] `editorStore` with `mode: "edit" | "play"`
-- [ ] `EditorCameraRig` (orbit camera to start)
-- [ ] Ground plane placeholder (flat, textured) standing in for terrain until Milestone 2
+- [x] `TrackForgeCanvas` — single persistent `<Canvas>`
+- [x] `SceneRoot` — renders from `trackStore` (currently a minimal name-only stub; reactive label proves the wiring ahead of Phase 3's full document)
+- [x] `editorStore` with `mode: "edit" | "play"`
+- [x] `EditorCameraRig` (orbit camera) + temporary `PlayModeCameraRig` placeholder + `ModeController` swap, wired to a Play/Edit toggle button and Esc-to-edit — validates the zero-remount mode switch ahead of Phase 6's real vehicle controller
+- [x] Ground plane placeholder (flat + grid) standing in for terrain until Milestone 2
+- [x] Verified in-browser via Playwright: scene renders, mode toggle + Esc both work, no console errors
 
 ### Phase 3 — Spline Data Model & Road Tool
 - [ ] `track-format/schema.ts` — `TrackDocument` v1 types + Zod schema (full shape from plan, only `splines` populated in M1 UI)
