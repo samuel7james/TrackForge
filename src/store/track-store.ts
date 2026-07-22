@@ -1,9 +1,16 @@
 import { create } from "zustand";
 import {
   createEmptyTrackDocument,
+  type Difficulty,
   type RoadControlPoint,
   type TrackDocument,
 } from "@/modules/track-format/schema";
+
+export interface TrackMetaPatch {
+  name?: string;
+  description?: string;
+  difficulty?: Difficulty;
+}
 
 interface TrackState {
   document: TrackDocument;
@@ -18,6 +25,7 @@ interface TrackState {
   // Persistence-related — bypass the Command stack entirely (system actions,
   // not user edits; undo shouldn't un-assign a slug or un-load a document).
   setSlug: (slug: string) => void;
+  setMeta: (patch: TrackMetaPatch) => void;
   loadDocument: (document: TrackDocument) => void;
 }
 
@@ -87,6 +95,11 @@ export const useTrackStore = create<TrackState>((set) => ({
   setSlug: (slug) =>
     set((state) => ({
       document: { ...state.document, meta: { ...state.document.meta, slug } },
+    })),
+
+  setMeta: (patch) =>
+    set((state) => ({
+      document: { ...state.document, meta: { ...state.document.meta, ...patch } },
     })),
 
   loadDocument: (document) => set({ document }),

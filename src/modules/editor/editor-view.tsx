@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { TrackForgeCanvas } from "@/modules/scene/track-forge-canvas";
 import { ModeToggle } from "@/modules/editor/ui/mode-toggle";
@@ -9,6 +10,7 @@ import { InspectorPanel } from "@/modules/editor/ui/inspector-panel";
 import { UndoRedoControls } from "@/modules/editor/ui/undo-redo-controls";
 import { TrackStatus } from "@/modules/editor/ui/track-status";
 import { SaveButton } from "@/modules/editor/ui/save-button";
+import { PublishDialog } from "@/modules/editor/ui/publish-dialog";
 import { RaceHud } from "@/modules/race/timing/race-hud";
 import { useEditorStore } from "@/store/editor-store";
 import { useTrackStore } from "@/store/track-store";
@@ -26,6 +28,8 @@ export function EditorView({ slug }: EditorViewProps) {
   const activeToolId = useEditorStore((s) => s.activeToolId);
   const trackName = useTrackStore((s) => s.document.meta.name);
   const [isLoading, setIsLoading] = useState(Boolean(slug));
+  const searchParams = useSearchParams();
+  const autoplay = searchParams.get("autoplay") === "1";
 
   useAutosave();
 
@@ -72,6 +76,14 @@ export function EditorView({ slug }: EditorViewProps) {
     };
   }, [slug]);
 
+  // "Play" CTA on a track's public page links here with ?autoplay=1 so a
+  // visitor lands directly in the driver's seat instead of the editor.
+  useEffect(() => {
+    if (autoplay && !isLoading) {
+      setMode("play");
+    }
+  }, [autoplay, isLoading, setMode]);
+
   return (
     <div className="fixed inset-0">
       <TrackForgeCanvas />
@@ -89,6 +101,7 @@ export function EditorView({ slug }: EditorViewProps) {
                 <UndoRedoControls />
                 <TrackStatus />
                 <SaveButton />
+                <PublishDialog />
               </>
             )}
           </div>

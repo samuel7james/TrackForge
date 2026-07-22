@@ -16,7 +16,7 @@ export default function Home() {
           — all in the browser.
         </p>
       </div>
-      <Button size="lg" render={<Link href="/editor/new" />}>
+      <Button size="lg" nativeButton={false} render={<Link href="/editor/new" />}>
         Open the editor
       </Button>
     </div>

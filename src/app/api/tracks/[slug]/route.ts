@@ -54,7 +54,11 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const [updated] = await prisma.$transaction([
     prisma.track.update({
       where: { slug },
-      data: { document, name: document.meta.name },
+      data: {
+        document,
+        name: document.meta.name,
+        description: document.meta.description,
+      },
     }),
     // One row per save (PROJECT_PLAN.md §7) — empty of product features
     // until Milestone 3's version history UI, but capturing the trail from

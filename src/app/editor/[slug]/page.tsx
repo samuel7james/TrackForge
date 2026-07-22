@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { EditorView } from "@/modules/editor/editor-view";
 
 interface ExistingTrackEditorPageProps {
@@ -8,5 +9,9 @@ export default async function ExistingTrackEditorPage({
   params,
 }: ExistingTrackEditorPageProps) {
   const { slug } = await params;
-  return <EditorView slug={slug} />;
+  return (
+    <Suspense fallback={null}>
+      <EditorView slug={slug} />
+    </Suspense>
+  );
 }
