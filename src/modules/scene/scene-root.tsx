@@ -3,6 +3,7 @@
 import { Grid } from "@react-three/drei";
 import { useTrackStore } from "@/store/track-store";
 import { Road } from "@/modules/spline/road";
+import { TrackMarkers } from "./track-markers";
 
 // Renders the track document as a scene — the one part of the app that both
 // the editor and Play mode mount unchanged (see PROJECT_PLAN.md §4).
@@ -48,6 +49,7 @@ export function SceneRoot() {
       {splines.map((spline) => (
         <Road key={spline.id} spline={spline} />
       ))}
+      <TrackMarkers />
     </>
   );
 }

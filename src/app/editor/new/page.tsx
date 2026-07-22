@@ -6,6 +6,7 @@ import { ModeToggle } from "@/modules/editor/ui/mode-toggle";
 import { Toolbar } from "@/modules/editor/ui/toolbar";
 import { InspectorPanel } from "@/modules/editor/ui/inspector-panel";
 import { UndoRedoControls } from "@/modules/editor/ui/undo-redo-controls";
+import { TrackStatus } from "@/modules/editor/ui/track-status";
 import { useEditorStore } from "@/store/editor-store";
 import { useTrackStore } from "@/store/track-store";
 
@@ -37,7 +38,12 @@ export default function NewTrackEditorPage() {
             </span>
             <span className="text-muted-foreground">/</span>
             <span className="text-muted-foreground">{trackName}</span>
-            {mode === "edit" && <UndoRedoControls />}
+            {mode === "edit" && (
+              <>
+                <UndoRedoControls />
+                <TrackStatus />
+              </>
+            )}
           </div>
           <ModeToggle />
         </header>

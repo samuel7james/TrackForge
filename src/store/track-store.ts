@@ -13,6 +13,7 @@ interface TrackState {
   insertControlPoint: (point: RoadControlPoint, index?: number) => void;
   removeControlPointById: (pointId: string) => void;
   patchControlPoint: (pointId: string, patch: Partial<RoadControlPoint>) => void;
+  setSplineClosed: (splineId: string, closed: boolean) => void;
 }
 
 export const useTrackStore = create<TrackState>((set) => ({
@@ -67,4 +68,14 @@ export const useTrackStore = create<TrackState>((set) => ({
         },
       };
     }),
+
+  setSplineClosed: (splineId, closed) =>
+    set((state) => ({
+      document: {
+        ...state.document,
+        splines: state.document.splines.map((s) =>
+          s.id === splineId ? { ...s, closed } : s
+        ),
+      },
+    })),
 }));

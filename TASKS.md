@@ -53,10 +53,13 @@ Goal: create a road with splines, edit it live, play it, record a lap, save/relo
 - [x] Verified in-browser via Playwright: tool switching (click + shortcut), Road-adds/Select-doesn't, inspector width edits, full undo/redo cycles for add/update/remove (including order-preserving delete-undo), input-focus guard (Backspace in a field edits the field, not the point), zero console errors
 
 ### Phase 5 — Track Validation
-- [ ] Auto-generate start/finish line from spline start
-- [ ] Auto-generate checkpoints along spline at intervals
-- [ ] Validator: closed loop, checkpoints reachable/ordered
-- [ ] Validation surfaced in UI (blocks Play/Publish when invalid, explains why)
+- [x] Auto-generate start/finish line from spline start (`generateStartLine`) — derived from the spline every render via `useStartLine()`, not independently stored during editing
+- [x] Auto-generate checkpoints along spline at even arc-length intervals (`generateCheckpoints` / `useCheckpoints()`) — inherently ordered since they're walked along the curve, so "correct order" needs no separate check
+- [x] Validator (`modules/track-format/validate-track.ts`): closed loop + minimum 3 points. A single continuous Milestone-1 spline can't have unreachable sections, so that's the whole layout check for now
+- [x] Added a **Close Loop** toggle (`ToggleSplineClosedCommand`, undoable) — without it the validator could never pass, since "closed" isn't otherwise reachable from the UI
+- [x] Validation surfaced in the UI: a status badge (header) with a hover tooltip listing issues
+- **Scope revision from the original bullet:** validation blocks **Publish** (Phase 9), not Play. Blocking Play would contradict the master prompt's own "Instant Play Mode — test at any time" philosophy; you should be able to test-drive a road while it's still unfinished. The validator itself is fully built here; enforcement is wired to whichever action actually needs it.
+- [x] Verified in-browser via Playwright: issue badge at 0/2 points, Close Loop appearing at 3+ points, closing/reopening updates the badge and the rendered loop shape, start line + checkpoint gates render correctly, undo/redo of the close-loop toggle both work, zero console errors
 
 ### Phase 6 — Instant Play Mode
 - [ ] Rapier physics world, activated only in `mode === "play"`
