@@ -3,6 +3,7 @@
 import { Grid } from "@react-three/drei";
 import { useTrackStore } from "@/store/track-store";
 import { Road } from "@/modules/spline/road";
+import { Terrain } from "@/modules/terrain/terrain";
 import { TrackMarkers } from "./track-markers";
 import { SkyDome } from "./sky-dome";
 
@@ -40,10 +41,7 @@ export function SceneRoot() {
         shadow-camera-bottom={-50}
       />
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[500, 500]} />
-        <meshStandardMaterial color="#23212b" roughness={0.95} metalness={0} />
-      </mesh>
+      <Terrain />
 
       <Grid
         position={[0, 0.01, 0]}

@@ -256,10 +256,69 @@ loop as Milestone 1.
 
 ### Phase 12 — Terrain Sculpting
 
-- [ ] Ground plane becomes a sculptable heightfield (raise/lower/flatten/smooth/noise brushes)
-- [ ] Terrain collider stays in sync with the visual mesh (Rapier heightfield or regenerated trimesh)
-- [ ] Texture painting (at least 2-3 blendable ground textures)
-- [ ] Track validation accounts for terrain (car's actual driving surface, not just the spline)
+- [x] Ground plane becomes a sculptable heightfield (raise/lower/flatten/smooth/noise brushes)
+- [x] Terrain collider stays in sync with the visual mesh (Rapier heightfield or regenerated trimesh)
+- [x] Texture painting (at least 2-3 blendable ground textures)
+- [x] Track validation accounts for terrain (car's actual driving surface, not just the spline)
+
+**Notes:**
+
+- Schema: `terrain.resolution` is now vertices-per-side (65, i.e. 64x64 cells over the
+  existing 500x500 `size`), with `heightmap`/each texture layer's `weightmap` a flat
+  `resolution*resolution` array. Added cross-field Zod `.refine()`s so a corrupted terrain
+  document (wrong array length) fails validation at the load boundary instead of producing
+  a mismatched mesh/collider. `createEmptyTrackDocument` now seeds a real flat terrain (all
+  heights 0, grass fully weighted, dirt/rock at 0) instead of the old empty placeholder
+  arrays, so there's always something valid to render and paint from the first save.
+- `modules/terrain/`: `heightmap.ts` (grid index helpers, `applyBrush` for
+  raise/lower/flatten/smooth/noise with radial smoothstep falloff, `applyPaint` for
+  splat-map-style texture weight painting that renormalizes all layers at each touched
+  vertex back to summing to 1, `sampleTerrainHeight` for bilinear lookups used by
+  validation), `terrain-mesh.ts` (manual `BufferGeometry` construction like
+  `road-mesh.ts`'s ribbon, vertex-colored by blending grass/dirt/rock per-vertex weights),
+  `terrain.tsx` (the presentational component, replacing `SceneRoot`'s old static flat
+  plane -- shared unchanged between edit/play like `Road`).
+- Editor: new "Terrain" tool (`T` shortcut) alongside Select/Road. `TerrainSculptLayer`
+  (mounted in `EditorEngine`, active only for this tool) is an invisible raycastable copy
+  of the terrain surface handling brush strokes; `TerrainBrushPanel` picks brush mode,
+  radius, strength, and (for Paint) which layer. One `TerrainSculptCommand` per whole
+  stroke (pointer down→up), not per dab, snapshotting the full heightmap/texture-layer
+  state before/after so undo/redo doesn't produce dozens of stack entries per drag.
+- Physics: `TrackPhysics`'s flat `CuboidCollider` ground is now a real `HeightfieldCollider`
+  built from the same heightmap (`terrain-mesh.ts`'s `terrainHeightsForCollider`), sharing
+  the exact `index(ix,iz) = ix + iz*resolution` convention as Rapier's column-major heights
+  matrix layout, so no transform is needed between what's rendered and what's collided
+  with. Verified sculpted bumps physically affect the car (an aggressive test bump visibly
+  launched it airborne; a moderate one on a straight produced a clean, controllable rise).
+- Track validation: `validateTerrainAlignment` (`validate-track.ts`) samples the road
+  centerline at a stride and bilinear-samples the terrain height underneath each sampled
+  point via `sampleTerrainHeight`; if any diverge by more than 1.5m it surfaces a
+  `terrain-mismatch` issue through the existing `TrackStatus`/`PublishDialog` UI (no new
+  feedback mechanism needed). Verified: valid before sculpting, "1 issue" with the
+  terrain-mismatch message after digging a deep pit under the road.
+- **Found and fixed a real, pre-existing bug while verifying Play mode, unrelated to
+  terrain**: the car essentially couldn't drive. Root-caused via per-physics-step velocity
+  logging (not just screenshots, which weren't sensitive enough to catch this) to
+  `useVehicleController` running on `useFrame` (once per *rendered* frame) while
+  `@react-three/rapier`'s `<Physics>` steps its world on its own fixed internal timestep
+  (default 1/60s) and substeps to catch up whenever rendering falls behind -- confirmed
+  substepping ~4x per rendered frame in this environment. Ground friction/damping got to
+  act on the body's velocity every one of those substeps while the controller's
+  `accel*delta` thrust model only got to run once, so friction won every time and the car
+  barely crept forward no matter how long throttle was held. Fixed by switching to
+  `useBeforePhysicsStep`, which fires exactly once per actual physics step, restoring the
+  1:1 correspondence the model assumes. Also fixed a second, related issue in the same
+  investigation: `Vehicle`'s `RigidBody` was passed `position`/`quaternion` as ongoing JSX
+  props (React Three Fiber re-applies array-valued props like `position` every render,
+  which was fighting the physics simulation); moved spawn placement to a one-time
+  imperative `setTranslation`/`setRotation` in a mount-only effect instead. Verified with
+  per-frame position logging: the car now covers ~104m in 12 real seconds (vs. ~1.5m
+  before), physics stepping at a clean, render-rate-independent 60Hz.
+- Full regression: reran both the Milestone 1 create→edit→play→save→reload→publish→
+  share→race loop and the entire Phase 11 spline-editing verification suite (tangent
+  handles, snapping, split-segment, banking) -- all still pass with zero console errors,
+  confirming the vehicle-controller fix and terrain/collider changes didn't regress
+  anything else.
 
 ### Phase 13 — Object Placement System
 

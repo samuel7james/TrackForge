@@ -63,12 +63,24 @@ export const terrainTextureLayerSchema = z.object({
 });
 export type TerrainTextureLayer = z.infer<typeof terrainTextureLayerSchema>;
 
-export const terrainDataSchema = z.object({
-  size: z.object({ width: z.number(), depth: z.number() }),
-  resolution: z.number(),
-  heightmap: z.array(z.number()),
-  textureLayers: z.array(terrainTextureLayerSchema),
-});
+// resolution is vertices-per-side (not cells), so heightmap/weightmap arrays
+// are always resolution*resolution -- checked below so a corrupted document
+// fails Zod validation at the load boundary (editor-view.tsx) rather than
+// producing a mismatched mesh/collider silently.
+export const terrainDataSchema = z
+  .object({
+    size: z.object({ width: z.number(), depth: z.number() }),
+    resolution: z.number().int().positive(),
+    heightmap: z.array(z.number()),
+    textureLayers: z.array(terrainTextureLayerSchema),
+  })
+  .refine((t) => t.heightmap.length === t.resolution * t.resolution, {
+    message: "terrain heightmap length must equal resolution * resolution",
+  })
+  .refine(
+    (t) => t.textureLayers.every((l) => l.weightmap.length === t.resolution * t.resolution),
+    { message: "each terrain texture layer's weightmap must match the terrain resolution" }
+  );
 export type TerrainData = z.infer<typeof terrainDataSchema>;
 
 export const placedObjectSchema = z.object({
@@ -128,6 +140,12 @@ export type TrackDocument = z.infer<typeof trackDocumentSchema>;
 
 const DEFAULT_ROAD_WIDTH = 8;
 
+// Vertices per side of the terrain grid. 65 (64 cells) over a 500x500 world
+// keeps each cell a manageable ~7.8m -- coarse enough to sculpt and collide
+// with cheaply, fine enough for real hills rather than a handful of facets.
+export const TERRAIN_RESOLUTION = 65;
+export const TERRAIN_SIZE = 500;
+
 export function createControlPoint(position: Vec3): RoadControlPoint {
   return {
     id: crypto.randomUUID(),
@@ -138,6 +156,23 @@ export function createControlPoint(position: Vec3): RoadControlPoint {
     width: DEFAULT_ROAD_WIDTH,
     banking: 0,
     elevation: 0,
+  };
+}
+
+export function createFlatTerrain(): TerrainData {
+  const cellCount = TERRAIN_RESOLUTION * TERRAIN_RESOLUTION;
+  return {
+    size: { width: TERRAIN_SIZE, depth: TERRAIN_SIZE },
+    resolution: TERRAIN_RESOLUTION,
+    heightmap: new Array(cellCount).fill(0),
+    // Grass fully weighted everywhere, dirt/rock at zero -- a real starting
+    // state (rather than empty arrays) so the terrain always has something
+    // valid to render and paint from the first save.
+    textureLayers: [
+      { type: "grass", weightmap: new Array(cellCount).fill(1) },
+      { type: "dirt", weightmap: new Array(cellCount).fill(0) },
+      { type: "rock", weightmap: new Array(cellCount).fill(0) },
+    ],
   };
 }
 
@@ -161,12 +196,7 @@ export function createEmptyTrackDocument(name = "Untitled Track"): TrackDocument
     // (even empty) rather than being lazily created — this keeps the Add/
     // Remove control point commands simple (see modules/editor/commands).
     splines: [{ id: crypto.randomUUID(), closed: false, points: [] }],
-    terrain: {
-      size: { width: 500, depth: 500 },
-      resolution: 1,
-      heightmap: [],
-      textureLayers: [],
-    },
+    terrain: createFlatTerrain(),
     objects: [],
     checkpoints: [],
     startLine: {

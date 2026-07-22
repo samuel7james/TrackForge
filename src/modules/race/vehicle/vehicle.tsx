@@ -26,13 +26,36 @@ export function Vehicle() {
     };
   }, []);
 
+  // Position/rotation are set imperatively, once, on mount -- NOT passed as
+  // ongoing JSX props. React Three Fiber re-applies array-valued props like
+  // `position` on every render (it can't cheaply diff array contents), which
+  // was fighting the physics simulation: it kept resetting the RigidBody
+  // back to the spawn point, so setLinvel's velocity was silently discarded
+  // every time Vehicle re-rendered. Confirmed the hard way with per-frame
+  // velocity logging: forward speed built up for a couple of physics steps,
+  // then snapped back to ~0 in a tight repeating cycle -- the car was
+  // "driving" in place. A mount-only effect avoids the fight entirely; this
+  // is also semantically correct since Vehicle only ever mounts fresh when
+  // Play starts (ModeController), so there's exactly one spawn per session.
+  useEffect(() => {
+    const body = rigidBodyRef.current;
+    if (!body) return;
+    body.setTranslation(
+      { x: spawn.position.x, y: spawn.position.y + 0.5, z: spawn.position.z },
+      true
+    );
+    body.setRotation(
+      { x: spawn.rotation.x, y: spawn.rotation.y, z: spawn.rotation.z, w: spawn.rotation.w },
+      true
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <RigidBody
       ref={rigidBodyRef}
       colliders={false}
       mass={VEHICLE_MASS}
-      position={[spawn.position.x, spawn.position.y + 0.5, spawn.position.z]}
-      quaternion={[spawn.rotation.x, spawn.rotation.y, spawn.rotation.z, spawn.rotation.w]}
       linearDamping={0.4}
       angularDamping={4}
       canSleep={false}

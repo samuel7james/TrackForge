@@ -7,6 +7,7 @@ import { TOOLS } from "./tool-registry";
 import { PointEditingLayer } from "@/modules/editor/tools/point-editing-layer";
 import { TangentHandles } from "@/modules/editor/tools/tangent-handles";
 import { ElevationHandle } from "@/modules/editor/tools/elevation-handle";
+import { TerrainSculptLayer } from "@/modules/editor/tools/terrain-sculpt-layer";
 
 function isTypingIntoField(target: EventTarget | null): boolean {
   const tag = (target as HTMLElement | null)?.tagName;
@@ -45,6 +46,7 @@ export function EditorEngine() {
       <PointEditingLayer />
       <TangentHandles />
       <ElevationHandle />
+      <TerrainSculptLayer />
     </>
   );
 }

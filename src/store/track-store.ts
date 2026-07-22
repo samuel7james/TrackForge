@@ -3,6 +3,7 @@ import {
   createEmptyTrackDocument,
   type Difficulty,
   type RoadControlPoint,
+  type TerrainTextureLayer,
   type TrackDocument,
 } from "@/modules/track-format/schema";
 
@@ -21,6 +22,8 @@ interface TrackState {
   removeControlPointById: (pointId: string) => void;
   patchControlPoint: (pointId: string, patch: Partial<RoadControlPoint>) => void;
   setSplineClosed: (splineId: string, closed: boolean) => void;
+  setTerrainHeightmap: (heightmap: number[]) => void;
+  setTerrainTextureLayers: (textureLayers: TerrainTextureLayer[]) => void;
 
   // Persistence-related — bypass the Command stack entirely (system actions,
   // not user edits; undo shouldn't un-assign a slug or un-load a document).
@@ -89,6 +92,22 @@ export const useTrackStore = create<TrackState>((set) => ({
         splines: state.document.splines.map((s) =>
           s.id === splineId ? { ...s, closed } : s
         ),
+      },
+    })),
+
+  setTerrainHeightmap: (heightmap) =>
+    set((state) => ({
+      document: {
+        ...state.document,
+        terrain: { ...state.document.terrain, heightmap },
+      },
+    })),
+
+  setTerrainTextureLayers: (textureLayers) =>
+    set((state) => ({
+      document: {
+        ...state.document,
+        terrain: { ...state.document.terrain, textureLayers },
       },
     })),
 

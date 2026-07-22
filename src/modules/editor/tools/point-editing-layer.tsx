@@ -233,15 +233,20 @@ export function PointEditingLayer() {
 
   return (
     <>
-      {/* Invisible-but-raycastable click target for appending new points. */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        onClick={handleGroundClick}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        <planeGeometry args={[500, 500]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
+      {/* Invisible-but-raycastable click target for appending new points --
+          skipped in the Terrain tool so it can't shadow TerrainSculptLayer's
+          own raycast target in a sculpted valley (this plane is always at
+          y=0, which would sit above lowered terrain). */}
+      {activeToolId !== "terrain" && (
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          onClick={handleGroundClick}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <planeGeometry args={[500, 500]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      )}
 
       {splitProxyGeometry && activeToolId === "select" && (
         <mesh

@@ -2,7 +2,7 @@
 
 import type { RefObject } from "react";
 import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
+import { useBeforePhysicsStep } from "@react-three/rapier";
 import type { RapierRigidBody } from "@react-three/rapier";
 import { useKeyboardInput } from "./use-keyboard-input";
 import { vehicleVisualState } from "./vehicle-visual-state";
@@ -16,7 +16,6 @@ const MAX_REVERSE_SPEED = 10; // m/s soft cap
 const MAX_STEER_RATE = 2.2; // rad/s at full speed
 const MIN_STEER_FACTOR = 0.35; // fraction of steer authority available at a standstill
 const GRIP = 8; // higher = less sideways sliding
-const MAX_DELTA = 1 / 30; // clamp huge steps (tab-switch, slow frame)
 
 const CAR_FORWARD = new THREE.Vector3(0, 0, 1);
 const CAR_RIGHT = new THREE.Vector3(1, 0, 0);
@@ -31,13 +30,26 @@ const CAR_RIGHT = new THREE.Vector3(1, 0, 0);
 // applied as a single setLinvel per frame -- mixing applyImpulse with a
 // later setLinvel in the same frame would silently discard the impulse
 // (setLinvel replaces velocity outright; it doesn't add to it).
+//
+// Runs on useBeforePhysicsStep, not useFrame -- Rapier's <Physics> steps the
+// world on its own fixed internal timestep (default 1/60s) and can run
+// several such steps per rendered frame to catch up whenever the render
+// rate dips below that (a real gap here, not just a slow-CPU edge case:
+// verified at ~14fps the world was substepping ~4x per rendered frame).
+// useFrame only fires once per RENDERED frame, so at a lower render rate
+// this model's accel*delta was only being applied once while ground
+// friction/damping got to act on the body's velocity every one of those
+// substeps -- friction had several more chances to act than thrust did, so
+// the car barely crept forward. useBeforePhysicsStep fires exactly once per
+// actual physics step, keeping thrust and friction/damping in the same
+// 1:1 correspondence the model assumes.
 export function useVehicleController(rigidBodyRef: RefObject<RapierRigidBody | null>) {
   const input = useKeyboardInput();
 
-  useFrame((_, rawDelta) => {
+  useBeforePhysicsStep((world) => {
     const body = rigidBodyRef.current;
     if (!body) return;
-    const delta = Math.min(rawDelta, MAX_DELTA);
+    const delta = world.timestep;
 
     const r = body.rotation();
     const quat = new THREE.Quaternion(r.x, r.y, r.z, r.w);
