@@ -74,9 +74,11 @@ Goal: create a road with splines, edit it live, play it, record a lap, save/relo
 - [x] Verified in-browser via Playwright with temporary debug logging: car rests correctly on the road surface, accelerates/steers/grips in response to input, drives off-track onto the ground plane without falling through, Esc returns instantly to editing, zero console errors
 
 ### Phase 7 — Lap Timing
-- [ ] Checkpoint-order tracking, lap start/finish detection
-- [ ] `raceStore`: current lap time, sector splits, last lap, best lap (session-only for M1)
-- [ ] HUD overlay during Play mode
+- [x] Gate-crossing detection (`modules/race/timing/gate-crossing.ts`): transforms car position into the gate's local space and checks for a forward-axis sign change within the gate's lateral bounds — a plain distance-to-center check would miss cars passing near the edge of a wide gate
+- [x] Checkpoint-order tracking + lap start/finish detection (`modules/race/timing/lap-timer.tsx`) — checkpoints must be crossed in order before start/finish completes a lap; crossing start/finish early is silently ignored rather than penalized, keeping M1 forgiving
+- [x] `raceStore`: current lap (event-driven start/sector/complete, not a 60fps store tick), last lap, best lap, best-per-sector, session lap history — persists across multiple Play sessions within the same page load, reset only on full reload
+- [x] HUD overlay (`modules/race/timing/race-hud.tsx`): live lap timer ticks via `requestAnimationFrame` mutating a ref directly (not React state), so it updates smoothly without re-rendering the rest of the HUD; last/best lap; a fading sector-delta indicator (green/amber) on each checkpoint cross
+- [x] Verified in-browser via Playwright, directly (not just visually): confirmed `hasCrossedGate` correctly fires for both the start line and a checkpoint gate, confirmed the order-guard correctly ignores an early start/finish crossing while a checkpoint is still pending, confirmed a full start→complete lap cycle with correct elapsed time and correct HUD last/best display, zero console errors. Scripted autonomous circular driving proved too non-deterministic to reliably reach a checkpoint placed partway around a large loop, so that specific crossing was confirmed with a direct teleport-across-the-gate test instead — the exact same `hasCrossedGate` code path the start-line crossings (proven across several successful runs) already exercised, just with checkpoint gate data instead of start-line data.
 
 ### Phase 8 — Persistence
 - [ ] `POST /api/tracks` — create + return `{ id, editToken }`

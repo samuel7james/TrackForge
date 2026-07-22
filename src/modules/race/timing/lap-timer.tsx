@@ -49,21 +49,17 @@ export function LapTimer() {
       targetCheckpoint &&
       hasCrossedGate(previousPos, currentPosition, targetCheckpoint)
     ) {
-      console.log(`DEBUG sector-${nextCheckpointIndex}-crossed`);
       recordSector(nextCheckpointIndex, now);
     }
 
     if (hasCrossedGate(previousPos, currentPosition, startLine)) {
       const current = useRaceStore.getState();
       if (current.lapStartTime === null) {
-        console.log("DEBUG lap-start");
         startLap(now);
       } else if (current.nextCheckpointIndex >= checkpoints.length) {
-        console.log(`DEBUG lap-complete ${now - current.lapStartTime}`);
         completeLap(now);
-      } else {
-        console.log("DEBUG start-finish-crossed-early-ignored");
       }
+      // else: crossed start/finish before all checkpoints -- ignored.
     }
 
     previousPosition.current.copy(currentPosition);
