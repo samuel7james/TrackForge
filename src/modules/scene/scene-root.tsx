@@ -4,6 +4,7 @@ import { Grid } from "@react-three/drei";
 import { useTrackStore } from "@/store/track-store";
 import { Road } from "@/modules/spline/road";
 import { Terrain } from "@/modules/terrain/terrain";
+import { PlacedObjects } from "@/modules/objects/placed-objects";
 import { TrackMarkers } from "./track-markers";
 import { SkyDome } from "./sky-dome";
 
@@ -60,6 +61,7 @@ export function SceneRoot() {
       {splines.map((spline) => (
         <Road key={spline.id} spline={spline} />
       ))}
+      <PlacedObjects />
       <TrackMarkers />
     </>
   );

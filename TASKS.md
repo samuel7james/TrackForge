@@ -322,10 +322,51 @@ loop as Milestone 1.
 
 ### Phase 13 — Object Placement System
 
-- [ ] Prop registry (a small initial set: cones, barriers, trees/rocks, start-line props)
-- [ ] Placement tool (click to place, drag to move/rotate/scale, delete)
-- [ ] Instancing for perf (props are the first thing in the scene with real repeat-count)
-- [ ] Props persist in `TrackDocument` and round-trip through save/load
+- [x] Prop registry (a small initial set: cones, barriers, trees/rocks, start-line props)
+- [x] Placement tool (click to place, drag to move/rotate/scale, delete)
+- [x] Instancing for perf (props are the first thing in the scene with real repeat-count)
+- [x] Props persist in `TrackDocument` and round-trip through save/load
+
+**Notes:**
+
+- Selection generalized: renamed `editorStore`'s `selectedPointId`/`setSelectedPointId` to
+  `selectedId`/`setSelectedId` across every Phase 11 consumer (InspectorPanel,
+  PointEditingLayer, TangentHandles, ElevationHandle). This was already the documented
+  intent ("Selection is cross-cutting... once they exist") -- IDs are globally unique
+  (`crypto.randomUUID()`), so each panel just looks its own entity array up by this one
+  shared id and gets nothing back if the current selection belongs to a different entity
+  type, rather than maintaining a parallel `selectedObjectId` field.
+- `modules/objects/prop-registry.ts`: five procedural prop types (cone, barrier, tree,
+  rock, flag for start-line marking), each a small list of primitive geometry+material
+  "parts" with a local offset -- same simple-primitives style as `CarModel`/the road
+  ribbon, no external model loading/asset pipeline.
+- `modules/objects/placed-objects.tsx`: presentational, shared unchanged between edit and
+  play mode like `Road`/`Terrain`. One drei `<Instances>` pool per (prop type, part) pair,
+  so e.g. every tree's trunk across the whole track batches into a single draw call
+  regardless of count; each object's own position/rotation/scale is an ordinary nested
+  `<group>` around its parts' `<Instance>`s -- composes correctly since `Instance` reads
+  world matrices, no manual matrix math needed.
+- Editing interaction (`ObjectPlacementLayer`, editor-only) deliberately does NOT reuse the
+  instanced meshes for click targets -- one plain invisible sphere per placed object
+  (mirrors `PointEditingLayer`'s per-point spheres) is simplest and avoids the instancing
+  complexity entirely for a count of objects where per-object meshes are in no way a perf
+  concern; the instancing that actually matters is in the shared rendering path both modes
+  use. Rotate/scale are inspector number fields (yaw degrees + uniform scale), not viewport
+  gizmos -- consistent scope with Phase 11's banking field, not a regression from it.
+- Tool exclusivity: `PointEditingLayer`'s ground click-catcher now only renders for
+  Road/Select (previously just "not Terrain"), so it can't fight
+  `ObjectPlacementLayer`'s own ground-click-catcher for the same coincident y=0 plane when
+  the Object tool is active. `ObjectPlacementLayer` clears any lingering point selection on
+  entering the Object tool (mirrors `TerrainSculptLayer`'s equivalent clear), so
+  `InspectorPanel` and `PropPalettePanel` don't render on top of each other in the same
+  corner.
+- Verified in-browser: all five prop types place and render distinctly; rotation and scale
+  set via the inspector read back correctly; drag-to-move and Delete both work; save →
+  full page reload preserves a placed object's exact rotation/scale (round-trip through
+  the existing JSON persistence, no new plumbing needed since `document.objects` was
+  already part of the schema). Also verified objects/road/terrain edits coexist in the same
+  session without interference, and reran the full Milestone 1 loop plus the Phase 11 and
+  Phase 12 verification suites as a regression check -- all pass with zero console errors.
 
 ### Phase 14 — Weather & Lighting Presets
 

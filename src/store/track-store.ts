@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   createEmptyTrackDocument,
   type Difficulty,
+  type PlacedObject,
   type RoadControlPoint,
   type TerrainTextureLayer,
   type TrackDocument,
@@ -24,6 +25,9 @@ interface TrackState {
   setSplineClosed: (splineId: string, closed: boolean) => void;
   setTerrainHeightmap: (heightmap: number[]) => void;
   setTerrainTextureLayers: (textureLayers: TerrainTextureLayer[]) => void;
+  insertPlacedObject: (object: PlacedObject) => void;
+  removePlacedObjectById: (objectId: string) => void;
+  patchPlacedObject: (objectId: string, patch: Partial<PlacedObject>) => void;
 
   // Persistence-related — bypass the Command stack entirely (system actions,
   // not user edits; undo shouldn't un-assign a slug or un-load a document).
@@ -108,6 +112,29 @@ export const useTrackStore = create<TrackState>((set) => ({
       document: {
         ...state.document,
         terrain: { ...state.document.terrain, textureLayers },
+      },
+    })),
+
+  insertPlacedObject: (object) =>
+    set((state) => ({
+      document: { ...state.document, objects: [...state.document.objects, object] },
+    })),
+
+  removePlacedObjectById: (objectId) =>
+    set((state) => ({
+      document: {
+        ...state.document,
+        objects: state.document.objects.filter((o) => o.id !== objectId),
+      },
+    })),
+
+  patchPlacedObject: (objectId, patch) =>
+    set((state) => ({
+      document: {
+        ...state.document,
+        objects: state.document.objects.map((o) =>
+          o.id === objectId ? { ...o, ...patch } : o
+        ),
       },
     })),
 

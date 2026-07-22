@@ -12,10 +12,15 @@ interface EditorState {
   activeToolId: string;
   setActiveToolId: (id: string) => void;
 
-  // Selection is cross-cutting (shared by Select/Road/Terrain/Object tools
-  // once they exist) — see PROJECT_PLAN.md §5.
-  selectedPointId: string | null;
-  setSelectedPointId: (id: string | null) => void;
+  // Selection is cross-cutting -- one shared field for whatever's currently
+  // selected (a control point, Phase 11's tangent handles, or a placed
+  // object, Phase 13), rather than a separate field per entity type. IDs are
+  // globally unique (crypto.randomUUID()), so each panel/tool that cares
+  // just looks its own entity array up by this id and gets nothing back if
+  // the current selection belongs to a different entity type -- see
+  // PROJECT_PLAN.md §5.
+  selectedId: string | null;
+  setSelectedId: (id: string | null) => void;
 
   // Read by EditorCameraRig to disable OrbitControls while a control point
   // is being dragged — OrbitControls binds its own native listeners directly
@@ -33,8 +38,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activeToolId: "road",
   setActiveToolId: (id) => set({ activeToolId: id }),
 
-  selectedPointId: null,
-  setSelectedPointId: (id) => set({ selectedPointId: id }),
+  selectedId: null,
+  setSelectedId: (id) => set({ selectedId: id }),
 
   isDraggingControlPoint: false,
   setIsDraggingControlPoint: (dragging) =>

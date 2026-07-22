@@ -20,7 +20,7 @@ import { applyBrush, applyPaint, worldToGrid } from "@/modules/terrain/heightmap
 export function TerrainSculptLayer() {
   const activeToolId = useEditorStore((s) => s.activeToolId);
   const setIsDraggingControlPoint = useEditorStore((s) => s.setIsDraggingControlPoint);
-  const setSelectedPointId = useEditorStore((s) => s.setSelectedPointId);
+  const setSelectedId = useEditorStore((s) => s.setSelectedId);
   const terrain = useTrackStore((s) => s.document.terrain);
   const setHeightmap = useTrackStore((s) => s.setTerrainHeightmap);
   const setTextureLayers = useTrackStore((s) => s.setTerrainTextureLayers);
@@ -95,8 +95,8 @@ export function TerrainSculptLayer() {
   // Clears any lingering point selection so InspectorPanel doesn't render
   // on top of TerrainBrushPanel in the same corner while sculpting.
   useEffect(() => {
-    if (activeToolId === "terrain") setSelectedPointId(null);
-  }, [activeToolId, setSelectedPointId]);
+    if (activeToolId === "terrain") setSelectedId(null);
+  }, [activeToolId, setSelectedId]);
 
   if (activeToolId !== "terrain") return null;
 

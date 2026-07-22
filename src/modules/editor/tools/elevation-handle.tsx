@@ -21,13 +21,13 @@ const AXIS = new THREE.Vector3(0, 1, 0);
 // camera as much as possible -- the standard technique for a single-axis
 // gizmo drag, so the ray intersection reliably yields just a Y value.
 export function ElevationHandle() {
-  const selectedPointId = useEditorStore((s) => s.selectedPointId);
+  const selectedId = useEditorStore((s) => s.selectedId);
   const setIsDraggingControlPoint = useEditorStore((s) => s.setIsDraggingControlPoint);
   const points = useTrackStore((s) => s.document.splines[0]?.points ?? []);
   const execute = useCommandStack((s) => s.execute);
   const camera = useThree((s) => s.camera);
 
-  const point = points.find((p) => p.id === selectedPointId);
+  const point = points.find((p) => p.id === selectedId);
   const dragStartY = useRef<number | null>(null);
 
   const beginDrag = useCallback(

@@ -9,6 +9,8 @@ import { ModeToggle } from "@/modules/editor/ui/mode-toggle";
 import { Toolbar } from "@/modules/editor/ui/toolbar";
 import { InspectorPanel } from "@/modules/editor/ui/inspector-panel";
 import { TerrainBrushPanel } from "@/modules/editor/ui/terrain-brush-panel";
+import { PropInspectorPanel } from "@/modules/editor/ui/prop-inspector-panel";
+import { PropPalettePanel } from "@/modules/editor/ui/prop-palette-panel";
 import { UndoRedoControls } from "@/modules/editor/ui/undo-redo-controls";
 import { TrackStatus } from "@/modules/editor/ui/track-status";
 import { SaveButton } from "@/modules/editor/ui/save-button";
@@ -154,14 +156,18 @@ export function EditorView({ slug }: EditorViewProps) {
               >
                 <InspectorPanel />
                 <TerrainBrushPanel />
+                <PropPalettePanel />
+                <PropInspectorPanel />
               </motion.div>
               <p className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
                 {activeToolId === "road"
                   ? "Road tool: click ground to add a point (Shift angle-snap, Ctrl grid-snap) · drag to move · select + Delete to remove"
                   : activeToolId === "terrain"
                     ? "Terrain tool: drag to sculpt or paint · pick a brush and radius/strength in the panel"
-                    : "Select tool: drag a point to move it · click the road to split it · select + Delete to remove"}{" "}
-                · V/G/T switch tools · Ctrl+Z / Ctrl+Shift+Z undo/redo · Ctrl+K commands
+                    : activeToolId === "object"
+                      ? "Object tool: pick a prop, click the ground to place it · drag to move · select + Delete to remove"
+                      : "Select tool: drag a point to move it · click the road to split it · select + Delete to remove"}{" "}
+                · V/G/T/O switch tools · Ctrl+Z / Ctrl+Shift+Z undo/redo · Ctrl+K commands
               </p>
             </motion.div>
           )}

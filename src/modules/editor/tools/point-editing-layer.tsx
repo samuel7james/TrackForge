@@ -91,8 +91,8 @@ export function PointEditingLayer() {
   const patchControlPoint = useTrackStore((s) => s.patchControlPoint);
 
   const activeToolId = useEditorStore((s) => s.activeToolId);
-  const selectedPointId = useEditorStore((s) => s.selectedPointId);
-  const setSelectedPointId = useEditorStore((s) => s.setSelectedPointId);
+  const selectedId = useEditorStore((s) => s.selectedId);
+  const setSelectedId = useEditorStore((s) => s.setSelectedId);
   const setIsDraggingControlPoint = useEditorStore((s) => s.setIsDraggingControlPoint);
 
   const execute = useCommandStack((s) => s.execute);
@@ -110,7 +110,7 @@ export function PointEditingLayer() {
     (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
       if (activeToolId !== "road") {
-        setSelectedPointId(null);
+        setSelectedId(null);
         return;
       }
       let position: Vec3 = { x: e.point.x, y: 0, z: e.point.z };
@@ -121,7 +121,7 @@ export function PointEditingLayer() {
       position = applyPositionSnapping(position, points, null, e.ctrlKey || e.metaKey);
       execute(new AddControlPointCommand(createControlPoint(position)));
     },
-    [activeToolId, points, execute, setSelectedPointId]
+    [activeToolId, points, execute, setSelectedId]
   );
 
   // Select Tool only: clicking the road surface itself inserts a new point
@@ -152,9 +152,9 @@ export function PointEditingLayer() {
       });
       newPoint.width = sample.width;
       execute(new AddControlPointCommand(newPoint, segmentIndex + 1));
-      setSelectedPointId(newPoint.id);
+      setSelectedId(newPoint.id);
     },
-    [activeToolId, splitProxyGeometry, closed, points, execute, setSelectedPointId]
+    [activeToolId, splitProxyGeometry, closed, points, execute, setSelectedId]
   );
 
   const handlePointPointerDown = useCallback(
@@ -163,14 +163,14 @@ export function PointEditingLayer() {
       (e.target as Element).setPointerCapture?.(e.pointerId);
       draggingPointId.current = pointId;
       dragStartPosition.current = position;
-      setSelectedPointId(pointId);
+      setSelectedId(pointId);
       setIsDraggingControlPoint(true);
       dragPlane.setFromNormalAndCoplanarPoint(
         UP,
         new THREE.Vector3(position.x, position.y, position.z)
       );
     },
-    [setSelectedPointId, setIsDraggingControlPoint]
+    [setSelectedId, setIsDraggingControlPoint]
   );
 
   const handlePointPointerMove = useCallback(
@@ -218,26 +218,28 @@ export function PointEditingLayer() {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (isTypingIntoField(e.target)) return;
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedPointId) {
-        const index = points.findIndex((p) => p.id === selectedPointId);
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
+        const index = points.findIndex((p) => p.id === selectedId);
         const point = points[index];
         if (point) {
           execute(new RemoveControlPointCommand(point, index));
-          setSelectedPointId(null);
+          setSelectedId(null);
         }
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedPointId, points, execute, setSelectedPointId]);
+  }, [selectedId, points, execute, setSelectedId]);
 
   return (
     <>
       {/* Invisible-but-raycastable click target for appending new points --
-          skipped in the Terrain tool so it can't shadow TerrainSculptLayer's
-          own raycast target in a sculpted valley (this plane is always at
-          y=0, which would sit above lowered terrain). */}
-      {activeToolId !== "terrain" && (
+          only for Road/Select: skipped in Terrain so it can't shadow
+          TerrainSculptLayer's own raycast target in a sculpted valley (this
+          plane is always at y=0, which would sit above lowered terrain),
+          and skipped in Object so it doesn't fight ObjectPlacementLayer's
+          own ground-click-catcher for the same coincident plane. */}
+      {(activeToolId === "road" || activeToolId === "select") && (
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
           onClick={handleGroundClick}
@@ -276,9 +278,9 @@ export function PointEditingLayer() {
         >
           <sphereGeometry args={[0.4, 16, 16]} />
           <meshStandardMaterial
-            color={selectedPointId === point.id ? "#f2c94c" : "#5b8cff"}
-            emissive={selectedPointId === point.id ? "#f2c94c" : "#000000"}
-            emissiveIntensity={selectedPointId === point.id ? 0.4 : 0}
+            color={selectedId === point.id ? "#f2c94c" : "#5b8cff"}
+            emissive={selectedId === point.id ? "#f2c94c" : "#000000"}
+            emissiveIntensity={selectedId === point.id ? 0.4 : 0}
           />
         </mesh>
       ))}

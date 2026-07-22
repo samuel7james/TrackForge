@@ -1,4 +1,4 @@
-import { MousePointer2, Mountain, Spline } from "lucide-react";
+import { Box, MousePointer2, Mountain, Spline } from "lucide-react";
 import type { ComponentType } from "react";
 
 export interface EditorToolDefinition {
@@ -15,4 +15,5 @@ export const TOOLS: EditorToolDefinition[] = [
   { id: "select", label: "Select", icon: MousePointer2, shortcut: "v" },
   { id: "road", label: "Road", icon: Spline, shortcut: "g" },
   { id: "terrain", label: "Terrain", icon: Mountain, shortcut: "t" },
+  { id: "object", label: "Object", icon: Box, shortcut: "o" },
 ];

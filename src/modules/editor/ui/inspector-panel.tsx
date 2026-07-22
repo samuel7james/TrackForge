@@ -14,12 +14,12 @@ import { cn } from "@/lib/utils";
 const AXES = ["x", "y", "z"] as const;
 
 export function InspectorPanel() {
-  const selectedPointId = useEditorStore((s) => s.selectedPointId);
+  const selectedId = useEditorStore((s) => s.selectedId);
   const points = useTrackStore((s) => s.document.splines[0]?.points ?? []);
   const closed = useTrackStore((s) => s.document.splines[0]?.closed ?? false);
   const execute = useCommandStack((s) => s.execute);
 
-  const point = points.find((p) => p.id === selectedPointId);
+  const point = points.find((p) => p.id === selectedId);
   if (!point) return null;
 
   const setTangentMode = (mode: "auto" | "manual") => {

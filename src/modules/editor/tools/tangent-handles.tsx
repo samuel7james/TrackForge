@@ -30,12 +30,12 @@ interface Drag {
 // "broken" handle), matching tangentIn/tangentOut already being stored
 // separately in the schema.
 export function TangentHandles() {
-  const selectedPointId = useEditorStore((s) => s.selectedPointId);
+  const selectedId = useEditorStore((s) => s.selectedId);
   const setIsDraggingControlPoint = useEditorStore((s) => s.setIsDraggingControlPoint);
   const points = useTrackStore((s) => s.document.splines[0]?.points ?? []);
   const execute = useCommandStack((s) => s.execute);
 
-  const point = points.find((p) => p.id === selectedPointId);
+  const point = points.find((p) => p.id === selectedId);
   const dragging = useRef<Drag | null>(null);
 
   const beginDrag = useCallback(
