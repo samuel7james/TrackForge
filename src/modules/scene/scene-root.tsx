@@ -1,12 +1,13 @@
 "use client";
 
-import { Grid, Text } from "@react-three/drei";
+import { Grid } from "@react-three/drei";
 import { useTrackStore } from "@/store/track-store";
+import { Road } from "@/modules/spline/road";
 
 // Renders the track document as a scene — the one part of the app that both
 // the editor and Play mode mount unchanged (see PROJECT_PLAN.md §4).
 export function SceneRoot() {
-  const trackName = useTrackStore((s) => s.name);
+  const splines = useTrackStore((s) => s.document.splines);
 
   return (
     <>
@@ -44,9 +45,9 @@ export function SceneRoot() {
         infiniteGrid
       />
 
-      <Text position={[0, 3, 0]} fontSize={1.2} color="white" anchorX="center" anchorY="middle">
-        {trackName}
-      </Text>
+      {splines.map((spline) => (
+        <Road key={spline.id} spline={spline} />
+      ))}
     </>
   );
 }

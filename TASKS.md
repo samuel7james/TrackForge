@@ -35,11 +35,14 @@ Goal: create a road with splines, edit it live, play it, record a lap, save/relo
 - [x] Verified in-browser via Playwright: scene renders, mode toggle + Esc both work, no console errors
 
 ### Phase 3 — Spline Data Model & Road Tool
-- [ ] `track-format/schema.ts` — `TrackDocument` v1 types + Zod schema (full shape from plan, only `splines` populated in M1 UI)
-- [ ] `modules/spline` — Catmull-Rom sampling, road extrusion → `BufferGeometry`
-- [ ] `RoadTool`: click to add control points, drag to move, delete point
-- [ ] Live geometry regeneration on edit (no rebuild/reload)
-- [ ] Basic road material + curb strip
+- [x] `track-format/schema.ts` — full `TrackDocument` v1 Zod schema + `createEmptyTrackDocument()` factory (only `splines` populated by the M1 UI; terrain/objects/checkpoints/validation shapes exist now so later milestones are additive)
+- [x] `modules/spline` — arc-length Catmull-Rom centerline sampling (`catmull-rom.ts`) + road/curb ribbon extrusion (`road-mesh.ts`, `road.tsx`)
+- [x] Road Tool interaction (`modules/editor/tools/road-editing-layer.tsx`): click ground to add a point, drag a point to move it (camera orbit correctly disabled mid-drag), select + Delete/Backspace to remove — implemented as direct trackStore mutations for now; Phase 4 wraps these in Commands for undo/redo and formalizes the `EditorTool` interface
+- [x] Live geometry regeneration on edit via `useMemo` keyed on the spline — no rebuild/reload
+- [x] Basic road material (asphalt) + alternating red/white curb strip
+- [x] Verified in-browser via Playwright: add/drag/delete all work, live regen confirmed, orbit-vs-drag isolation confirmed, zero console errors
+- [x] Fixed an infinite-render-loop bug found during verification (Zustand selector returning a fresh `[]` literal every call)
+- **Known limitation:** the ribbon offset is naive (no miter/min-radius handling), so a corner tighter than the road's half-width can self-intersect. Only shows up on unrealistically sharp turns; revisit if it matters once real tracks are being built (candidate for Milestone 2 spline/validation work).
 
 ### Phase 4 — Editor Shell, Commands, Undo/Redo
 - [ ] `ToolRegistry` + `EditorEngine` (pointer/keyboard dispatch, no switch statements)
