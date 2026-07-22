@@ -118,11 +118,52 @@ Triggered by direct feedback that the vertical slice wasn't yet at a demoable ba
 - [x] Verified in-browser via Playwright across two separate scenarios: (1) full publish flow — confirm button disabled while invalid, enabled once a loop closes, name/description/difficulty all persist correctly, Copy Link and autoplay-Play both work, nonexistent slugs 404; (2) draft visibility — the owner (same browser, matching localStorage token) sees a Draft badge and an editor link, a fresh visitor (separate browser context, no token) sees only a neutral "not published" notice with no editor link and no Play button
 
 ### Phase 10 — Polish Pass
-- [ ] Empty-state onboarding (first-time "click to place your first point" hint)
-- [ ] Command palette (`Cmd+K`) with at least: New Track, Save, Publish, Play/Edit toggle
-- [ ] Toasts for save/publish/validation feedback
-- [ ] Pass over animations/transitions (Framer Motion) for panel and mode-switch polish
-- [ ] Full manual run-through of the entire Create→Publish→Share→Race loop end-to-end
+- [x] Empty-state onboarding (first-time "click to place your first point" hint)
+- [x] Command palette (`Cmd+K`) with at least: New Track, Save, Publish, Play/Edit toggle
+- [x] Toasts for save/publish/validation feedback
+- [x] Pass over animations/transitions (Framer Motion) for panel and mode-switch polish
+- [x] Full manual run-through of the entire Create→Publish→Share→Race loop end-to-end
+
+**Notes:**
+
+- `empty-state-hint.tsx`: shown only while the Road tool is active and the track has zero
+  points — a bouncing icon + "click anywhere on the ground" prompt, Framer Motion
+  enter/exit. Disappears the instant the first point is placed.
+- Command palette built on shadcn's generated `command.tsx` (cmdk + Base UI `Dialog`).
+  Found and fixed a bug in the generated `CommandDialog`: it rendered `CommandInput`/
+  `CommandList` directly inside `DialogContent` without a `<Command>` root, so cmdk's
+  internal store was `undefined` or ("Cannot read properties of undefined (reading
+  'subscribe')"). Fixed by wrapping the palette's contents in `<Command>` inside
+  `CommandDialog`.
+  - Opens with `Ctrl+K`/`Cmd+K` from anywhere in the editor (global `keydown` listener in
+    `CommandPalette`).
+  - Commands: New track (navigates to `/editor/new`), Save (`⌘S`, reuses `useSaveTrack`),
+    Publish (opens the existing `PublishDialog`), Play/Edit toggle (`Esc`).
+  - Publish's `open` state was lifted out of local `useState` into a new `uiStore`
+    (`isPublishDialogOpen`/`isCommandPaletteOpen`) — the store PROJECT_PLAN §6 already
+    reserved for "panel visibility, command palette, modals" — so the palette's Publish
+    command and the header's Publish button both drive the same dialog instance.
+- Toasts: save/publish/load-failure toasts already existed from Phases 8–9
+  (`save-button.tsx`, `publish-dialog.tsx`, `editor-view.tsx`'s load error handler) and
+  the command palette's Save action reuses the same pattern. Validation feedback is
+  surfaced inline in real time (amber "N issues" pill + tooltip in `TrackStatus`, and the
+  Publish dialog's description lists the blocking issues) rather than as a toast — more
+  useful than a one-shot toast for something that's continuously true while editing.
+- Animation pass: header's edit-mode controls (undo/redo, status, save, publish) fade/
+  slide in with `AnimatePresence`; Toolbar and InspectorPanel slide in from their
+  respective edges on entering edit mode; the whole edit/play subtree cross-fades via
+  `AnimatePresence mode="wait"` on the `mode` key, so switching modes (toolbar button,
+  `Esc`, or the command palette) is a soft fade rather than an instant swap.
+- Full loop verified with Playwright end-to-end (fresh script, not reused from earlier
+  phases): create at `/editor/new` → place 4 points → close the loop (`TrackStatus`'s
+  "Close loop" button) → explicit Save (slug assigned, URL updated) → Play mode, drove
+  for 6s past the autosave debounce window with **no** mid-drive kick back to a loading
+  screen (regression check for the Phase-9-era history.replaceState fix) → full page
+  reload at `/editor/[slug]` with points still persisted (no empty-state hint) → Publish
+  via the command palette, filled in name/description, publish toast fired → visited the
+  public `/t/[slug]` page and confirmed name + description render → clicked Play there
+  and landed back in the editor in Play mode via `?autoplay=1`. Zero console/page errors
+  across the whole run. Test tracks were deleted from the dev database afterward.
 
 ---
 

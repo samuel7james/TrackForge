@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { AnimatePresence, motion } from "framer-motion";
 import { TrackForgeCanvas } from "@/modules/scene/track-forge-canvas";
 import { ModeToggle } from "@/modules/editor/ui/mode-toggle";
 import { Toolbar } from "@/modules/editor/ui/toolbar";
@@ -11,6 +12,8 @@ import { UndoRedoControls } from "@/modules/editor/ui/undo-redo-controls";
 import { TrackStatus } from "@/modules/editor/ui/track-status";
 import { SaveButton } from "@/modules/editor/ui/save-button";
 import { PublishDialog } from "@/modules/editor/ui/publish-dialog";
+import { EmptyStateHint } from "@/modules/editor/ui/empty-state-hint";
+import { CommandPalette } from "@/modules/editor/ui/command-palette";
 import { RaceHud } from "@/modules/race/timing/race-hud";
 import { useEditorStore } from "@/store/editor-store";
 import { useTrackStore } from "@/store/track-store";
@@ -96,14 +99,23 @@ export function EditorView({ slug }: EditorViewProps) {
             </span>
             <span className="text-muted-foreground">/</span>
             <span className="text-muted-foreground">{trackName}</span>
-            {mode === "edit" && (
-              <>
-                <UndoRedoControls />
-                <TrackStatus />
-                <SaveButton />
-                <PublishDialog />
-              </>
-            )}
+            <AnimatePresence mode="popLayout">
+              {mode === "edit" && (
+                <motion.div
+                  key="edit-controls"
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex items-center gap-3"
+                >
+                  <UndoRedoControls />
+                  <TrackStatus />
+                  <SaveButton />
+                  <PublishDialog />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <ModeToggle />
         </header>
@@ -114,31 +126,59 @@ export function EditorView({ slug }: EditorViewProps) {
           </p>
         )}
 
-        {mode === "edit" && (
-          <>
-            <div className="absolute left-4 top-1/2 -translate-y-1/2">
-              <Toolbar />
-            </div>
-            <div className="absolute right-4 top-20">
-              <InspectorPanel />
-            </div>
-            <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
-              {activeToolId === "road"
-                ? "Road tool: click ground to add a point · drag to move · select + Delete to remove"
-                : "Select tool: drag a point to move it · select + Delete to remove"}{" "}
-              · V/G switch tools · Ctrl+Z / Ctrl+Shift+Z undo/redo
-            </p>
-          </>
-        )}
-        {mode === "play" && (
-          <>
-            <RaceHud />
-            <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
-              WASD / arrows to drive · Esc to return to editing
-            </p>
-          </>
-        )}
+        {mode === "edit" && <EmptyStateHint />}
+
+        <AnimatePresence mode="wait">
+          {mode === "edit" && (
+            <motion.div
+              key="edit-mode"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <motion.div
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="pointer-events-auto absolute left-4 top-1/2 -translate-y-1/2"
+              >
+                <Toolbar />
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="pointer-events-auto absolute right-4 top-20"
+              >
+                <InspectorPanel />
+              </motion.div>
+              <p className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
+                {activeToolId === "road"
+                  ? "Road tool: click ground to add a point · drag to move · select + Delete to remove"
+                  : "Select tool: drag a point to move it · select + Delete to remove"}{" "}
+                · V/G switch tools · Ctrl+Z / Ctrl+Shift+Z undo/redo · Ctrl+K commands
+              </p>
+            </motion.div>
+          )}
+          {mode === "play" && (
+            <motion.div
+              key="play-mode"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <RaceHud />
+              <p className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
+                WASD / arrows to drive · Esc to return to editing
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
+
+      <CommandPalette />
     </div>
   );
 }

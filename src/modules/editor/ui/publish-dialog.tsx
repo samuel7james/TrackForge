@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTrackStore } from "@/store/track-store";
+import { useUiStore } from "@/store/ui-store";
 import { useTrackValidation } from "@/modules/track-format/hooks";
 import { useSaveTrack } from "@/modules/track-format/use-save-track";
 import { editTokenStorageKey } from "@/modules/track-format/use-save-track";
@@ -37,7 +38,8 @@ const DIFFICULTIES: { value: Difficulty; label: string }[] = [
 ];
 
 export function PublishDialog() {
-  const [open, setOpen] = useState(false);
+  const open = useUiStore((s) => s.isPublishDialogOpen);
+  const setOpen = useUiStore((s) => s.setPublishDialogOpen);
   const [isPublishing, setIsPublishing] = useState(false);
   const meta = useTrackStore((s) => s.document.meta);
   const setMeta = useTrackStore((s) => s.setMeta);
