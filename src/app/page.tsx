@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Play, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const DEMO_TRACK_SLUG = "golden-delta-mesn";
+const DEMO_TRACK_SLUG = "electric-ridge-rvfm";
 
 export default function Home() {
   return (

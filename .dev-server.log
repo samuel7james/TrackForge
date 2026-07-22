@@ -1,0 +1,159 @@
+
+> trackforge@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.11 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://26.77.116.11:3000
+- Environments: .env
+✓ Ready in 445ms
+
+ GET /editor/new 200 in 526ms (next.js: 138ms, application-code: 388ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ POST /api/tracks 200 in 492ms (next.js: 275ms, application-code: 217ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ GET /editor/swift-delta-m47f 200 in 492ms (next.js: 415ms, application-code: 77ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ GET /api/tracks/swift-delta-m47f 200 in 930ms (next.js: 906ms, application-code: 24ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ GET /editor/new 200 in 65ms (next.js: 3ms, application-code: 62ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ POST /api/tracks 200 in 152ms (next.js: 2ms, application-code: 150ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ PATCH /api/tracks/midnight-hairpin-cczm 200 in 256ms (next.js: 20ms, application-code: 236ms)
+ GET /editor/new 200 in 47ms (next.js: 2ms, application-code: 44ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ POST /api/tracks 200 in 168ms (next.js: 7ms, application-code: 161ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ PATCH /api/tracks/electric-canyon-9nrj 200 in 319ms (next.js: 22ms, application-code: 297ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ PATCH /api/tracks/electric-canyon-9nrj 200 in 210ms (next.js: 11ms, application-code: 199ms)
+ GET / 200 in 98ms (next.js: 31ms, application-code: 67ms)
+ GET /t/golden-delta-mesn 200 in 661ms (next.js: 596ms, application-code: 65ms)
+ GET /editor/new 200 in 18ms (next.js: 2ms, application-code: 16ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ POST /api/tracks 200 in 85ms (next.js: 1725µs, application-code: 83ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ PATCH /api/tracks/golden-switchback-m4j0 200 in 185ms (next.js: 7ms, application-code: 179ms)
+ PATCH /api/tracks/golden-switchback-m4j0 200 in 172ms (next.js: 7ms, application-code: 165ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] using deprecated parameters for the initialization function; pass a single object instead (<anonymous>)
+ PATCH /api/tracks/golden-switchback-m4j0 200 in 174ms (next.js: 9ms, application-code: 165ms)
+ GET / 200 in 40ms (next.js: 2ms, application-code: 38ms)
+ GET /editor/new 200 in 73ms (next.js: 2ms, application-code: 70ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ GET /editor/new 200 in 55ms (next.js: 3ms, application-code: 53ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ GET /editor/new 200 in 56ms (next.js: 3ms, application-code: 54ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ GET /editor/new 200 in 49ms (next.js: 2ms, application-code: 46ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ GET /editor/new 200 in 58ms (next.js: 2ms, application-code: 56ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ GET /editor/new 200 in 58ms (next.js: 3ms, application-code: 56ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ GET /editor/new 200 in 62ms (next.js: 3ms, application-code: 59ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ POST /api/tracks 200 in 148ms (next.js: 4ms, application-code: 144ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ PATCH /api/tracks/silver-canyon-19nb 200 in 392ms (next.js: 53ms, application-code: 339ms)
+ GET /editor/silver-canyon-19nb 200 in 66ms (next.js: 8ms, application-code: 57ms)
+ GET /api/tracks/silver-canyon-19nb 200 in 20ms (next.js: 9ms, application-code: 12ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] using deprecated parameters for the initialization function; pass a single object instead (<anonymous>)
+ GET / 200 in 115ms (next.js: 55ms, application-code: 60ms)
+ GET /editor/silver-canyon-19nb 200 in 460ms (next.js: 81ms, application-code: 379ms)
+ GET /api/tracks/silver-canyon-19nb 200 in 91ms (next.js: 75ms, application-code: 16ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] using deprecated parameters for the initialization function; pass a single object instead (<anonymous>)
+ GET / 200 in 108ms (next.js: 63ms, application-code: 45ms)
+ GET /editor/silver-canyon-19nb 200 in 503ms (next.js: 93ms, application-code: 410ms)
+ GET /api/tracks/silver-canyon-19nb 200 in 81ms (next.js: 68ms, application-code: 13ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ GET /editor/new 200 in 64ms (next.js: 11ms, application-code: 52ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ POST /api/tracks 200 in 223ms (next.js: 64ms, application-code: 159ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ PATCH /api/tracks/electric-ridge-rvfm 200 in 297ms (next.js: 19ms, application-code: 279ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] using deprecated parameters for the initialization function; pass a single object instead (<anonymous>)
+ PATCH /api/tracks/electric-ridge-rvfm 200 in 173ms (next.js: 10ms, application-code: 163ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ PATCH /api/tracks/electric-ridge-rvfm 200 in 216ms (next.js: 8ms, application-code: 208ms)
+ POST /api/tracks/electric-ridge-rvfm/publish 200 in 1564ms
+ GET /t/electric-ridge-rvfm 200 in 210ms (next.js: 81ms, application-code: 130ms)
+✓ Compiled in 68ms
+ GET / 200 in 140ms (next.js: 75ms, application-code: 65ms)
+ GET / 200 in 22ms (next.js: 2ms, application-code: 19ms)
+ GET / 200 in 127ms (next.js: 2ms, application-code: 125ms)
+ GET /t/electric-ridge-rvfm 200 in 125ms (next.js: 66ms, application-code: 59ms)
+ GET / 200 in 36ms (next.js: 2ms, application-code: 34ms)
+ GET /editor/new 200 in 35ms (next.js: 15ms, application-code: 20ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+ GET /editor/new 200 in 326ms (next.js: 3ms, application-code: 323ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ POST /api/tracks 200 in 215ms (next.js: 107ms, application-code: 108ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[browser] using deprecated parameters for the initialization function; pass a single object instead (<anonymous>)
+ PATCH /api/tracks/rapid-chicane-c860 200 in 354ms (next.js: 119ms, application-code: 236ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ GET /editor/rapid-chicane-c860 200 in 176ms (next.js: 37ms, application-code: 139ms)
+ GET /api/tracks/rapid-chicane-c860 200 in 18ms (next.js: 8ms, application-code: 10ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ PATCH /api/tracks/rapid-chicane-c860 200 in 275ms (next.js: 21ms, application-code: 255ms)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+ PATCH /api/tracks/rapid-chicane-c860 200 in 242ms (next.js: 8ms, application-code: 233ms)
+ POST /api/tracks/rapid-chicane-c860/publish 200 in 273ms (next.js: 195ms, application-code: 78ms)
+ GET /t/rapid-chicane-c860 200 in 186ms (next.js: 26ms, application-code: 159ms)
+ GET /editor/rapid-chicane-c860?autoplay=1 200 in 33ms (next.js: 8ms, application-code: 25ms)
+ GET /api/tracks/rapid-chicane-c860 200 in 16ms (next.js: 8ms, application-code: 8ms)
+ GET /api/tracks/rapid-chicane-c860 200 in 10ms (next.js: 1555µs, application-code: 8ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[browser] using deprecated parameters for the initialization function; pass a single object instead (<anonymous>)
+[browser] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
