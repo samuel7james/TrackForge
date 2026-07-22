@@ -14,6 +14,11 @@ interface TrackState {
   removeControlPointById: (pointId: string) => void;
   patchControlPoint: (pointId: string, patch: Partial<RoadControlPoint>) => void;
   setSplineClosed: (splineId: string, closed: boolean) => void;
+
+  // Persistence-related — bypass the Command stack entirely (system actions,
+  // not user edits; undo shouldn't un-assign a slug or un-load a document).
+  setSlug: (slug: string) => void;
+  loadDocument: (document: TrackDocument) => void;
 }
 
 export const useTrackStore = create<TrackState>((set) => ({
@@ -78,4 +83,11 @@ export const useTrackStore = create<TrackState>((set) => ({
         ),
       },
     })),
+
+  setSlug: (slug) =>
+    set((state) => ({
+      document: { ...state.document, meta: { ...state.document.meta, slug } },
+    })),
+
+  loadDocument: (document) => set({ document }),
 }));

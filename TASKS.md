@@ -81,14 +81,17 @@ Goal: create a road with splines, edit it live, play it, record a lap, save/relo
 - [x] Verified in-browser via Playwright, directly (not just visually): confirmed `hasCrossedGate` correctly fires for both the start line and a checkpoint gate, confirmed the order-guard correctly ignores an early start/finish crossing while a checkpoint is still pending, confirmed a full start→complete lap cycle with correct elapsed time and correct HUD last/best display, zero console errors. Scripted autonomous circular driving proved too non-deterministic to reliably reach a checkpoint placed partway around a large loop, so that specific crossing was confirmed with a direct teleport-across-the-gate test instead — the exact same `hasCrossedGate` code path the start-line crossings (proven across several successful runs) already exercised, just with checkpoint gate data instead of start-line data.
 
 ### Phase 8 — Persistence
-- [ ] `POST /api/tracks` — create + return `{ id, editToken }`
-- [ ] `PATCH /api/tracks/[slug]` — save document (editToken-guarded)
-- [ ] `GET /api/tracks/[slug]` — load document
-- [ ] Client: autosave-on-command-batch + explicit "Save" action; editToken persisted in localStorage
-- [ ] Reload flow: open `/editor/[slug]` → document loads → identical scene reconstructed
+- [x] `POST /api/tracks` — create + return `{ id, slug, editToken }`; generates a human-readable slug (`generateSlug()`, adjective-noun-suffix) with retry-on-collision, ahead of Phase 9's schedule since the creation response itself needs a slug for the `/editor/[slug]` URL
+- [x] `PATCH /api/tracks/[slug]` — save document (editToken-guarded via `X-Edit-Token` header, 401 missing / 403 wrong), also writes a `TrackVersion` row per save (empty of product features until Milestone 3's version history UI, but capturing the trail from day one avoids a backfill)
+- [x] `GET /api/tracks/[slug]` — load document, publicly readable (404 if not found)
+- [x] `modules/track-format/validate.ts` — Zod boundary validation (distinct from `validate-track.ts`'s "is this a raceable track" check); every route validates the document shape before touching Prisma
+- [x] Client: `useSaveTrack` (explicit) + `useAutosave` (4s debounce on any `trackStore.document` change) share the same save path; editToken kept only in localStorage, never round-tripped through Zustand state
+- [x] Reload flow: `/editor/[slug]` fetches and loads the saved document on mount, resets undo history (a fresh load shouldn't be unwindable by a prior session's undo stack) — verified byte-for-byte identical scene reconstruction after a full page reload
+- **Real bug found and fixed:** the POST handler stored the document as the client sent it — with `meta.slug` still `""`, since the client doesn't know the slug until the response comes back. The client's local `setSlug()` call updated in-memory state correctly, but because navigating to `/editor/[slug]` remounts `EditorView` (a different route/component tree, not just a prop change) and its mount effect refetches-and-loads the document from the server, it silently overwrote the correct local slug with the stale empty one from the database — so the *next* save saw `slug === null` again and created a second, duplicate track instead of updating the first. Fixed by having the POST handler stamp the generated slug into `document.meta.slug` before persisting, so the stored document is self-consistent from the moment it exists. Confirmed via a real second-edit-then-save test that initially reproduced the duplicate-track bug, then confirmed the fix (single track, correct point count, one `TrackVersion` row) after the change.
+- [x] Verified in-browser via Playwright + direct Postgres queries: save creates a `Track` row and redirects, wrong/missing edit token correctly 403/401, nonexistent slug 404s, a second real edit+save correctly updates the same track (not a duplicate) and writes a `TrackVersion` row, full reload reconstructs an identical scene
 
 ### Phase 9 — Publishing & Sharing
-- [ ] Slug generation (human-readable, unique) on publish
+- [x] Slug generation (human-readable, unique) — done in Phase 8, needed as soon as a track is first saved, not just on publish
 - [ ] `POST /api/tracks/[slug]/publish` — sets `isPublished`, locks slug
 - [ ] Public track page `/t/[slug]` — name, description, difficulty, estimated lap time, "Play" CTA
 - [ ] Share affordance (copy link)

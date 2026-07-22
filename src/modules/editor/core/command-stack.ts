@@ -9,6 +9,7 @@ interface CommandStackState {
   execute: (command: Command) => void;
   undo: () => void;
   redo: () => void;
+  reset: () => void;
 }
 
 // Every editing action goes through here (see PROJECT_PLAN.md §5) so
@@ -52,4 +53,7 @@ export const useCommandStack = create<CommandStackState>((set, get) => ({
       canRedo: nextRedo.length > 0,
     });
   },
+
+  // Loading a document from the server invalidates any prior undo history.
+  reset: () => set({ undoStack: [], redoStack: [], canUndo: false, canRedo: false }),
 }));
