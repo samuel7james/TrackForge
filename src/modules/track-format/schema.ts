@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TYPE_NAMES, DECO_TYPE_NAMES, GODOT_ORIENTS, type PieceType, type DecoType } from "@/modules/game-engine/track";
+import { TYPE_NAMES, GODOT_ORIENTS, type PieceType } from "@/modules/game-engine/track";
 
 // The Track Document — see PROJECT_PLAN.md §7. Only `splines` is populated by
 // the Milestone 1 UI; the rest of the shape exists now so later milestones
@@ -179,13 +179,6 @@ export const cellSchema = z.tuple([
   godotOrientSchema,
 ]);
 
-export const decoCellSchema = z.tuple([
-  z.number().int(),
-  z.number().int(),
-  z.enum(DECO_TYPE_NAMES as [DecoType, ...DecoType[]]),
-  godotOrientSchema,
-]);
-
 export const trackDocumentV2Schema = z.object({
   formatVersion: z.literal(2),
   meta: metaSchema,
@@ -193,10 +186,15 @@ export const trackDocumentV2Schema = z.object({
   // No checkpoints/startLine: LapTimer derives the spawn point and its
   // required-cell set directly from `cells` (see computeSpawnPosition in
   // modules/game-engine/track.ts) -- storing them separately would just be
-  // two sources of truth that could drift.
+  // two sources of truth that could drift. No deco cells either:
+  // buildTrack's own procedural hash-ring (modules/game-engine/track.ts)
+  // already dresses any custom track's surroundings automatically with zero
+  // data needed, and deliberate scenery placement is already covered by
+  // `objects` below (the forest/paddock prop types, free-form position
+  // rather than grid-locked) -- a separate deco-cell field would just
+  // duplicate that with no editor ever meant to populate it.
   track: z.object({
     cells: z.array(cellSchema),
-    deco: z.array(decoCellSchema),
   }),
   objects: z.array(placedObjectSchema),
   validation: validationStateSchema,
@@ -290,7 +288,7 @@ export function createEmptyTrackDocumentV2(name = "Untitled Track"): TrackDocume
       updatedAt: now,
     },
     environment: { weather: "sunny", timeOfDay: 12, fogDensity: 0.02 },
-    track: { cells: [], deco: [] },
+    track: { cells: [] },
     objects: [],
     validation: { isValid: false, issues: [], validatedAt: null },
   };

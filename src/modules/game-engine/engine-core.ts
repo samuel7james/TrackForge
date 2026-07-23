@@ -35,11 +35,16 @@ import { DriftMarks } from "./drift-marks";
 import { GameAudio } from "./audio";
 import { LapTimer } from "./lap-timer";
 import { ColorMapGLTFLoader } from "./loader";
+import { buildPlacedObjectMeshes, buildPlacedObjectBodies } from "./placed-objects";
+import type { PlacedObject } from "@/modules/track-format/schema";
 
 export interface EngineOptions {
   canvas: HTMLCanvasElement;
   /** null/omitted plays the reference's own built-in demo grid. */
   mapCells?: Cell[] | null;
+  /** TrackForge's own placed-object layer (cones/barriers/trees/etc.) on
+   * top of the tile track -- a feature the reference doesn't have at all. */
+  objects?: PlacedObject[];
   /** localStorage key suffix for best-lap/drift-mark persistence. */
   trackId?: string | null;
   /** Aborted by engine-mount.tsx if the component unmounts while model
@@ -72,6 +77,12 @@ const MODEL_NAMES = [
 ];
 
 function disposeObject3D(obj: THREE.Object3D) {
+  // Skip module-level singleton geometry/material shared across every engine
+  // mount (see placed-objects.ts's PROP_REGISTRY-backed meshes) -- disposing
+  // those here would free their GPU buffers for every future mount too, not
+  // just this one.
+  if (obj.userData.sharedResource) return;
+
   if (obj instanceof THREE.Mesh || obj instanceof THREE.Line || obj instanceof THREE.Points) {
     obj.geometry?.dispose();
     const material = obj.material;
@@ -81,7 +92,7 @@ function disposeObject3D(obj: THREE.Object3D) {
 }
 
 export async function createEngine(options: EngineOptions): Promise<EngineHandle> {
-  const { canvas, mapCells = null, trackId = null, signal } = options;
+  const { canvas, mapCells = null, objects = [], trackId = null, signal } = options;
   let disposed = false;
 
   const renderer = new THREE.WebGLRenderer({
@@ -188,6 +199,7 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   scene.fog.far = groundSize * 0.8;
 
   buildTrack(scene, models, mapCells);
+  buildPlacedObjectMeshes(scene, models, objects);
 
   const probeHeight = 6;
   const probes = new LightProbeGrid(
@@ -217,6 +229,7 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   const world: World = createWorld(worldSettings);
 
   buildWallColliders(world, OL_STATIC, null, mapCells);
+  buildPlacedObjectBodies(world, OL_STATIC, OL_MOVING, objects);
 
   const roadHalf = groundSize / 2;
   rigidBody.create(world, {

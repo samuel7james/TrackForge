@@ -1332,6 +1332,51 @@ scope, risks) at `C:\Users\samue\.claude\plans\immutable-questing-cocke.md`.
   all. Test track row deleted after verification. Full `tsc`/`eslint`/
   `next build` clean.
 
+### Phase 4 — Real documents + placed-objects on crashcat
+
+- [x] `engine-core.ts`'s hardcoded demo grid is now genuinely optional --
+      `EngineOptions.mapCells`/`objects` feed real `TrackDocumentV2` data in
+- [x] `placed-objects.ts` (new): renders TrackForge's own cone/barrier/tree/
+      rock/flag/forest/paddock props imperatively (`scene.add()`, not the R3F
+      reconciler) and gives each collidable one a crashcat cylinder rigid
+      body -- reusing `prop-registry.ts` completely unmodified, since it was
+      already pure Three.js/data with no React coupling
+- [x] `/play-demo?slug=...` fetches a real track, validates it's v2, and
+      feeds `document.track.cells`/`document.objects` into `EngineMount`
+      (falls back to the built-in demo grid with no `slug`)
+- [x] Removed `track.deco` from the v2 schema (a Phase 3 correction found
+      while wiring this up) -- `buildTrack`'s own procedural hash-ring
+      already auto-dresses any custom track's surroundings with zero data
+      needed, and deliberate scenery placement is already covered by the
+      existing `objects` field's forest/paddock prop types, so a
+      grid-anchored deco field would've just duplicated that with no editor
+      ever meant to populate it
+
+**Notes:**
+
+- Real bug caught before it shipped: `PROP_REGISTRY`'s procedural
+  geometries/materials (cone/barrier/tree/rock/flag) are module-level
+  singletons built once at import time and shared by every placed instance
+  across every engine mount in the tab -- not per-instance clones.
+  `engine-core.ts`'s generic scene-teardown sweep (`disposeObject3D`) would
+  have called `.dispose()` on them the first time any engine unmounted,
+  permanently freeing their GPU buffers for every future mount that reuses
+  the same registry. Fixed by tagging those specific meshes with
+  `userData.sharedResource = true` in `placed-objects.ts` and having
+  `disposeObject3D` skip anything flagged that way -- GLTF-cloned
+  forest/paddock meshes and all track-piece/vehicle meshes (freshly loaded
+  per engine instance, never shared) are unaffected and still get disposed
+  normally.
+- Verified in-browser via Playwright against a real hand-built v2 track (2
+  cells: a finish line + one straight, with a barrier placed directly in
+  the spawned car's path): the custom layout rendered correctly with the
+  procedural forest ring auto-generated around it, and after a sustained
+  20-second continuous throttle push the car remained physically blocked at
+  the barrier the entire time rather than tunneling through -- confirming
+  the crashcat collision on a real placed object actually works, not just
+  that it doesn't crash. Zero console errors across load and driving. Test
+  track deleted after verification. Full `tsc`/`eslint`/`next build` clean.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records
