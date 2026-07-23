@@ -2,9 +2,13 @@ import * as THREE from "three";
 import type { TerrainData } from "@/modules/track-format/schema";
 import { cellIndex } from "./heightmap";
 
-const GRASS_COLOR = new THREE.Color("#3d4a35");
-const DIRT_COLOR = new THREE.Color("#4a3b2c");
-const ROCK_COLOR = new THREE.Color("#55565c");
+// Brighter/more saturated than the original "#3d4a35" -- that read as dull,
+// muddy olive even in full "Clear Day" sun once combined with fog and
+// ambient fill; a livelier grass green sells "sunny" much better and still
+// darkens sensibly toward dirt/rock at low grass-weight.
+const GRASS_COLOR = new THREE.Color("#4f7a3d");
+const DIRT_COLOR = new THREE.Color("#6b4f36");
+const ROCK_COLOR = new THREE.Color("#6b6d74");
 
 // Vertex-colored heightfield grid -- same manual BufferGeometry-construction
 // approach as road-mesh.ts's ribbon (rather than THREE.PlaneGeometry +

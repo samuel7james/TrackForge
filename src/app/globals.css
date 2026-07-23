@@ -83,38 +83,47 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* Racing-themed dark palette -- the app only ever renders in dark mode
+   (layout.tsx applies "dark" unconditionally), so this is the only theme
+   that matters. Swapped the generic grayscale/purple shadcn defaults for a
+   deep blue-graphite background (a shade of the sky/night presets already
+   used in the 3D scene, so the UI chrome and the canvas feel like one
+   design rather than "app UI" bolted onto "game") and a warm racing-orange
+   primary accent -- checkered-flag energy, and it complements the demo
+   car's red paint and the curbs' red/white striping instead of fighting them
+   the way the old blue-purple primary did. */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.65 0.2 265);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.65 0.2 265);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.16 0.014 260);
+  --foreground: oklch(0.97 0.005 260);
+  --card: oklch(0.21 0.016 260);
+  --card-foreground: oklch(0.97 0.005 260);
+  --popover: oklch(0.21 0.016 260);
+  --popover-foreground: oklch(0.97 0.005 260);
+  --primary: oklch(0.72 0.19 45);
+  --primary-foreground: oklch(0.16 0.02 45);
+  --secondary: oklch(0.28 0.018 260);
+  --secondary-foreground: oklch(0.97 0.005 260);
+  --muted: oklch(0.26 0.016 260);
+  --muted-foreground: oklch(0.68 0.02 260);
+  --accent: oklch(0.3 0.02 260);
+  --accent-foreground: oklch(0.97 0.005 260);
+  --destructive: oklch(0.65 0.22 25);
+  --border: oklch(0.97 0.01 260 / 10%);
+  --input: oklch(0.97 0.01 260 / 15%);
+  --ring: oklch(0.72 0.19 45);
+  --chart-1: oklch(0.72 0.19 45);
+  --chart-2: oklch(0.65 0.15 200);
+  --chart-3: oklch(0.55 0.02 260);
+  --chart-4: oklch(0.42 0.02 260);
+  --chart-5: oklch(0.3 0.02 260);
+  --sidebar: oklch(0.21 0.016 260);
+  --sidebar-foreground: oklch(0.97 0.005 260);
+  --sidebar-primary: oklch(0.72 0.19 45);
+  --sidebar-primary-foreground: oklch(0.16 0.02 45);
+  --sidebar-accent: oklch(0.28 0.018 260);
+  --sidebar-accent-foreground: oklch(0.97 0.005 260);
+  --sidebar-border: oklch(0.97 0.01 260 / 10%);
+  --sidebar-ring: oklch(0.72 0.19 45);
 }
 
 @layer base {

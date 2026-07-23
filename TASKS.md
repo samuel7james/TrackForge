@@ -872,6 +872,64 @@ same browser/dev-server setup used throughout this session.
     Not confirmed as the same root cause the user hit, just noted here since it produces a
     strikingly similar-looking symptom and is worth ruling in/out if it recurs.
 
+## Ad hoc — Visual Polish Pass
+
+Direct request to make TrackForge "look more beautiful," inspired by the same
+mrdoob's Starter-Kit-Racing reference as the physics/audio pass above, while keeping
+every existing feature untouched — a broad, moderate-depth pass across rendering,
+car model, and UI theme rather than a deep rebuild of any one area.
+
+- [x] Post-processing: ACESFilmic tone mapping + selective bloom + subtle vignette
+- [x] Fixed a pre-existing washed-out/hazy look in "Clear Day" weather
+- [x] Car model: wheel rims, rear spoiler, grounding contact shadow
+- [x] Editor UI theme: racing-orange accent replacing the generic shadcn purple/gray
+
+**Notes:**
+
+- `TrackForgeCanvas` gained `@react-three/postprocessing` (`EffectComposer` +
+  `Bloom` + `Vignette`) and `ACESFilmicToneMapping` on the renderer — the same
+  filmic highlight response the reference gets by default, R3F's `Canvas` has none
+  of this out of the box.
+- **Found while verifying, not caused by this pass:** the postprocessing changes
+  were initially blamed for a milky, washed-out haze over the whole scene, but an
+  A/B test (rendering with `EffectComposer` fully removed) reproduced the identical
+  haze — proving it pre-dated this session entirely. Root cause: the demo track's
+  saved document had `fogDensity: 0.02`, over 3x the "Clear Day" preset's own
+  default (0.006) at the time, plus a fairly dark/muted `GRASS_COLOR`
+  (`terrain-mesh.ts`). Fixed by lowering the sunny preset's default fog density to
+  0.0035, updating the demo track's saved value to match directly in the database,
+  and brightening/saturating the terrain's grass/dirt/rock vertex colors. Confirmed
+  by screenshot: the same "Clear Day" view went from a flat gray-green haze to a
+  crisp blue sky and vivid green field with no code path other than these three
+  values changing.
+  - Bloom tuning went through one bad iteration first: an initial
+    `toneMappingExposure: 1.15` combined with the (already-too-dense) fog pushed
+    huge swaths of the uniformly bright sky-colored fog over the bloom luminance
+    threshold, reading as a global haze rather than selective highlights. Fixed by
+    dropping the exposure boost back to 1.0 and raising `luminanceThreshold` to
+    0.97 so only genuinely bright small features (headlights, taillights, the sun)
+    bloom.
+- `CarModel`: added a rim disc to each flat face of the wheel cylinder, a rear
+  spoiler (two struts + a wing), and a soft radially-faded contact-shadow decal
+  under the car (a canvas-texture technique matching the project's established
+  "generate simple textures at runtime, no external assets" pattern, same as the
+  asphalt grain and sky gradient). One real bug caught by screenshot during this:
+  the rim discs' geometry initially had a redundant rotation that, composed with
+  the wheel group's own rotation, tipped them out to the side as visible white
+  slivers poking past the tire — fixed by removing the extra rotation (a
+  cylinder's flat face is already perpendicular to its own local axis, no
+  additional rotation needed once the parent group is already oriented correctly).
+- `globals.css`: retuned the `.dark` theme (the app's only theme — `layout.tsx`
+  applies `dark` unconditionally) from the generic shadcn gray/purple defaults to a
+  deep blue-graphite background with a racing-orange primary accent, chosen to
+  complement the demo car's red paint and the curbs' red/white striping rather
+  than fight them.
+- Verified in-browser: screenshotted the editor and Play mode before/after each
+  change, isolated the fog regression via a direct A/B test rather than assuming
+  cause from the first symptom, checked all seven weather presets for regressions
+  (Night in particular, being the darkest, for any bloom/tone-mapping oddity) —
+  none found. Full `next build` compiles clean; zero console errors throughout.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records

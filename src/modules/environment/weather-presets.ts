@@ -25,13 +25,17 @@ export const WEATHER_PRESETS: Record<Weather, WeatherPreset> = {
     sunColor: "#fff4de",
     sunIntensity: 2.6,
     hemisphereSky: "#8fc7ff",
-    hemisphereGround: "#3d3a35",
-    hemisphereIntensity: 0.75,
-    ambientIntensity: 0.3,
-    skyGradient: ["#2b6bb8", "#4a8fd6", "#6fa8de", "#9cc6ea", "#cfe6f7", "#eef7ff"],
-    fogColor: "#a9c6e0",
+    hemisphereGround: "#4a4438",
+    hemisphereIntensity: 0.8,
+    ambientIntensity: 0.35,
+    skyGradient: ["#1c5fb0", "#3f86d8", "#66a6e6", "#9cc9f0", "#cfe8fa", "#f0faff"],
+    fogColor: "#bcd8ec",
     defaultTimeOfDay: 12,
-    defaultFogDensity: 0.006,
+    // Was 0.006 -- still read hazier than intended on a real built track (the
+    // demo track, saved with an even higher 0.02 from earlier iteration,
+    // looked washed-out gray rather than crisp and sunny). Lowered further
+    // and confirmed by screenshot, not just the formula.
+    defaultFogDensity: 0.0035,
   },
   sunset: {
     label: "Sunset",
