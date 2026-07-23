@@ -1,15 +1,8 @@
-// Vendored from mrdoob/Starter-Kit-Racing (js/Audio.js, MIT license).
-// Ported to TypeScript -- see public/models/THIRD_PARTY_NOTICES.md.
-//
 // Reuses TrackForge's existing DSP helpers (impact-sound.ts/skid-sound.ts/
-// engine-constants.ts, themselves already adapted from this same reference
-// file earlier in this project) rather than re-porting the buffer-synthesis
-// code twice. IMPACT_MAX_VELOCITY/IMPACT_HARD_VELOCITY here are deliberately
-// NOT the same numbers as src/modules/audio/game-audio.ts's -- that class was
-// tuned for the old Rapier vehicle's real 0-32 m/s range; this one drives off
-// the vendored sphere-vehicle's own velocity scale (see vehicle.ts), which is
-// a different order of magnitude, so it keeps its own reference-original
-// thresholds instead of inheriting a mistuned pair.
+// engine-constants.ts) rather than re-porting the buffer-synthesis code
+// twice. IMPACT_MAX_VELOCITY/IMPACT_HARD_VELOCITY here are tuned for the
+// sphere-vehicle's own velocity scale (see vehicle.ts), which is a
+// different order of magnitude than a typical car's real m/s range.
 import * as THREE from "three";
 import { createImpactBuffer } from "@/modules/audio/impact-sound";
 import { createSkidBuffer } from "@/modules/audio/skid-sound";

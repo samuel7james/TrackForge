@@ -10,9 +10,6 @@
 //
 // `hardness` (0..1): a light scuff is a short dull crunch; a full crash is a
 //   loud broad smash with debris. `seed`: re-rolls detune, gating, timing.
-//
-// Adapted from mrdoob's Starter-Kit-Racing (MIT) -- pure DSP, no dependency
-// on that project's physics/Three.js setup, so it ports directly.
 
 const DURATION = 0.6;
 

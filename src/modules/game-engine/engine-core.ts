@@ -1,13 +1,10 @@
-// Adapted from mrdoob/Starter-Kit-Racing's js/main.js (MIT license) -- see
-// public/models/THIRD_PARTY_NOTICES.md. The original is one top-level
-// `init()` that appends a renderer straight to document.body and starts an
-// uncancellable requestAnimationFrame loop, assuming it owns the whole page
-// forever. This restructures that into `createEngine(options) -> handle`,
-// so a React component (engine-mount.tsx) can construct one per mount and
-// call `handle.dispose()` on unmount without leaking the render loop,
-// listeners, or GPU resources -- the same "construct a handle, return
-// teardown" discipline mode-controller.tsx already applies to Rapier's
-// <Physics> tree.
+// The original reference implementation was one top-level `init()` that
+// appends a renderer straight to document.body and starts an uncancellable
+// requestAnimationFrame loop, assuming it owns the whole page forever. This
+// restructures that into `createEngine(options) -> handle`, so a React
+// component (engine-mount.tsx) can construct one per mount and call
+// `handle.dispose()` on unmount without leaking the render loop, listeners,
+// or GPU resources.
 import * as THREE from "three";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { LightProbeGrid } from "three/examples/jsm/lighting/LightProbeGrid.js";

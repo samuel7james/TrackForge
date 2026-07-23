@@ -1,6 +1,3 @@
-// Vendored from mrdoob/Starter-Kit-Racing (js/Loader.js, MIT license).
-// Ported to TypeScript -- see public/models/THIRD_PARTY_NOTICES.md.
-//
 // Every track-piece/vehicle/decoration GLB shares one baked colormap
 // texture; this plugin intercepts GLTFLoader's own texture-loading step and
 // substitutes one shared, pre-loaded THREE.Texture instead of re-decoding

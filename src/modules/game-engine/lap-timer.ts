@@ -1,14 +1,9 @@
-// Vendored from mrdoob/Starter-Kit-Racing (js/LapTimer.js, MIT license).
-// Ported to TypeScript -- see public/models/THIRD_PARTY_NOTICES.md.
-//
 // Tracks lap completion by requiring the car to visit every non-finish cell
 // at least once, then cross the finish line moving forward -- not just
 // "crossed the line," which would let a car ping-pong across it for free
 // laps. Pure state, no DOM: `lap`/`currentLapTime`/`lastLap`/`bestLap`/
-// `lastLapWasBest` are plain public fields, same pattern TrackForge's own
-// vehicle-visual-state.ts already uses -- hud-overlay.tsx reads them every
-// frame instead of this class building its own UI, which the reference's
-// original buildUI() did.
+// `lastLapWasBest` are plain public fields, so hud-overlay.tsx can read
+// them every frame instead of this class building its own UI.
 import * as THREE from "three";
 import { CELL_RAW, GRID_SCALE, TRACK_CELLS, TYPE_NAMES, computeSpawnPosition, type Cell } from "./track";
 

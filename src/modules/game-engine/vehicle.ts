@@ -1,7 +1,3 @@
-// Vendored from mrdoob/Starter-Kit-Racing (js/Vehicle.js, MIT license).
-// Ported to TypeScript with minimal logic changes -- see
-// public/models/THIRD_PARTY_NOTICES.md.
-//
 // The vehicle's actual physics body is a single rolling SPHERE (not a
 // car-shaped rigid body) -- torque is applied around the sphere's own right
 // axis to make it roll forward, and the visible car model container follows

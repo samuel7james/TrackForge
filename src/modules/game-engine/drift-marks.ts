@@ -1,13 +1,6 @@
-// Vendored from mrdoob/Starter-Kit-Racing (js/DriftMarks.js, MIT license).
-// Ported to TypeScript -- see public/models/THIRD_PARTY_NOTICES.md.
-//
 // A dynamic ring-buffer ribbon mesh per rear wheel, alpha-faded by drift
 // intensity, persisted to localStorage keyed by track id so marks survive a
-// page reload (a deliberate reference feature, kept as-is -- TrackForge's
-// own earlier from-scratch reimplementation of this dropped persistence
-// since nothing else in the app used localStorage that way, but this is the
-// real vendored engine now, not a reimplementation, so the original
-// behavior carries over).
+// page reload.
 import * as THREE from "three";
 import type { Vehicle } from "./vehicle";
 

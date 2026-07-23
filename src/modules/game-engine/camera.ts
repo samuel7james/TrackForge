@@ -1,6 +1,3 @@
-// Vendored from mrdoob/Starter-Kit-Racing (js/Camera.js, MIT license).
-// Ported to TypeScript -- see public/models/THIRD_PARTY_NOTICES.md.
-//
 // Fixed-angle chase camera with velocity-lead deadzone smoothing: the car
 // settles at the trailing edge of an invisible circle around the camera's
 // look target, so straight-line speed pulls the framing slightly ahead

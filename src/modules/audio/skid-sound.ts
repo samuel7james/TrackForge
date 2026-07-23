@@ -1,12 +1,10 @@
-// Procedural tire-scrub loop -- Starter-Kit-Racing plays a recorded
-// audio/skid.ogg sample for this; TrackForge has no audio assets at all
-// (CarModel, props, everything else here is procedural geometry/sound, see
-// prop-registry.ts), so this synthesizes an equivalent instead of adding the
-// project's first binary asset. A short bandpass-filtered noise loop reads
-// as a scrape/hiss regardless of loop length (noise has no pitch to expose a
+// Procedural tire-scrub loop, synthesized rather than a recorded sample
+// (props/everything else here is procedural geometry/sound too, see
+// prop-registry.ts). A short bandpass-filtered noise loop reads as a
+// scrape/hiss regardless of loop length (noise has no pitch to expose a
 // seam), so only the loop *edges* need matching -- crossfaded here so the
-// wrap doesn't click. GameAudio drives its tone/volume/pitch live per frame,
-// same as it would a sample.
+// wrap doesn't click. GameAudio drives its tone/volume/pitch live per
+// frame, same as it would a sample.
 const DURATION = 0.5;
 const CROSSFADE = 0.03;
 

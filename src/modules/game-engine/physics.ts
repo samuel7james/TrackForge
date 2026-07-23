@@ -1,6 +1,3 @@
-// Vendored from mrdoob/Starter-Kit-Racing (js/Physics.js, MIT license).
-// Ported to TypeScript -- see public/models/THIRD_PARTY_NOTICES.md.
-//
 // Builds crashcat static colliders for the track's walls (straight/finish
 // pieces get two parallel wall boxes, corners get an arc of small wall
 // segments approximating a curve, bumps get none) and creates the vehicle's

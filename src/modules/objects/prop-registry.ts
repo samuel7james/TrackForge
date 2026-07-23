@@ -22,10 +22,9 @@ export interface PropDefinition {
   label: string;
   icon: ComponentType<{ className?: string }>;
   // Procedural props (cone/barrier/tree/rock/flag) build parts from
-  // primitives, same as CarModel/road/SkyDome elsewhere in this codebase.
-  // `modelUrl` props (forest/paddock -- real Starter-Kit-Racing decoration
-  // tiles, see THIRD_PARTY_NOTICES.md) instead load a GLTF scene; parts
-  // stays empty for those and PlacedObjects.tsx branches on modelUrl to
+  // primitives, same as SkyDome elsewhere in this codebase. `modelUrl`
+  // props (forest/paddock decoration tiles) instead load a GLTF scene;
+  // parts stays empty for those and PlacedObjects.tsx branches on modelUrl to
   // pick the rendering path. Two different asset pipelines under one
   // registry rather than forcing everything through primitives (these are
   // whole 10x10-unit scenic clusters, not something worth hand-modeling)
@@ -182,9 +181,9 @@ export const PROP_COLLIDER_HEIGHT: Record<PropType, number> = {
 // Which props are knockable (dynamic, low-mass rigid bodies the car can push
 // around) vs. solid scenery (fixed, immovable). Only the cone is dynamic --
 // a traffic cone getting knocked flying on contact is the classic arcade-
-// racer feel this is chasing (mrdoob's Starter-Kit-Racing); a barrier/rock/
-// tree/flag staying put keeps Phase 16's "does this object block the path"
-// validation meaningful -- a knockable obstacle can't really block anything.
+// racer feel this is chasing; a barrier/rock/tree/flag staying put keeps
+// the "does this object block the path" validation meaningful -- a
+// knockable obstacle can't really block anything.
 export const PROP_DYNAMIC: Record<PropType, boolean> = {
   cone: true,
   barrier: false,

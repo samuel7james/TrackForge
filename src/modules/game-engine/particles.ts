@@ -1,6 +1,3 @@
-// Vendored from mrdoob/Starter-Kit-Racing (js/Particles.js, MIT license).
-// Ported to TypeScript -- see public/models/THIRD_PARTY_NOTICES.md.
-//
 // A fixed pool of billboarded points recycled round-robin as they die, with
 // per-particle size/opacity injected into PointsMaterial's shader via
 // onBeforeCompile (PointsMaterial has no per-vertex size/alpha of its own).

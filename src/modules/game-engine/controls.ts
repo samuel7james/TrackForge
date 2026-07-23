@@ -1,6 +1,3 @@
-// Vendored from mrdoob/Starter-Kit-Racing (js/Controls.js, MIT license).
-// Ported to TypeScript -- see public/models/THIRD_PARTY_NOTICES.md.
-//
 // Keyboard/gamepad/touch input, unified into one steer/throttle pair per
 // frame. Pure input state, no DOM: the touch joystick's pointer-math lives
 // here as public methods (handleSteerStart/Move/End), but drawing the

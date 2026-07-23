@@ -4,9 +4,8 @@ import { MapControls, OrthographicCamera } from "@react-three/drei";
 import { useEditorStore } from "@/store/editor-store";
 
 // A clean top-down orthographic view -- pan and zoom only, no rotation --
-// directly inspired by mrdoob's Starter-Kit-Racing track editor, which
-// edits tracks from exactly this kind of flat, precise, non-perspective
-// viewpoint. MapControls is drei's ready-made fit: the same OrbitControls
+// for editing tracks from a flat, precise, non-perspective viewpoint.
+// MapControls is drei's ready-made fit: the same OrbitControls
 // machinery with mouse buttons remapped for panning a flat view, so no
 // custom pan/zoom math is needed.
 export function TopViewCameraRig() {

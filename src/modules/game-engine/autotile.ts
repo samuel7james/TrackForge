@@ -1,9 +1,6 @@
-// Ported from mrdoob/Starter-Kit-Racing's editor.html (MIT license, inline
-// <script> block) -- see public/models/THIRD_PARTY_NOTICES.md. The
-// reference keeps this logic and a module-level mutable `grid` Map together
-// in one big inline script; here it's pure functions taking the grid
-// explicitly, so a React component (tile-grid-layer.tsx) can call it against
-// state it owns (a Zustand store) instead of a persistent global.
+// Pure functions taking the grid explicitly (rather than a module-level
+// mutable Map) so a React component (tile-grid-layer.tsx) can call this
+// against state it owns (a Zustand store) instead of a persistent global.
 //
 // Auto-tiling: placing a cell doesn't require picking a piece+orientation
 // yourself -- resolveNewTile/resolveTile infer straight-vs-corner and

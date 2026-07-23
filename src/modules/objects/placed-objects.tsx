@@ -64,8 +64,8 @@ function PropTypeInstances({ type, objects }: { type: PropType; objects: PlacedO
   );
 }
 
-// GLTF-based props (forest/paddock -- real Starter-Kit-Racing decoration
-// tiles) render one <primitive> per placed object rather than drei's
+// GLTF-based props (forest/paddock decoration tiles) render one
+// <primitive> per placed object rather than drei's
 // <Instances> -- these are whole scenic clusters, not simple repeated
 // primitives, and are placed far less densely than cones/trees, so the
 // instancing win matters less than just reusing the loaded scene directly.

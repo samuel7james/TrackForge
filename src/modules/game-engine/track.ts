@@ -1,7 +1,3 @@
-// Vendored from mrdoob/Starter-Kit-Racing (js/Track.js, MIT license, a
-// Three.js port of Kenney's CC0 "Starter Kit Racing" assets). Ported to
-// TypeScript with minimal logic changes -- see public/models/THIRD_PARTY_NOTICES.md.
-//
 // Tile-based track format: a cell is [gx, gz, pieceName, godotOrient]. Only
 // 4 piece types exist (straight/corner/bump/finish); orient is a Godot-style
 // code (0/10/16/22), not plain degrees -- ORIENT_DEG maps it to a Y-rotation.
