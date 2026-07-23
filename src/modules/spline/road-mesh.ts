@@ -31,7 +31,7 @@ function rightVector(tangent: THREE.Vector3, bank: number): THREE.Vector3 {
 // hairpin turns self-intersect in practice.
 const CURVATURE_WINDOW = 4;
 
-function estimateTurnRadius(samples: RoadSample[], i: number): number {
+export function estimateTurnRadius(samples: RoadSample[], i: number): number {
   const a = samples[Math.max(i - CURVATURE_WINDOW, 0)];
   const b = samples[Math.min(i + CURVATURE_WINDOW, samples.length - 1)];
   const angle = a.tangent.angleTo(b.tangent);
@@ -40,7 +40,11 @@ function estimateTurnRadius(samples: RoadSample[], i: number): number {
   return dist / angle;
 }
 
-function safeHalfWidth(samples: RoadSample[], i: number, requestedHalfWidth: number): number {
+// Exported so track validation (Phase 16) can flag a corner as impassable
+// using the exact same narrowing the visual/collider geometry already
+// applies, rather than a second, potentially-inconsistent estimate of "is
+// this corner too tight."
+export function safeHalfWidth(samples: RoadSample[], i: number, requestedHalfWidth: number): number {
   const radius = estimateTurnRadius(samples, i);
   return Math.min(requestedHalfWidth, radius * CORNER_SAFETY_FACTOR);
 }

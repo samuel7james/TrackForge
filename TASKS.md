@@ -467,11 +467,45 @@ loop as Milestone 1.
 
 ### Phase 16 — Track Validation Hardening
 
-- [ ] Unreachable-area detection (props/terrain blocking the drivable path)
-- [ ] Extend `validateTrack` beyond "closed loop + enough points" now that terrain/objects
+- [x] Unreachable-area detection (props/terrain blocking the drivable path)
+- [x] Extend `validateTrack` beyond "closed loop + enough points" now that terrain/objects
       can make a technically-closed loop undriveable
-- [ ] Surface new issue types through the existing `TrackStatus`/`PublishDialog` UI (no new
+- [x] Surface new issue types through the existing `TrackStatus`/`PublishDialog` UI (no new
       feedback mechanism needed — Phase 10 already built it)
+
+**Notes:**
+
+- `road-mesh.ts`'s `estimateTurnRadius`/`safeHalfWidth` (the curvature-based narrowing that
+  already keeps the visual ribbon/collider from self-intersecting on tight corners, Phase 11)
+  are now exported and reused directly by validation, rather than re-deriving a second,
+  potentially-inconsistent notion of "too tight."
+- `prop-registry.ts` gained `PROP_BLOCKING_RADIUS`: an approximate ground-level footprint
+  radius per prop type (trunk radius for a tree, not its canopy — a car's body never reaches
+  that high), used only for the new blocking-path check.
+- Three new checks in `validate-track.ts`, all composed into `useTrackValidation`
+  alongside the existing `validateTrack`/`validateTerrainAlignment`:
+  - `validateImpassableCorners`: walks the centerline and flags any sample where
+    `safeHalfWidth` has narrowed the road below `MIN_SAFE_WIDTH_FRACTION` (0.35) of its
+    requested width — i.e. exactly the corners Phase 11's clamp was quietly papering over
+    now surface as a real "fix this" issue instead of a silently-narrower road.
+  - `validateObjectsBlockingPath`: for each placed prop, finds the nearest centerline
+    sample, projects the prop onto that sample's lateral (right) axis, and flags it if its
+    scaled footprint circle spans from past one road edge to past the other. Gated by a
+    proximity pre-check so most objects (nowhere near the track) cost one distance
+    comparison each, not a full lateral-offset computation.
+  - `validateTerrainAlignment` (existing, extended): now samples both road edges in
+    addition to the centerline, since a hill sculpted just clear of the centerline can still
+    poke up through one side of a wide road.
+- Verified in-browser (`/editor/new`): a clean rectangular loop reports "Ready to race";
+  collapsing one control point onto its neighbor (via precise Inspector X/Z fields, not
+  mouse-drag pixel calibration) triggers `impassable-corner` and clears on undo; placing an
+  oversized barrier (scaled up so its footprint radius exceeds the road's half-width)
+  triggers `object-blocks-path` and clears on delete. Both new checks correctly ignore
+  under-sized objects/mild offsets rather than false-flagging — confirmed by first
+  reproducing a *non-trigger* case (a default-scale barrier placed off-center) and
+  understanding why the math correctly left it valid before tuning the repro to actually
+  span the road. Reran the Phase 12 terrain-mismatch regression script — still passes
+  unchanged. Zero console errors throughout.
 
 ## Milestone 3 — Creator Platform (high-level)
 - [ ] Real auth + `User` model, migrate anonymous `authorId`s

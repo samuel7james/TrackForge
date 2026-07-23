@@ -116,6 +116,19 @@ export const PROP_REGISTRY: Record<PropType, PropDefinition> = {
 
 export const PROP_TYPES = Object.keys(PROP_REGISTRY) as PropType[];
 
+// Approximate ground-level footprint radius per prop type, used by track
+// validation (Phase 16) to flag an object big/close enough to span the
+// road and block the way through. Ground-level specifically -- a tree's
+// wide canopy sits well above where a car's body would ever touch it, so
+// this uses the trunk's radius, not the foliage's.
+export const PROP_BLOCKING_RADIUS: Record<PropType, number> = {
+  cone: 0.35,
+  barrier: 1.05,
+  tree: 0.25,
+  rock: 0.65,
+  flag: 0.1,
+};
+
 export function isPropType(type: string): type is PropType {
   return type in PROP_REGISTRY;
 }
