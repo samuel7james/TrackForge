@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { editTokenStorageKey } from "@/modules/track-format/edit-token-storage";
 import { useIsBookmarked } from "@/modules/bookmarks/use-bookmarks";
 import { toggleBookmark } from "@/modules/bookmarks/bookmarks-storage";
+import { DeleteTrackButton } from "@/modules/editor/ui/delete-track-button";
 
 interface PublicTrackActionsProps {
   slug: string;
@@ -55,6 +56,7 @@ export function PublicTrackActions({ slug, name, isPublished }: PublicTrackActio
             >
               Open editor
             </Button>
+            <DeleteTrackButton slug={slug} name={name} />
           </>
         ) : (
           <span>This track hasn&apos;t been published yet.</span>
@@ -85,6 +87,7 @@ export function PublicTrackActions({ slug, name, isPublished }: PublicTrackActio
         <Bookmark className={bookmarked ? "size-4 fill-current" : "size-4"} />
         {bookmarked ? "Bookmarked" : "Bookmark"}
       </Button>
+      {isOwner && <DeleteTrackButton slug={slug} name={name} />}
     </div>
   );
 }

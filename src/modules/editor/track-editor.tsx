@@ -10,6 +10,7 @@ import { PropPalettePanel } from "@/modules/editor/ui/prop-palette-panel";
 import { SaveButton } from "@/modules/editor/ui/save-button";
 import { PublishShareButton } from "@/modules/editor/ui/publish-share-button";
 import { ResetTrackButton } from "@/modules/editor/ui/reset-track-button";
+import { DeleteTrackButton } from "@/modules/editor/ui/delete-track-button";
 import { useEditorStore } from "@/store/editor-store";
 import { useTrackStore } from "@/store/track-store";
 import { useCommandStack } from "@/modules/editor/core/command-stack";
@@ -43,6 +44,7 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
   const setMode = useEditorStore((s) => s.setMode);
   const setActiveToolId = useEditorStore((s) => s.setActiveToolId);
   const trackName = useTrackStore((s) => s.document.meta.name);
+  const currentSlug = useTrackStore((s) => s.document.meta.slug);
   const cells = useTrackStore((s) => s.document.track.cells);
   const objects = useTrackStore((s) => s.document.objects);
 
@@ -100,6 +102,7 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
                 <SaveButton saveTrack={saveTrack} />
                 <PublishShareButton initiallyPublished={initiallyPublished ?? false} saveTrack={saveTrack} />
                 <ResetTrackButton />
+                {currentSlug && <DeleteTrackButton slug={currentSlug} name={trackName} />}
               </>
             )}
           </div>

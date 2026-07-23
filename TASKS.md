@@ -85,6 +85,46 @@
   (plus one leftover autosave row from earlier testing) cleaned up from the
   dev database afterward, leaving only the real demo track.
 
+## Ad hoc — Delete a track
+
+- [x] `DELETE /api/tracks/[slug]` (`src/app/api/tracks/[slug]/route.ts`) —
+      edit-token guarded like `PATCH`; `prisma.track.delete` and the
+      schema's existing `onDelete: Cascade` on `TrackVersion`/`Like`/
+      `Comment` handle full cleanup in one call, no transaction needed.
+- [x] `DeleteTrackButton` (`src/modules/editor/ui/delete-track-button.tsx`)
+      — a themed confirm dialog (not a native `confirm()`, unlike Reset:
+      deleting also destroys likes/comments, not just editable content, so
+      it gets the more explicit treatment) styled with the `destructive`
+      Button variant. Wired into two places an owner can act from:
+      - The editor header, next to Reset — reads the slug from the store
+        (`useTrackStore`), not the `slug` route prop, since that prop stays
+        `null` for a brand-new track even after the first Save assigns a
+        real slug (same gotcha `PublishShareButton` already documents and
+        works around).
+      - `PublicTrackActions` on a track's public page, gated behind the
+        same client-side `isOwner` check (edit token present in
+        localStorage) already used there for the unpublished-state
+        "Open editor" affordance.
+      Both redirect to `/my-tracks` after a successful delete.
+
+**Notes:**
+
+- Verified via Playwright: deleted an unpublished track from the editor
+  header (confirmed `GET /api/tracks/[slug]` 404s afterward, redirected to
+  `/my-tracks` → `/creator/[authorId]`), and separately published a second
+  track and deleted it from its own public page (same 404 check). Zero
+  console errors in either flow.
+- Caught and fixed a real bug during verification: the Delete button
+  initially read `slug` from the component's prop rather than the store,
+  so it silently never rendered for a track created and saved in the same
+  session (prop stays `null` until a full page reload). Switched to
+  `useTrackStore((s) => s.document.meta.slug)`.
+- Full `tsc`/`eslint`/`next build` clean.
+- Dev database checked via `SELECT slug, name FROM "Track"` before cleanup;
+  only the specifically-named stray test row was deleted. A track named
+  "RRMMC" found in the same query wasn't created by any verification
+  script this session and was left untouched as likely the user's own work.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records

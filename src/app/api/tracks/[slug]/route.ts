@@ -71,3 +71,26 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   return NextResponse.json({ ok: true, updatedAt: updated.updatedAt });
 }
+
+// Edit-token guarded, same as PATCH. Permanently removes the track row;
+// TrackVersion/Like/Comment all cascade via the schema's onDelete: Cascade,
+// so there's nothing else to clean up here.
+export async function DELETE(request: Request, { params }: RouteContext) {
+  const { slug } = await params;
+  const editToken = request.headers.get("x-edit-token");
+  if (!editToken) {
+    return NextResponse.json({ error: "Missing edit token" }, { status: 401 });
+  }
+
+  const existing = await prisma.track.findUnique({ where: { slug } });
+  if (!existing) {
+    return NextResponse.json({ error: "Track not found" }, { status: 404 });
+  }
+  if (existing.editToken !== editToken) {
+    return NextResponse.json({ error: "Invalid edit token" }, { status: 403 });
+  }
+
+  await prisma.track.delete({ where: { slug } });
+
+  return NextResponse.json({ ok: true });
+}
