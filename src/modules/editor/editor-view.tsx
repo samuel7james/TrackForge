@@ -27,6 +27,7 @@ export function EditorView({ slug }: EditorViewProps) {
 
 function ExistingTrackEditorView({ slug }: { slug: string }) {
   const [trackDocument, setTrackDocument] = useState<TrackDocumentV2 | null>(null);
+  const [isPublished, setIsPublished] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const autoplay = searchParams.get("autoplay") === "1";
@@ -49,6 +50,7 @@ function ExistingTrackEditorView({ slug }: { slug: string }) {
           );
         }
         setTrackDocument(parsed.data);
+        setIsPublished(Boolean(data.isPublished));
       })
       .catch((error) => {
         if (!cancelled) {
@@ -79,5 +81,12 @@ function ExistingTrackEditorView({ slug }: { slug: string }) {
     );
   }
 
-  return <EditorViewV2 slug={slug} document={trackDocument} autoplay={autoplay} />;
+  return (
+    <EditorViewV2
+      slug={slug}
+      document={trackDocument}
+      autoplay={autoplay}
+      initiallyPublished={isPublished}
+    />
+  );
 }

@@ -8,6 +8,8 @@ import { ModeToggle } from "@/modules/editor/ui/mode-toggle";
 import { Toolbar } from "@/modules/editor/ui/toolbar";
 import { PropPalettePanel } from "@/modules/editor/ui/prop-palette-panel";
 import { SaveButton } from "@/modules/editor/ui/save-button";
+import { PublishShareButton } from "@/modules/editor/ui/publish-share-button";
+import { ResetTrackButton } from "@/modules/editor/ui/reset-track-button";
 import { useEditorStore } from "@/store/editor-store";
 import { useTrackStoreV2 } from "@/store/track-store-v2";
 import { useCommandStack } from "@/modules/editor/core/command-stack";
@@ -25,19 +27,19 @@ interface EditorViewV2Props {
   /** A track's public page links here with ?autoplay=1 so a visitor lands
    * directly in the driver's seat instead of the editor. */
   autoplay?: boolean;
+  /** Whether the fetched track was already published -- ignored for a
+   * brand-new track (always starts unpublished). */
+  initiallyPublished?: boolean;
 }
 
 // TrackForge's one editor UI (the old spline/heightmap one and its R3F/
-// Rapier rendering stack were deleted in the engine-swap cleanup -- see
-// TASKS.md's "Ad hoc -- Engine Swap" entries). Scoped down from that old
-// UI in a few ways that are deliberately deferred, not silently dropped:
-// no InspectorPanel/TerrainBrushPanel-equivalent (nothing to inspect -- no
-// spline points or heightmap), no PublishDialog (the publish route has only
-// a minimal finish-line-exists check so far, no full layout validator
-// suite), no UndoRedoControls/CommandPalette (TileGridLayer mutates the
-// store directly rather than through useCommandStack, so there's nothing
-// for them to act on yet).
-export function EditorViewV2({ slug, document, autoplay }: EditorViewV2Props) {
+// Rapier rendering stack were deleted in the engine-swap cleanup). Scoped
+// down from that old UI in a few ways that are deliberately deferred, not
+// silently dropped: no InspectorPanel/TerrainBrushPanel-equivalent (nothing
+// to inspect -- no spline points or heightmap), no UndoRedoControls/
+// CommandPalette (TileGridLayer mutates the store directly rather than
+// through useCommandStack, so there's nothing for them to act on yet).
+export function EditorViewV2({ slug, document, autoplay, initiallyPublished }: EditorViewV2Props) {
   const mode = useEditorStore((s) => s.mode);
   const setMode = useEditorStore((s) => s.setMode);
   const setActiveToolId = useEditorStore((s) => s.setActiveToolId);
@@ -95,7 +97,13 @@ export function EditorViewV2({ slug, document, autoplay }: EditorViewV2Props) {
             <span className="font-medium tracking-tight text-foreground/90">TrackForge</span>
             <span className="text-muted-foreground">/</span>
             <span className="text-muted-foreground">{trackName}</span>
-            {mode === "edit" && <SaveButton saveTrack={saveTrack} />}
+            {mode === "edit" && (
+              <>
+                <SaveButton saveTrack={saveTrack} />
+                <PublishShareButton initiallyPublished={initiallyPublished ?? false} />
+                <ResetTrackButton />
+              </>
+            )}
           </div>
           <ModeToggle />
         </header>
