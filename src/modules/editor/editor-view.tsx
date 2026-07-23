@@ -4,29 +4,26 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
-import { EditorViewV2 } from "@/modules/editor/editor-view-v2";
-import type { TrackDocumentV2 } from "@/modules/track-format/schema";
+import { TrackEditor } from "@/modules/editor/track-editor";
+import type { TrackDocument } from "@/modules/track-format/schema";
 
 interface EditorViewProps {
   slug: string | null;
 }
 
-// New tracks (no slug yet) are always the tile-based editor -- there's only
-// one format now (the old spline/heightmap editor and its whole R3F/Rapier
-// rendering stack were deleted in the engine-swap cleanup, see TASKS.md's
-// "Ad hoc -- Engine Swap" entries). For an existing slug, the document is
-// fetched once here rather than inside EditorViewV2 itself, so a track
-// left over from before the cutover (formatVersion 1, no longer
-// renderable at all) can show a clear message instead of a runtime crash.
+// New tracks (no slug yet) always use the tile-based editor. For an
+// existing slug, the document is fetched once here rather than inside
+// TrackEditor itself, so a track saved in an unsupported format can show a
+// clear message instead of a runtime crash.
 export function EditorView({ slug }: EditorViewProps) {
   if (!slug) {
-    return <EditorViewV2 slug={null} />;
+    return <TrackEditor slug={null} />;
   }
   return <ExistingTrackEditorView slug={slug} />;
 }
 
 function ExistingTrackEditorView({ slug }: { slug: string }) {
-  const [trackDocument, setTrackDocument] = useState<TrackDocumentV2 | null>(null);
+  const [trackDocument, setTrackDocument] = useState<TrackDocument | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
@@ -82,7 +79,7 @@ function ExistingTrackEditorView({ slug }: { slug: string }) {
   }
 
   return (
-    <EditorViewV2
+    <TrackEditor
       slug={slug}
       document={trackDocument}
       autoplay={autoplay}

@@ -1,6 +1,6 @@
 "use client";
 
-import type { EditorToolDefinition } from "@/modules/editor/core/tool-registry-v2";
+import type { EditorToolDefinition } from "@/modules/editor/core/tool-registry";
 import { useEditorStore } from "@/store/editor-store";
 import { Button } from "@/components/ui/button";
 

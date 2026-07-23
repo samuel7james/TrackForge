@@ -2,7 +2,7 @@
 
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTrackStoreV2 } from "@/store/track-store-v2";
+import { useTrackStore } from "@/store/track-store";
 import { placeFinishCell, gridToCells } from "@/modules/game-engine/autotile";
 
 // Wipes the track back to a single finish cell and removes every placed
@@ -13,9 +13,9 @@ import { placeFinishCell, gridToCells } from "@/modules/game-engine/autotile";
 // its own comment on why) and a plain browser prompt reads as appropriately
 // blunt for that.
 export function ResetTrackButton() {
-  const setCells = useTrackStoreV2((s) => s.setCells);
-  const objects = useTrackStoreV2((s) => s.document.objects);
-  const removePlacedObjectById = useTrackStoreV2((s) => s.removePlacedObjectById);
+  const setCells = useTrackStore((s) => s.setCells);
+  const objects = useTrackStore((s) => s.document.objects);
+  const removePlacedObjectById = useTrackStore((s) => s.removePlacedObjectById);
 
   const handleReset = () => {
     if (!window.confirm("Clear the whole track and start over? This can't be undone.")) return;

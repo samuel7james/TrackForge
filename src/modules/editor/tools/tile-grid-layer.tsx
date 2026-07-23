@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect } from "react";
 import type { ThreeEvent } from "@react-three/fiber";
-import { useTrackStoreV2 } from "@/store/track-store-v2";
+import { useTrackStore } from "@/store/track-store";
 import { useEditorStore } from "@/store/editor-store";
 import { usePropPaletteStore } from "@/store/prop-palette-store";
 import { createPlacedObject } from "@/modules/objects/prop-registry";
@@ -22,24 +22,21 @@ function isTypingIntoField(target: EventTarget | null): boolean {
   return tag === "INPUT" || tag === "TEXTAREA";
 }
 
-// The tile-based editor's road/erase/object placement, parallel in spirit to
-// PointEditingLayer/ObjectPlacementLayer (v1) but for TrackDocumentV2. A
-// single invisible ground plane click-catcher (only while one of "tile" /
-// "erase" / "object" is active) does everything: click resolves the hit
-// point to a grid cell (tile tools) or a raw world position (object tool).
+// The tile-based editor's road/erase/object placement. A single invisible
+// ground plane click-catcher (only while one of "tile" / "erase" / "object"
+// is active) does everything: click resolves the hit point to a grid cell
+// (tile tools) or a raw world position (object tool).
 //
-// Deliberately simpler than the v1 object tool for this pass: places/
-// selects/deletes objects directly against the store, with no undo/redo
-// command wrapping yet (v1's AddPlacedObjectCommand etc. are wired
-// specifically to the v1 store) -- drag-to-reposition and undo/redo for
-// placed objects in this editor are left as a follow-up, not silently
-// dropped.
+// Deliberately simple for this pass: places/selects/deletes objects
+// directly against the store, with no undo/redo command wrapping yet --
+// drag-to-reposition and undo/redo for placed objects in this editor are
+// left as a follow-up, not silently dropped.
 export function TileGridLayer() {
-  const cells = useTrackStoreV2((s) => s.document.track.cells);
-  const setCells = useTrackStoreV2((s) => s.setCells);
-  const objects = useTrackStoreV2((s) => s.document.objects);
-  const insertPlacedObject = useTrackStoreV2((s) => s.insertPlacedObject);
-  const removePlacedObjectById = useTrackStoreV2((s) => s.removePlacedObjectById);
+  const cells = useTrackStore((s) => s.document.track.cells);
+  const setCells = useTrackStore((s) => s.setCells);
+  const objects = useTrackStore((s) => s.document.objects);
+  const insertPlacedObject = useTrackStore((s) => s.insertPlacedObject);
+  const removePlacedObjectById = useTrackStore((s) => s.removePlacedObjectById);
 
   const activeToolId = useEditorStore((s) => s.activeToolId);
   const selectedId = useEditorStore((s) => s.selectedId);

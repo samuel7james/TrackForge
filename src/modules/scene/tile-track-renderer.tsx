@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
-import { useTrackStoreV2 } from "@/store/track-store-v2";
+import { useTrackStore } from "@/store/track-store";
 import { computeCellWorldTransform, GRID_SCALE, type Cell, type PieceType } from "@/modules/game-engine/track";
 
 // Editor-only visual for the tile-based track (see mode-controller.tsx --
@@ -40,7 +40,7 @@ function TrackPiece({ cell }: { cell: Cell }) {
 }
 
 export function TileTrackRenderer() {
-  const cells = useTrackStoreV2((s) => s.document.track.cells);
+  const cells = useTrackStore((s) => s.document.track.cells);
 
   return (
     <>

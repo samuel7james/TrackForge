@@ -1,29 +1,26 @@
 import { create } from "zustand";
 import {
-  createEmptyTrackDocumentV2,
+  createEmptyTrackDocument,
   type Difficulty,
   type PlacedObject,
-  type TrackDocumentV2,
+  type TrackDocument,
 } from "@/modules/track-format/schema";
 import type { Cell } from "@/modules/game-engine/track";
 
-// Parallel to track-store.ts (v1, spline/terrain) rather than a shared
-// generic store -- the two documents' mutations are genuinely different
-// shapes (tile cells vs. splines/heightmap), and the v1 store stays
-// untouched/at no risk this way. setSlug/setMeta/loadDocument mirror v1's
-// own persistence-related actions (bypass undo/redo, same reasoning as
-// track-store.ts's own comment on this).
-type EnvironmentPatch = Partial<TrackDocumentV2["environment"]>;
+// setSlug/setMeta/loadDocument bypass undo/redo -- these are
+// persistence-related state changes, not user edits that should be
+// undoable.
+type EnvironmentPatch = Partial<TrackDocument["environment"]>;
 
-export interface TrackMetaPatchV2 {
+export interface TrackMetaPatch {
   name?: string;
   description?: string;
   difficulty?: Difficulty;
   tags?: string[];
 }
 
-interface TrackStateV2 {
-  document: TrackDocumentV2;
+interface TrackState {
+  document: TrackDocument;
   setCells: (cells: Cell[]) => void;
   insertPlacedObject: (object: PlacedObject) => void;
   removePlacedObjectById: (objectId: string) => void;
@@ -31,12 +28,12 @@ interface TrackStateV2 {
   patchEnvironment: (patch: EnvironmentPatch) => void;
 
   setSlug: (slug: string) => void;
-  setMeta: (patch: TrackMetaPatchV2) => void;
-  loadDocument: (document: TrackDocumentV2) => void;
+  setMeta: (patch: TrackMetaPatch) => void;
+  loadDocument: (document: TrackDocument) => void;
 }
 
-export const useTrackStoreV2 = create<TrackStateV2>((set) => ({
-  document: createEmptyTrackDocumentV2(),
+export const useTrackStore = create<TrackState>((set) => ({
+  document: createEmptyTrackDocument(),
 
   setCells: (cells) =>
     set((state) => ({

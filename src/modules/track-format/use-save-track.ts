@@ -1,16 +1,13 @@
 "use client";
 
 import { useCallback } from "react";
-import { useTrackStoreV2 } from "@/store/track-store-v2";
+import { useTrackStore } from "@/store/track-store";
 import { editTokenStorageKey } from "./edit-token-storage";
 
-// The only track-format document schema/editor left after the engine-swap
-// cleanup (Ad hoc -- Engine Swap, Phase 6) -- the old spline-based v1
-// save/autosave hooks this was originally built parallel to are gone.
 let inFlightSave: Promise<void> | null = null;
 
 async function performSave(): Promise<void> {
-  const { document } = useTrackStoreV2.getState();
+  const { document } = useTrackStore.getState();
   const slug = document.meta.slug || null;
 
   if (!slug) {
@@ -25,7 +22,7 @@ async function performSave(): Promise<void> {
     }
     const data = await res.json();
     localStorage.setItem(editTokenStorageKey(data.slug), data.editToken);
-    useTrackStoreV2.getState().setSlug(data.slug);
+    useTrackStore.getState().setSlug(data.slug);
     window.history.replaceState(null, "", `/editor/${data.slug}`);
     return;
   }
@@ -37,7 +34,7 @@ async function performSave(): Promise<void> {
   const res = await fetch(`/api/tracks/${slug}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", "X-Edit-Token": editToken },
-    body: JSON.stringify({ document: useTrackStoreV2.getState().document }),
+    body: JSON.stringify({ document: useTrackStore.getState().document }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -45,7 +42,7 @@ async function performSave(): Promise<void> {
   }
 }
 
-export function useSaveTrackV2() {
+export function useSaveTrack() {
   return useCallback(async () => {
     if (inFlightSave) {
       await inFlightSave.catch(() => {});

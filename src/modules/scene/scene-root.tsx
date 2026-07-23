@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { Grid } from "@react-three/drei";
-import { useTrackStoreV2 } from "@/store/track-store-v2";
+import { useTrackStore } from "@/store/track-store";
 import { PlacedObjects } from "@/modules/objects/placed-objects";
 import { WEATHER_PRESETS, sunPositionAndFactor } from "@/modules/environment/weather-presets";
 import { CELL_RAW, GRID_SCALE } from "@/modules/game-engine/track";
@@ -11,18 +11,14 @@ import { SkyDome } from "./sky-dome";
 
 const CELL_WORLD_SIZE = CELL_RAW * GRID_SCALE;
 
-// Parallel to scene-root.tsx (v1) for the tile-based editor -- sky/fog/
-// lighting reuse the exact same weather-preset system (environment is
-// identical in shape between both TrackDocument versions), but the track
-// itself renders via TileTrackRenderer instead of Road/Terrain, and
-// PlacedObjects is handed this store's objects explicitly instead of
-// reading the v1 store it defaults to. No TrackMarkers -- the v2 lap
-// timer's start point is derived directly from the finish cell (see
-// computeSpawnPosition in modules/game-engine/track.ts) at Play time, there
-// being no separate startLine field to visualize.
-export function SceneRootV2() {
-  const environment = useTrackStoreV2((s) => s.document.environment);
-  const objects = useTrackStoreV2((s) => s.document.objects);
+// Sky/fog/lighting for the editor's own Canvas -- the track itself renders
+// via TileTrackRenderer. No TrackMarkers -- the lap timer's start point is
+// derived directly from the finish cell (see computeSpawnPosition in
+// modules/game-engine/track.ts) at Play time, there being no separate
+// startLine field to visualize.
+export function SceneRoot() {
+  const environment = useTrackStore((s) => s.document.environment);
+  const objects = useTrackStore((s) => s.document.objects);
 
   const preset = WEATHER_PRESETS[environment.weather];
   const { position: sunPosition, elevationFactor } = useMemo(

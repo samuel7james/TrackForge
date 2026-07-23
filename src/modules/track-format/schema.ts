@@ -1,14 +1,7 @@
 import { z } from "zod";
 import { TYPE_NAMES, GODOT_ORIENTS, type PieceType } from "@/modules/game-engine/track";
 
-// The Track Document -- tile-based (see modules/game-engine/track.ts). This
-// used to be formatVersion 2 alongside a formatVersion 1 (spline/heightmap)
-// sibling from TrackForge's original editor; v1 and its entire R3F/Rapier
-// rendering stack were deleted once the new tile-based editor replaced it
-// (see TASKS.md's "Ad hoc -- Engine Swap" entries) -- there was no
-// algorithmic migration path from a heightmap+spline document to a tile
-// grid, so this was a hard cutover, not a version bump either format still
-// needs to understand.
+// The Track Document -- tile-based (see modules/game-engine/track.ts).
 
 export const vec3Schema = z.object({ x: z.number(), y: z.number(), z: z.number() });
 export type Vec3 = z.infer<typeof vec3Schema>;
@@ -100,7 +93,7 @@ export const cellSchema = z.tuple([
   godotOrientSchema,
 ]);
 
-export const trackDocumentV2Schema = z.object({
+export const trackDocumentSchema = z.object({
   formatVersion: z.literal(2),
   meta: metaSchema,
   environment: environmentSchema,
@@ -120,9 +113,9 @@ export const trackDocumentV2Schema = z.object({
   objects: z.array(placedObjectSchema),
   validation: validationStateSchema,
 });
-export type TrackDocumentV2 = z.infer<typeof trackDocumentV2Schema>;
+export type TrackDocument = z.infer<typeof trackDocumentSchema>;
 
-export function createEmptyTrackDocumentV2(name = "Untitled Track"): TrackDocumentV2 {
+export function createEmptyTrackDocument(name = "Untitled Track"): TrackDocument {
   const now = new Date().toISOString();
   return {
     formatVersion: 2,

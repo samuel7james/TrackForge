@@ -8,7 +8,7 @@ import type { PlacedObject } from "@/modules/track-format/schema";
 import type { PropType } from "./prop-registry";
 
 // Presentational only -- shared unchanged between edit and play mode
-// (scene-root-v2.tsx passes the current track-store-v2 objects in; the real
+// (scene-root.tsx passes the current track-store objects in; the real
 // vendored engine's own placed-objects.ts, a different file, renders these
 // imperatively for Play instead of through this component). One <Instances>
 // pool per (prop type, part) pair so every cone's base, every tree's trunk,

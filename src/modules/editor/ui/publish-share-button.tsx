@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useTrackStoreV2 } from "@/store/track-store-v2";
+import { useTrackStore } from "@/store/track-store";
 import { editTokenStorageKey } from "@/modules/track-format/edit-token-storage";
 
 interface PublishIssue {
@@ -23,12 +23,19 @@ interface PublishIssue {
 
 // Publish makes a track visible on Discover and gives it a real, shareable
 // `/t/{slug}` link -- before this, only the owning browser (via its
-// localStorage edit token) can even open it. Reads `slug` from the store
-// rather than a prop so it reflects a slug just assigned by the very first
-// Save (use-save-track-v2.ts's setSlug), not whatever was true when this
-// component first mounted.
-export function PublishShareButton({ initiallyPublished }: { initiallyPublished: boolean }) {
-  const slug = useTrackStoreV2((s) => s.document.meta.slug);
+// localStorage edit token) can even open it. Reads `slug`/`name` from the
+// store rather than a prop so they reflect a slug just assigned by the very
+// first Save, not whatever was true when this component first mounted.
+export function PublishShareButton({
+  initiallyPublished,
+  saveTrack,
+}: {
+  initiallyPublished: boolean;
+  saveTrack: () => Promise<void>;
+}) {
+  const slug = useTrackStore((s) => s.document.meta.slug);
+  const name = useTrackStore((s) => s.document.meta.name);
+  const setMeta = useTrackStore((s) => s.setMeta);
   const [isPublished, setIsPublished] = useState(initiallyPublished);
   const [isPublishing, setIsPublishing] = useState(false);
   const [open, setOpen] = useState(false);
@@ -52,6 +59,11 @@ export function PublishShareButton({ initiallyPublished }: { initiallyPublished:
     }
     setIsPublishing(true);
     try {
+      // Persist the name (and any other pending edits) before flipping the
+      // track public, so the name shown on Discover/the share link matches
+      // what was just typed here rather than the last autosave.
+      await saveTrack();
+
       const res = await fetch(`/api/tracks/${slug}/publish`, {
         method: "POST",
         headers: { "X-Edit-Token": editToken },
@@ -113,12 +125,26 @@ export function PublishShareButton({ initiallyPublished }: { initiallyPublished:
             </Button>
           </div>
         ) : (
-          <DialogFooter>
-            <Button onClick={handlePublish} disabled={isPublishing} className="gap-1.5">
-              <Rocket className="size-4" />
-              {isPublishing ? "Publishing…" : "Publish"}
-            </Button>
-          </DialogFooter>
+          <>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="publish-track-name" className="text-sm text-muted-foreground">
+                Track name
+              </label>
+              <input
+                id="publish-track-name"
+                value={name}
+                onChange={(e) => setMeta({ name: e.target.value })}
+                placeholder="Untitled Track"
+                className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground"
+              />
+            </div>
+            <DialogFooter>
+              <Button onClick={handlePublish} disabled={isPublishing || !name.trim()} className="gap-1.5">
+                <Rocket className="size-4" />
+                {isPublishing ? "Publishing…" : "Publish"}
+              </Button>
+            </DialogFooter>
+          </>
         )}
       </DialogContent>
     </Dialog>
