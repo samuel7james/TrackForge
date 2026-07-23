@@ -6,8 +6,12 @@ import { Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSaveTrack } from "@/modules/track-format/use-save-track";
 
-export function SaveButton() {
-  const saveTrack = useSaveTrack();
+// `saveTrack` defaults to v1's useSaveTrack -- the tile editor
+// (editor-view-v2.tsx) passes useSaveTrackV2's result instead, reusing this
+// same button rather than duplicating it for one differing hook.
+export function SaveButton({ saveTrack: saveTrackProp }: { saveTrack?: () => Promise<void> } = {}) {
+  const defaultSaveTrack = useSaveTrack();
+  const saveTrack = saveTrackProp ?? defaultSaveTrack;
   const [isSaving, setIsSaving] = useState(false);
 
   const handleClick = async () => {

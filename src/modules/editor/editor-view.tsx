@@ -25,17 +25,34 @@ import { useTrackStore } from "@/store/track-store";
 import { useCommandStack } from "@/modules/editor/core/command-stack";
 import { useAutosave } from "@/modules/track-format/use-autosave";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
+import { EditorViewV2 } from "@/modules/editor/editor-view-v2";
+import type { TrackDocumentV2 } from "@/modules/track-format/schema";
 
 interface EditorViewProps {
   slug: string | null;
 }
 
+// New tracks (no slug yet) are always v2 going forward -- v1 only exists for
+// tracks that were already saved in the old spline format before this
+// engine-swap work landed. For an existing slug, the format isn't known
+// until the document is fetched, so ExistingTrackEditorView (below) fetches
+// once and branches into either this file's own v1 UI or EditorViewV2,
+// rather than EditorView itself calling any v1-specific hooks before the
+// format is known.
 export function EditorView({ slug }: EditorViewProps) {
+  if (!slug) {
+    return <EditorViewV2 slug={null} />;
+  }
+  return <ExistingTrackEditorView slug={slug} />;
+}
+
+function ExistingTrackEditorView({ slug }: { slug: string }) {
   const mode = useEditorStore((s) => s.mode);
   const setMode = useEditorStore((s) => s.setMode);
   const activeToolId = useEditorStore((s) => s.activeToolId);
   const trackName = useTrackStore((s) => s.document.meta.name);
-  const [isLoading, setIsLoading] = useState(Boolean(slug));
+  const [v2Document, setV2Document] = useState<TrackDocumentV2 | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const searchParams = useSearchParams();
   const autoplay = searchParams.get("autoplay") === "1";
 
@@ -53,9 +70,10 @@ export function EditorView({ slug }: EditorViewProps) {
 
   // Reload flow: an existing track loads its saved document on mount and
   // resets undo history (a fresh load isn't something a prior session's
-  // undo stack should be able to unwind).
+  // undo stack should be able to unwind). This editor (spline/heightmap-
+  // based) only renders for v1 documents -- a v2 (tile-based) one hands off
+  // to EditorViewV2 with the already-fetched document instead of re-fetching.
   useEffect(() => {
-    if (!slug) return;
     let cancelled = false;
 
     fetch(`/api/tracks/${slug}`)
@@ -67,11 +85,9 @@ export function EditorView({ slug }: EditorViewProps) {
         if (cancelled) return;
         const parsed = safeParseTrackDocument(data.document);
         if (!parsed.success) throw new Error("This track's data is corrupted");
-        // This editor (spline/heightmap-based) only understands v1 documents
-        // -- the tile-based format (v2) gets its own editor (Phase 5 of the
-        // engine-swap work), not a migration path back into this one.
-        if (parsed.data.formatVersion !== 1) {
-          throw new Error("This track uses a format this editor doesn't support yet");
+        if (parsed.data.formatVersion === 2) {
+          setV2Document(parsed.data);
+          return;
         }
         useTrackStore.getState().loadDocument(parsed.data);
         useCommandStack.getState().reset();
@@ -104,6 +120,10 @@ export function EditorView({ slug }: EditorViewProps) {
       }
     }
   }, [autoplay, isLoading, setMode, slug]);
+
+  if (v2Document) {
+    return <EditorViewV2 slug={slug} initialDocument={v2Document} />;
+  }
 
   return (
     <div className="fixed inset-0">

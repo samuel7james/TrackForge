@@ -1377,6 +1377,92 @@ scope, risks) at `C:\Users\samue\.claude\plans\immutable-questing-cocke.md`.
   that it doesn't crash. Zero console errors across load and driving. Test
   track deleted after verification. Full `tsc`/`eslint`/`next build` clean.
 
+### Phase 5 — The new tile-based editor
+
+Re-scoped significantly from the original plan file while implementing it:
+rather than a fully separate imperative canvas-owning editor (mirroring
+`engine-core.ts`'s approach to Play), an architecture audit of TrackForge's
+existing spline editor found that almost none of it is actually spline-
+specific -- the tool registry, `EditorEngine`'s shell, `EditorCameraRig`,
+the undo/redo command stack, and most UI chrome (toolbar, save button,
+prop palette, mode toggle) are already format-agnostic React Three Fiber/
+Zustand code with zero coupling to the old document shape. So the new
+editor reuses React Three Fiber for editing (matching TrackForge's own
+existing, working infrastructure) while Play for a v2 document still uses
+the real vendored engine (matching the reference exactly) -- the two are
+bridged by the shared `TrackDocumentV2` schema, not by one rendering
+approach doing both jobs.
+
+- [x] `store/track-store-v2.ts` + `use-save-track-v2.ts` + `use-autosave-v2.ts`
+      -- parallel to the v1 store/hooks (small deliberate duplication over a
+      generic/parameterized version, matching this project's own preference
+      for repetition over premature abstraction, see each file's own comment)
+- [x] `modules/game-engine/autotile.ts` -- editor.html's AUTOTILE bitmask
+      table and connectivity-resolution logic ported as pure functions
+      taking a `Grid` explicitly, instead of the reference's own module-level
+      mutable Map, so a React component can call it against Zustand state
+- [x] `modules/scene/tile-track-renderer.tsx` + `scene-root-v2.tsx` -- R3F
+      rendering of the current cell grid (reusing
+      `computeCellWorldTransform`, a new track.ts export, so a piece can
+      never drift from where Play would render the same cell) and the
+      shared weather/lighting system; `PlacedObjects` gained an optional
+      `objects` prop (was hardcoded to the v1 store) so this reuses it
+      directly instead of duplicating ~100 lines of instancing logic
+- [x] `modules/editor/tools/tile-grid-layer.tsx` + `tool-registry-v2.ts` +
+      `editor-engine-v2.tsx` -- the new "tile"/"erase" tools (replacing
+      road+terrain) plus object placement/selection, parallel to
+      `ObjectPlacementLayer` but simpler for this pass (see below)
+- [x] `editor-view-v2.tsx` + `track-forge-canvas-v2.tsx` -- the v2 editor
+      page: `Toolbar`/`SaveButton` both gained a small optional prop
+      (tool list / save function) so they're reused as-is rather than
+      duplicated; Play mode renders `<EngineMount/>` directly (its own raw
+      canvas, outside any R3F `<Canvas>`) instead of a sibling inside one,
+      swapped in on mode toggle exactly where the R3F edit canvas was
+- [x] `editor-view.tsx` now a thin dispatcher: no slug → always `EditorViewV2`
+      (new tracks are v2 going forward); existing slug → fetch once,
+      branch into the v1 UI (unchanged) or hand the already-parsed document
+      to `EditorViewV2` (no second fetch) based on `formatVersion`
+
+**Deliberately deferred, not silently dropped:** drag-to-reposition and
+undo/redo for placed objects in the new editor (`TileGridLayer` mutates the
+v2 store directly rather than through `useCommandStack`, unlike v1's
+command-wrapped `AddPlacedObjectCommand` etc.); `InspectorPanel`/
+`TerrainBrushPanel`-equivalent UI (nothing to inspect -- no spline points or
+heightmap); `PublishDialog` (the publish route already returns 501 for v2
+until tile-based layout validators exist); `CommandPalette`/
+`UndoRedoControls` (no command stack activity yet for them to act on).
+
+**Notes:**
+
+- Two real bugs caught and fixed while porting the auto-tile logic: (1) the
+  "is this cell brand new vs. already resolved" distinction editor.html gets
+  for free from `!cell.mesh` (no mesh yet = never resolved) had no equivalent
+  in a pure-logic module with no rendering concept, so a first pass silently
+  skipped ever resolving a new cell whose computed shape happened to match
+  its placement default -- fixed by adding an explicit `resolved` flag to
+  `GridCell`, set false on placement and true after the first resolve,
+  mirroring the original's `cell.mesh` check exactly including the "skip
+  only if unchanged AND already resolved" guard. (2) An early draft of the
+  grid's empty-track bootstrap effect called `placeRoadCell` and then
+  ignored its result, computing an unrelated hardcoded finish cell instead --
+  caught before shipping and replaced with a direct call to the
+  already-written `placeFinishCell` helper.
+- Verified in-browser via Playwright, exercising the real feature end to
+  end rather than just checking it renders: opened `/editor/new` (confirmed
+  it auto-places a finish cell), placed additional cells with the Road tool
+  and confirmed via the saved API response that auto-tiling correctly
+  resolved them into a connected corner + straight (not just repeated
+  isolated-cell defaults), placed a cone via the Object tool (the exact
+  same `PropPalettePanel` UI as v1, unmodified), saved, reloaded the same
+  track fresh, switched to Play and confirmed the real vendored engine
+  rendered the identical curved layout with the cone sitting on the track
+  exactly where placed, drove for a few seconds, then returned to Edit via
+  Escape and confirmed a clean round trip back to the tile canvas. Also
+  incidentally confirmed autosave fires correctly for v2 (an earlier test's
+  un-saved edit produced its own autosaved row). Zero console errors across
+  every step. Both test tracks deleted after verification. Full
+  `tsc`/`eslint`/`next build` clean throughout.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records

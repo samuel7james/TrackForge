@@ -1,10 +1,13 @@
 "use client";
 
-import { TOOLS } from "@/modules/editor/core/tool-registry";
+import { TOOLS, type EditorToolDefinition } from "@/modules/editor/core/tool-registry";
 import { useEditorStore } from "@/store/editor-store";
 import { Button } from "@/components/ui/button";
 
-export function Toolbar() {
+// `tools` defaults to v1's TOOLS -- the tile editor (editor-view-v2.tsx)
+// passes TOOLS_V2 instead, reusing this same pill-toolbar rendering rather
+// than duplicating it for one differing prop.
+export function Toolbar({ tools = TOOLS }: { tools?: EditorToolDefinition[] }) {
   const activeToolId = useEditorStore((s) => s.activeToolId);
   const setActiveToolId = useEditorStore((s) => s.setActiveToolId);
 
@@ -15,7 +18,7 @@ export function Toolbar() {
   // orange-accented UI would clash instead of feel like the same design.
   return (
     <div className="pointer-events-auto flex flex-col gap-1 rounded-full border border-border/50 bg-card/90 p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-      {TOOLS.map((tool) => {
+      {tools.map((tool) => {
         const Icon = tool.icon;
         const isActive = tool.id === activeToolId;
         return (

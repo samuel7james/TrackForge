@@ -311,6 +311,24 @@ export function placePiece(
   return piece;
 }
 
+// The world transform of a piece placed via `placePiece`, AFTER buildTrack's
+// own `trackGroup` offset (y=-0.5) and uniform scale (GRID_SCALE) are
+// composed in -- exported so the editor's R3F tile renderer (which isn't
+// nested inside that same trackGroup) can position pieces identically
+// without re-deriving these numbers itself and silently drifting from what
+// Play actually renders.
+export function computeCellWorldTransform(
+  gx: number,
+  gz: number,
+  orient: GodotOrient
+): { position: [number, number, number]; rotationY: number } {
+  const x = (gx + 0.5) * CELL_RAW * GRID_SCALE;
+  const z = (gz + 0.5) * CELL_RAW * GRID_SCALE;
+  const y = 0.5 * GRID_SCALE - 0.5; // placePiece's local y=0.5, then trackGroup's own scale+offset
+  const rotationY = THREE.MathUtils.degToRad(ORIENT_DEG[orient] ?? 0);
+  return { position: [x, y, z], rotationY };
+}
+
 // ─── Track Codec ──────────────────────────────────────────
 
 export const TYPE_NAMES: PieceType[] = [

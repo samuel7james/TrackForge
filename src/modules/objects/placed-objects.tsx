@@ -16,8 +16,14 @@ import type { PropType } from "./prop-registry";
 // parts' <Instance>s, composed on top of the shared per-part geometry.
 // Editing interaction (place/select/drag) lives in the separate, editor-only
 // ObjectPlacementLayer, not here.
-export function PlacedObjects() {
-  const objects = useTrackStore((s) => s.document.objects);
+//
+// `objects` is optional and defaults to the v1 store -- the new tile-based
+// editor (scene-root-v2.tsx) passes its own v2 store's objects explicitly
+// instead, reusing this same instancing logic rather than duplicating ~100
+// lines of it for one differing line (which store to read from).
+export function PlacedObjects({ objects: objectsProp }: { objects?: PlacedObject[] } = {}) {
+  const storeObjects = useTrackStore((s) => s.document.objects);
+  const objects = objectsProp ?? storeObjects;
 
   const byType = useMemo(() => {
     const groups = new Map<PropType, PlacedObject[]>();
