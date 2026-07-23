@@ -115,6 +115,9 @@ export const trackDocumentSchema = z.object({
     name: z.string(),
     description: z.string(),
     authorId: z.string(),
+    // Discovery (Phase 17). Defaults to [] so documents saved before this
+    // field existed still parse -- no separate migration step needed.
+    tags: z.array(z.string()).default([]),
     difficulty: difficultySchema,
     estimatedLapTimeMs: z.number().nullable(),
     createdAt: z.string(),
@@ -186,6 +189,7 @@ export function createEmptyTrackDocument(name = "Untitled Track"): TrackDocument
       name,
       description: "",
       authorId: "",
+      tags: [],
       difficulty: "beginner",
       estimatedLapTimeMs: null,
       createdAt: now,

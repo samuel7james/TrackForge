@@ -43,6 +43,7 @@ export async function POST(request: Request) {
           slug,
           name: document.meta.name,
           description: document.meta.description,
+          tags: document.meta.tags,
           authorId,
           editToken,
           document: documentWithSlug,

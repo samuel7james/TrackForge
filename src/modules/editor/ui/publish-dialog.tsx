@@ -30,6 +30,8 @@ import { useSaveTrack } from "@/modules/track-format/use-save-track";
 import { editTokenStorageKey } from "@/modules/track-format/use-save-track";
 import type { Difficulty } from "@/modules/track-format/schema";
 
+const MAX_TAGS = 5;
+
 const DIFFICULTIES: { value: Difficulty; label: string }[] = [
   { value: "beginner", label: "Beginner" },
   { value: "intermediate", label: "Intermediate" },
@@ -49,12 +51,14 @@ export function PublishDialog() {
   const [name, setName] = useState(meta.name);
   const [description, setDescription] = useState(meta.description);
   const [difficulty, setDifficulty] = useState<Difficulty>(meta.difficulty);
+  const [tagsInput, setTagsInput] = useState(meta.tags.join(", "));
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       setName(meta.name);
       setDescription(meta.description);
       setDifficulty(meta.difficulty);
+      setTagsInput(meta.tags.join(", "));
     }
     setOpen(nextOpen);
   };
@@ -62,7 +66,12 @@ export function PublishDialog() {
   const handlePublish = async () => {
     setIsPublishing(true);
     try {
-      setMeta({ name: name.trim() || "Untitled Track", description, difficulty });
+      const tags = tagsInput
+        .split(",")
+        .map((tag) => tag.trim().toLowerCase())
+        .filter((tag, index, all) => tag.length > 0 && all.indexOf(tag) === index)
+        .slice(0, MAX_TAGS);
+      setMeta({ name: name.trim() || "Untitled Track", description, difficulty, tags });
       await saveTrack();
 
       const slug = useTrackStore.getState().document.meta.slug;
@@ -149,6 +158,17 @@ export function PublishDialog() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label htmlFor="publish-tags" className="mb-1 block text-xs text-muted-foreground">
+              Tags (comma-separated, up to {MAX_TAGS})
+            </Label>
+            <Input
+              id="publish-tags"
+              value={tagsInput}
+              onChange={(e) => setTagsInput(e.target.value)}
+              placeholder="drift, hillclimb, technical"
+            />
           </div>
         </div>
 

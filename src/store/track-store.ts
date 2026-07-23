@@ -14,6 +14,7 @@ export interface TrackMetaPatch {
   name?: string;
   description?: string;
   difficulty?: Difficulty;
+  tags?: string[];
 }
 
 interface TrackState {

@@ -58,6 +58,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         document,
         name: document.meta.name,
         description: document.meta.description,
+        tags: document.meta.tags,
       },
     }),
     // One row per save (PROJECT_PLAN.md §7) — empty of product features

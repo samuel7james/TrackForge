@@ -85,12 +85,19 @@ export function EditorView({ slug }: EditorViewProps) {
   }, [slug]);
 
   // "Play" CTA on a track's public page links here with ?autoplay=1 so a
-  // visitor lands directly in the driver's seat instead of the editor.
+  // visitor lands directly in the driver's seat instead of the editor. This
+  // is also the one place a "real play" (as opposed to the owner testing
+  // their own track from inside the editor) is unambiguous, so it's the spot
+  // that increments the public playCount (Phase 17) -- fire-and-forget, a
+  // failed count bump shouldn't block or error out the drive.
   useEffect(() => {
     if (autoplay && !isLoading) {
       setMode("play");
+      if (slug) {
+        fetch(`/api/tracks/${slug}/play`, { method: "POST" }).catch(() => {});
+      }
     }
-  }, [autoplay, isLoading, setMode]);
+  }, [autoplay, isLoading, setMode, slug]);
 
   return (
     <div className="fixed inset-0">

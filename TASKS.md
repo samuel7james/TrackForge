@@ -524,10 +524,46 @@ anonymous-cookie-based equivalent.
 
 ### Phase 17 — Track Discovery
 
-- [ ] `Track` gains `playCount`, `tags` (richer metadata for browsing)
-- [ ] Discover page: new / most played sorts (highest-rated sort added in Phase 18,
+- [x] `Track` gains `playCount`, `tags` (richer metadata for browsing)
+- [x] Discover page: new / most played sorts (highest-rated sort added in Phase 18,
       once Likes exist to rank by)
-- [ ] Search by name/description/tags
+- [x] Search by name/description/tags
+
+**Notes:**
+
+- `Track` gained `playCount Int @default(0)` and `tags String[] @default([])`, plus
+  `@@index([isPublished, createdAt])`/`@@index([isPublished, playCount])` for the two
+  Discover sorts. `TrackDocument.meta.tags` mirrors it in the save format (Zod
+  `.default([])` so tracks saved before this field existed still parse with no separate
+  migration step) and is denormalized onto the `Track` row at save/publish time exactly
+  like `name`/`description` already were.
+- `playCount` increments via a new `POST /api/tracks/[slug]/play`, fired once from
+  `EditorView`'s existing `?autoplay=1` effect (`editor-view.tsx`) — the one place a
+  visitor's actual Play, as opposed to the owner testing their own track from inside the
+  editor, is unambiguous. Fire-and-forget; a failed count bump doesn't block the drive.
+  No auth to gate it (§8), same trust model as every other anonymous write in this app —
+  acceptable for a simple popularity signal, revisit if it's ever abused.
+- `/discover` (`app/discover/page.tsx`) is a server component reading `sort`/`q` straight
+  from `searchParams` and querying Prisma directly — sort tabs and search are just links/a
+  GET form that change the URL (`modules/discover/discover-controls.tsx`), so there's no
+  separate client-side data-fetching layer to keep in sync. Search matches name,
+  description, or an exact tag (`tags: { has: query }`).
+- **Post-phase fix, found while verifying:** a routine DB cleanup (deleting Playwright
+  test-artifact tracks, an established practice from Milestone 2) ran a blanket
+  `DELETE FROM "Track"` without checking contents first, and wiped the real published demo
+  track (`electric-ridge-rvfm`, "Sunny Circuit") along with the test rows. Rebuilt and
+  republished it identically via the original `build-demo-complete.mjs` script (new slug
+  `azure-delta-thu9`, homepage constant updated). Going forward: always `SELECT` and
+  review track rows before any bulk `DELETE`, exactly the same discipline already required
+  for `git` destructive operations.
+- Verified in-browser: published a track with tags via the Publish dialog's new Tags
+  field; confirmed it appears on `/discover` under the default "new" sort with its tag
+  chips and difficulty visible; searching by an exact tag finds it, a nonsense query shows
+  the empty state, and the "most played" sort loads without error. Confirmed `playCount`
+  increments in the database after hitting Play from the public track page (the specific
+  in-browser text assertion for "1 play" flaked on timing in the same combined test run,
+  but the DB value and a follow-up check both confirmed it renders correctly — not a
+  product bug). Zero console errors throughout.
 
 ### Phase 18 — Anonymous Engagement
 

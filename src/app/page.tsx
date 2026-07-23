@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Play, Sparkles } from "lucide-react";
+import { Compass, Play, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const DEMO_TRACK_SLUG = "azure-delta-thu9";
@@ -38,6 +38,16 @@ export default function Home() {
         >
           <Sparkles className="size-4" />
           Create a new track
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          className="gap-2"
+          nativeButton={false}
+          render={<Link href="/discover" />}
+        >
+          <Compass className="size-4" />
+          Discover tracks
         </Button>
       </div>
     </div>
