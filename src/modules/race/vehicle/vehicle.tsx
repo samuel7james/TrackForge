@@ -14,8 +14,15 @@ import { useVehicleAudio } from "./use-vehicle-audio";
 import { vehicleHandle } from "./vehicle-ref";
 import { CarModel } from "./car-model";
 import { placedObjectHandles } from "@/modules/race/physics/placed-object-registry";
+import { addCameraShake } from "./camera-shake-state";
 
 const CAR_FORWARD = new THREE.Vector3(0, 0, 1);
+
+// Matches GameAudio's own IMPACT_MAX_VELOCITY (game-audio.ts) so a hit that
+// maxes out the impact sound's volume also maxes out the camera shake --
+// one "how hard did I hit that" scale feeding both effects, rather than two
+// independently-tuned ones.
+const IMPACT_MAX_VELOCITY = 14;
 
 const ORIGIN_SPAWN = {
   position: { x: 0, y: 0, z: 0 },
@@ -70,6 +77,7 @@ export function Vehicle() {
       const lv = body.linvel();
       const impactVelocity = Math.abs(forward.dot(new THREE.Vector3(lv.x, lv.y, lv.z)));
       playImpact(impactVelocity);
+      addCameraShake(THREE.MathUtils.clamp(impactVelocity / IMPACT_MAX_VELOCITY, 0, 1) * 0.6);
     },
     [playImpact]
   );

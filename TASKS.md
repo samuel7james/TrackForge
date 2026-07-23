@@ -1055,6 +1055,86 @@ deliberately deferred.
   issues. Dev database checked and confirmed to contain only the real demo
   track (`azure-delta-thu9`) — no stray test artifacts to clean up.
 
+## Ad hoc — Drift Marks, Tire Smoke & Camera Juice (Starter-Kit-Racing Feature Parity)
+
+Follow-up request: "make this project same to same as the repo... include
+whatever features are good and can be included." Audited TrackForge's
+existing race-feel systems against the reference's `js/` gameplay modules
+(`LapTimer.js`, `DriftMarks.js`, `Particles.js`, `Camera.js`, `Audio.js`,
+`Controls.js`) before touching anything, since several of these already have
+a TrackForge equivalent (lap timer, procedural engine/skid/impact audio) —
+scope narrowed to the real gaps: no tire marks, no drift particles, and a
+chase camera with no speed/impact feedback. As with the vehicle model pass,
+TrackForge's own architecture (spline editor, database, social features)
+wasn't touched — this is entirely new Play-mode-only visual/camera code.
+
+- [x] `driftIntensity` promoted from a value `use-vehicle-audio.ts` computed
+      privately into a shared field on `vehicleVisualState`, written once in
+      `use-vehicle-controller.ts` alongside `lateralSlip`
+- [x] `rear-wheel-tracking.ts` — shared helper computing the rear wheels'
+      world position from `vehicleHandle` + the vehicle GLB's own baked node
+      offsets, used by both new effects below
+- [x] `DriftMarks` (`drift-marks.tsx`) — ported from `DriftMarks.js`: a
+      dynamic ring-buffer ribbon mesh per rear wheel, alpha-faded by drift
+      intensity
+- [x] `TireSmoke` (`tire-smoke.tsx`) — ported from `Particles.js`
+      (`SmokeTrails`): a recycled point-particle pool, per-particle
+      size/opacity injected via `onBeforeCompile`
+- [x] `PlayModeCameraRig` — added a speed-based FOV kick (65→74° as forward
+      speed approaches `MAX_FORWARD_SPEED`) and trauma-model impact shake
+      (`camera-shake-state.ts`), triggered from `Vehicle`'s existing
+      collision handler alongside `playImpact`
+
+**Notes:**
+
+- Both new visual effects deliberately drop the reference's
+  localStorage-backed persistence (`DriftMarks.js` serializes/quantizes
+  stroke data so marks survive a page reload). Nothing else in TrackForge
+  persists local-only state that way, and Play mode already remounts
+  `Vehicle` fresh every session (`ModeController`), so a trail that resets
+  each run is the more consistent behavior here rather than introducing a
+  new persistence mechanism for one feature.
+- Rear wheel world positions are computed from the vehicle GLB's own node
+  translations (`wheel-back-left`/`wheel-back-right`, read directly from the
+  GLB's JSON chunk — same technique used for the vehicle model swap) rather
+  than reaching into `CarModel`'s own wheel refs, which live in a different
+  component. `DriftMarks`/`TireSmoke` read `vehicleHandle` directly, the same
+  pattern `PlayModeCameraRig` already used.
+- `TireSmoke`'s particle pool hit the same `react-hooks` (React Compiler)
+  lint error the vehicle model rewrite hit earlier in this session: directly
+  mutating typed arrays/attributes returned from `useMemo` inside `useFrame`
+  is rejected as "modifying a value previously passed as an argument to a
+  hook." Fixed the same way `DriftTrail` (`drift-marks.tsx`) already avoided
+  it — wrapped all pool state in a class (`SmokePool`) whose own methods
+  (`emit`/`step`) do the mutating, so the component itself never writes to a
+  useMemo-returned value directly.
+- Smoke uses a procedurally-generated radial-gradient canvas texture instead
+  of the reference's `sprites/smoke.png`, the same technique `car-model.tsx`
+  already uses for its contact-shadow texture — avoids pulling in another
+  binary asset for one texture.
+- Camera FOV kick and shake magnitudes are cross-tuned against existing
+  constants rather than picked independently: shake's impact-velocity scale
+  reuses `GameAudio`'s own `IMPACT_MAX_VELOCITY`, and both new effects'
+  drift-intensity thresholds (0.5 for marks, 0.7 for smoke) reuse
+  `GameAudio`'s own skid-onset threshold, so a hit or a drift that maxes out
+  the audio also maxes out the corresponding visual.
+- Verified in-browser via Playwright: driving straight and turning confirmed
+  `driftIntensity` and the FOV kick (65°→~67.5° at ~11 m/s) responding
+  correctly with zero console errors across every run. The scripted
+  steering input never organically crossed the real 0.5/0.7 drift
+  thresholds (a gentle, smooth scripted turn doesn't reproduce a human
+  player's sharper input), so the rendering pipeline itself was confirmed
+  separately by temporarily lowering both thresholds: with that override,
+  screenshots showed clean twin tire-mark ribbons and drifting smoke puffs
+  correctly trailing the rear wheels, confirming the mechanism works and the
+  real thresholds are a tuning value (already proven reachable in normal
+  play, since they're the same thresholds the pre-existing skid sound uses)
+  rather than a bug. Impact shake's decay/jitter path was similarly confirmed
+  exception-free via a temporary synthetic trauma spike. All temporary debug
+  logging and threshold overrides were removed before committing. Full
+  `tsc`/`eslint`/`next build` clean; dev database confirmed to contain only
+  the real demo track.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records

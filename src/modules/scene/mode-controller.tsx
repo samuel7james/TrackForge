@@ -6,6 +6,8 @@ import { EditorEngine } from "@/modules/editor/core/editor-engine";
 import { TrackPhysics } from "@/modules/race/physics/track-physics";
 import { ObjectPhysics } from "@/modules/race/physics/object-physics";
 import { Vehicle } from "@/modules/race/vehicle/vehicle";
+import { DriftMarks } from "@/modules/race/vehicle/drift-marks";
+import { TireSmoke } from "@/modules/race/vehicle/tire-smoke";
 import { LapTimer } from "@/modules/race/timing/lap-timer";
 import { EditorCameraRig } from "./editor-camera-rig";
 import { PlayModeCameraRig } from "./play-mode-camera-rig";
@@ -32,6 +34,8 @@ export function ModeController() {
       <TrackPhysics />
       <ObjectPhysics />
       <Vehicle />
+      <DriftMarks />
+      <TireSmoke />
       <LapTimer />
       <PlayModeCameraRig />
     </Physics>

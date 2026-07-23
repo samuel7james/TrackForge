@@ -17,6 +17,13 @@ const MAX_STEER_RATE = 2.2; // rad/s at full speed
 const MIN_STEER_FACTOR = 0.35; // fraction of steer authority available at a standstill
 const GRIP = 8; // higher = less sideways sliding
 
+// Normalizes raw lateral-slip m/s into the 0..2ish "driftIntensity" range
+// GameAudio's skid thresholds expect -- tuned empirically by driving and
+// logging actual slip values, not ported from Starter-Kit-Racing's own
+// arbitrary "sphere units" scale, which has no correspondence to this
+// controller's real speeds.
+const SLIP_TO_DRIFT_INTENSITY = 2.2;
+
 const CAR_FORWARD = new THREE.Vector3(0, 0, 1);
 const CAR_RIGHT = new THREE.Vector3(1, 0, 0);
 
@@ -102,6 +109,8 @@ export function useVehicleController(rigidBodyRef: RefObject<RapierRigidBody | n
     vehicleVisualState.forwardSpeed = forwardSpeed;
     vehicleVisualState.steerInput = steer;
     vehicleVisualState.throttleInput = throttle;
-    vehicleVisualState.lateralSlip = Math.abs(lateralSpeed - newLateralSpeed);
+    const slip = Math.abs(lateralSpeed - newLateralSpeed);
+    vehicleVisualState.lateralSlip = slip;
+    vehicleVisualState.driftIntensity = slip * SLIP_TO_DRIFT_INTENSITY;
   });
 }
