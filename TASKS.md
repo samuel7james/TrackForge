@@ -930,6 +930,73 @@ car model, and UI theme rather than a deep rebuild of any one area.
   (Night in particular, being the darkest, for any bloom/tone-mapping oddity) —
   none found. Full `next build` compiles clean; zero console errors throughout.
 
+## Ad hoc — Real Vehicle Model (Starter-Kit-Racing Assets)
+
+Follow-up request: rather than a procedural car reskinned to *look* like the
+reference, reuse the reference's own actual 3D model. Scoped narrowly to the
+vehicle only for this pass — TrackForge's own spline-based road/terrain/object
+editing stays exactly as it is; the reference's track pieces are tile-based
+(fixed straight/corner/bump/finish GLBs on a grid) and fundamentally
+incompatible with TrackForge's continuous-curve editor, so those weren't
+touched or considered for swapping.
+
+- [x] `CarModel` now renders the real `vehicle-truck-red.glb` (CC0 asset by
+      Kenney, via mrdoob's Starter-Kit-Racing, MIT) instead of procedural
+      RoundedBox/cylinder geometry
+- [x] Wheel spin/steer and body lean animation preserved, driven by the
+      model's own named nodes
+- [x] TrackForge's own additions (spoiler, headlights/taillights, contact
+      shadow) kept, repositioned to fit the real model's actual proportions
+
+**Notes:**
+
+- `public/models/vehicle-truck-red.glb` + `Textures/colormap.png` copied
+  directly from the reference repo; `public/models/THIRD_PARTY_NOTICES.md`
+  documents the source (Kenney/CC0 — no attribution legally required, noted
+  anyway as good practice).
+- Inspected the GLB's own JSON chunk directly (a GLB is a JSON scene chunk +
+  binary buffer; no need for a full parser just to read node names) before
+  writing any loader code: six root-level nodes (`body`,
+  `wheel-{front,back}-{left,right}`, `underside`), each with its own baked
+  translation, no nesting. The reference's own `Vehicle.js` animates this
+  exact asset by traversing for those names and mutating `wheel.rotation.x`
+  (spin) / `wheel.rotation.y` (steer) directly on each node in place — rather
+  than reverse-engineer wheel pivot positions/rotation axes by trial and
+  error, `CarModel` mirrors that proven approach: clone the loaded scene once
+  per mount, traverse for the same names, drive the same rotations from
+  `vehicleVisualState`.
+- Real lint error, not just a style nit: an initial version pushed found
+  wheel nodes into a `wheelsRef.current: Object3D[]` array inside a
+  `useEffect`, then mutated `.rotation.x` on those elements inside
+  `useFrame`. The `react-hooks` (React Compiler) lint rule rejected this as
+  "modifying a value used previously in an effect function." Fixed by using
+  four individually-named refs (`wheelFLRef`/`wheelFRRef`/`wheelBLRef`/
+  `wheelBRRef`) instead of an array built via `.push()` — the same pattern
+  the original procedural `CarModel` already used successfully for its own
+  four wheels, so this wasn't a new constraint, just one this rewrite
+  briefly stepped outside of.
+- Headlights/taillights/spoiler/contact-shadow positions are computed from
+  the model's own measured `THREE.Box3` bounding box (front/rear Z, top Y,
+  half-width, ground Y) rather than hardcoded — the real truck's proportions
+  aren't the old procedural box's proportions, and guessing fixed offsets
+  would have looked wrong or floating.
+- Verified in-browser: model renders and animates correctly at spawn, while
+  turning, and while driving straight — spoiler, lights, and contact shadow
+  all correctly positioned relative to the real geometry, wheels visibly
+  spin/steer. Reran the Phase-16-style validation and demo-track driving
+  regressions (only the visual mesh changed; the vehicle's `RigidBody`
+  collider is untouched) — zero console errors. Full `next build` compiles
+  clean.
+- **Deliberately deferred, not attempted this pass:** the reference's
+  decoration models (`decoration-forest.glb`, `decoration-tents.glb`) are
+  each a single combined mesh (one node per file, not one-tree-per-node),
+  likely representing a whole scenic cluster rather than TrackForge's
+  per-object placement model (one cone/tree/rock placed at a time). Swapping
+  these in for the procedural tree/prop shapes needs a visual look first to
+  confirm what's actually in each mesh before deciding how (or whether) they
+  map onto individual prop types — not done here to avoid guessing at asset
+  content and shipping a poor-fitting placeholder.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records
