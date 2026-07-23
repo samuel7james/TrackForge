@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
-import { estimateLapTimeMs } from "@/modules/track-format/estimate-lap-time";
 import { PublicTrackActions } from "@/modules/track/public-track-actions";
 import { TrackEngagement } from "@/modules/track/track-engagement";
 import { DIFFICULTY_LABELS } from "@/modules/track/difficulty-labels";
@@ -27,11 +26,10 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
   if (!track) notFound();
 
   const parsed = safeParseTrackDocument(track.document);
-  // estimateLapTimeMs only understands v1's spline geometry -- the tile-based
-  // format (v2) doesn't have a lap-time estimator yet (lands with the new
-  // editor, Phase 5 of the engine-swap work), so it just shows "—" for now.
-  const estimatedLapTimeMs =
-    parsed.success && parsed.data.formatVersion === 1 ? estimateLapTimeMs(parsed.data.splines) : null;
+  // No lap-time estimator for the tile-based format yet -- shows "—" until
+  // one exists (estimating from a cell-grid loop is a different algorithm
+  // than the old spline-length one, not yet written).
+  const estimatedLapTimeMs: number | null = null;
   const difficulty = parsed.success ? parsed.data.meta.difficulty : "beginner";
 
   // Reads the cookie middleware.ts already guaranteed exists -- deliberately

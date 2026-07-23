@@ -2,15 +2,11 @@
 
 import { useCallback } from "react";
 import { useTrackStoreV2 } from "@/store/track-store-v2";
-import { editTokenStorageKey } from "./use-save-track";
+import { editTokenStorageKey } from "./edit-token-storage";
 
-// Parallel to use-save-track.ts (v1) rather than a generic/parameterized
-// version -- the POST-if-no-slug/PATCH-if-slug/editToken/history.replaceState
-// logic is identical in shape, but duplicating ~40 lines here is simpler and
-// safer than threading a generic store type through both, per this
-// project's own preference for a little repetition over a premature
-// abstraction. editTokenStorageKey itself IS reused (it's pure string
-// formatting, no store coupling at all).
+// The only track-format document schema/editor left after the engine-swap
+// cleanup (Ad hoc -- Engine Swap, Phase 6) -- the old spline-based v1
+// save/autosave hooks this was originally built parallel to are gone.
 let inFlightSave: Promise<void> | null = null;
 
 async function performSave(): Promise<void> {

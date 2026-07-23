@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { TrackForgeCanvasV2 } from "@/modules/scene/track-forge-canvas-v2";
 import { EngineMount } from "@/modules/game-engine/engine-mount";
@@ -14,82 +13,50 @@ import { useTrackStoreV2 } from "@/store/track-store-v2";
 import { useCommandStack } from "@/modules/editor/core/command-stack";
 import { useAutosaveV2 } from "@/modules/track-format/use-autosave-v2";
 import { useSaveTrackV2 } from "@/modules/track-format/use-save-track-v2";
-import { safeParseTrackDocument } from "@/modules/track-format/validate";
 import { TOOLS_V2 } from "@/modules/editor/core/tool-registry-v2";
 import type { TrackDocumentV2 } from "@/modules/track-format/schema";
 
 interface EditorViewV2Props {
   slug: string | null;
-  /** Already-fetched+validated document, when EditorView determined the
-   * format server-round-trip itself and handed off here to avoid a second
-   * fetch. */
-  initialDocument?: TrackDocumentV2;
+  /** Already fetched+validated by EditorView; omitted for a brand-new track
+   * (no slug yet), in which case the store's own default empty document is
+   * used as-is. */
+  document?: TrackDocumentV2;
+  /** A track's public page links here with ?autoplay=1 so a visitor lands
+   * directly in the driver's seat instead of the editor. */
+  autoplay?: boolean;
 }
 
-// Parallel to editor-view.tsx (v1) for the tile-based track format. Scoped
-// down from v1's UI for this pass: no InspectorPanel/TerrainBrushPanel (no
-// spline points or heightmap to inspect), no PublishDialog (the publish
-// route itself returns 501 for v2 documents until tile-based layout
-// validators exist -- Phase 3/4 of the engine-swap work), no
-// UndoRedoControls/CommandPalette (TileGridLayer doesn't push onto
-// useCommandStack yet, so there'd be nothing for them to do). These are
-// deliberately deferred, not silently dropped.
-export function EditorViewV2({ slug, initialDocument }: EditorViewV2Props) {
+// TrackForge's one editor UI (the old spline/heightmap one and its R3F/
+// Rapier rendering stack were deleted in the engine-swap cleanup -- see
+// TASKS.md's "Ad hoc -- Engine Swap" entries). Scoped down from that old
+// UI in a few ways that are deliberately deferred, not silently dropped:
+// no InspectorPanel/TerrainBrushPanel-equivalent (nothing to inspect -- no
+// spline points or heightmap), no PublishDialog (the publish route has only
+// a minimal finish-line-exists check so far, no full layout validator
+// suite), no UndoRedoControls/CommandPalette (TileGridLayer mutates the
+// store directly rather than through useCommandStack, so there's nothing
+// for them to act on yet).
+export function EditorViewV2({ slug, document, autoplay }: EditorViewV2Props) {
   const mode = useEditorStore((s) => s.mode);
   const setMode = useEditorStore((s) => s.setMode);
   const setActiveToolId = useEditorStore((s) => s.setActiveToolId);
   const trackName = useTrackStoreV2((s) => s.document.meta.name);
   const cells = useTrackStoreV2((s) => s.document.track.cells);
   const objects = useTrackStoreV2((s) => s.document.objects);
-  const [isLoading, setIsLoading] = useState(Boolean(slug) && !initialDocument);
 
   useAutosaveV2();
   const saveTrack = useSaveTrackV2();
 
-  // Fresh tile editor session: reset undo history (format-agnostic stack,
-  // shared with v1 -- avoids a prior v1 session's entries lingering) and
-  // default to the road tool rather than whatever v1 last left active.
+  // Fresh editor session: load the given document (or keep the store's
+  // default empty one for a brand-new track), reset undo history, and
+  // default to the road tool.
   useEffect(() => {
+    if (document) useTrackStoreV2.getState().loadDocument(document);
     useCommandStack.getState().reset();
     setActiveToolId("tile");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (initialDocument) {
-      useTrackStoreV2.getState().loadDocument(initialDocument);
-      return;
-    }
-    if (!slug) return;
-    let cancelled = false;
-
-    fetch(`/api/tracks/${slug}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Track not found");
-        return res.json();
-      })
-      .then((data) => {
-        if (cancelled) return;
-        const parsed = safeParseTrackDocument(data.document);
-        if (!parsed.success) throw new Error("This track's data is corrupted");
-        if (parsed.data.formatVersion !== 2) {
-          throw new Error("This track uses the old format -- open it from /editor instead");
-        }
-        useTrackStoreV2.getState().loadDocument(parsed.data);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : "Failed to load track");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [slug, initialDocument]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -98,6 +65,21 @@ export function EditorViewV2({ slug, initialDocument }: EditorViewV2Props) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [mode, setMode]);
+
+  // See v1's identical comment this was ported from: this is also the one
+  // place a "real play" (as opposed to the owner testing their own track
+  // from inside the editor) is unambiguous, so it's the spot that
+  // increments the public playCount -- fire-and-forget, a failed count
+  // bump shouldn't block or error out the drive.
+  useEffect(() => {
+    if (autoplay) {
+      setMode("play");
+      if (slug) {
+        fetch(`/api/tracks/${slug}/play`, { method: "POST" }).catch(() => {});
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="fixed inset-0">
@@ -117,12 +99,6 @@ export function EditorViewV2({ slug, initialDocument }: EditorViewV2Props) {
           </div>
           <ModeToggle />
         </header>
-
-        {isLoading && (
-          <p className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-            Loading track…
-          </p>
-        )}
 
         <AnimatePresence mode="wait">
           {mode === "edit" && (
@@ -154,6 +130,18 @@ export function EditorViewV2({ slug, initialDocument }: EditorViewV2Props) {
                 pick a prop, click to place, Delete to remove selected · V/G/E/O switch tools
               </p>
             </motion.div>
+          )}
+          {mode === "play" && (
+            <motion.p
+              key="play-mode"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground"
+            >
+              WASD / arrows to drive · Esc to return to editing
+            </motion.p>
           )}
         </AnimatePresence>
       </div>

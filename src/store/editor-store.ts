@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 export type EditorMode = "edit" | "play";
-export type CameraMode = "orbit" | "freefly" | "topview" | "cinematic";
+export type CameraMode = "orbit" | "freefly" | "topview";
 
 interface EditorState {
   mode: EditorMode;

@@ -3,27 +3,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { AnimatePresence, motion } from "framer-motion";
-import { TrackForgeCanvas } from "@/modules/scene/track-forge-canvas";
-import { ModeToggle } from "@/modules/editor/ui/mode-toggle";
-import { Toolbar } from "@/modules/editor/ui/toolbar";
-import { InspectorPanel } from "@/modules/editor/ui/inspector-panel";
-import { TerrainBrushPanel } from "@/modules/editor/ui/terrain-brush-panel";
-import { PropInspectorPanel } from "@/modules/editor/ui/prop-inspector-panel";
-import { PropPalettePanel } from "@/modules/editor/ui/prop-palette-panel";
-import { UndoRedoControls } from "@/modules/editor/ui/undo-redo-controls";
-import { TrackStatus } from "@/modules/editor/ui/track-status";
-import { SaveButton } from "@/modules/editor/ui/save-button";
-import { PublishDialog } from "@/modules/editor/ui/publish-dialog";
-import { EnvironmentDialog } from "@/modules/editor/ui/environment-dialog";
-import { CameraModeMenu } from "@/modules/editor/ui/camera-mode-menu";
-import { EmptyStateHint } from "@/modules/editor/ui/empty-state-hint";
-import { CommandPalette } from "@/modules/editor/ui/command-palette";
-import { RaceHud } from "@/modules/race/timing/race-hud";
-import { useEditorStore } from "@/store/editor-store";
-import { useTrackStore } from "@/store/track-store";
-import { useCommandStack } from "@/modules/editor/core/command-stack";
-import { useAutosave } from "@/modules/track-format/use-autosave";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
 import { EditorViewV2 } from "@/modules/editor/editor-view-v2";
 import type { TrackDocumentV2 } from "@/modules/track-format/schema";
@@ -32,13 +11,13 @@ interface EditorViewProps {
   slug: string | null;
 }
 
-// New tracks (no slug yet) are always v2 going forward -- v1 only exists for
-// tracks that were already saved in the old spline format before this
-// engine-swap work landed. For an existing slug, the format isn't known
-// until the document is fetched, so ExistingTrackEditorView (below) fetches
-// once and branches into either this file's own v1 UI or EditorViewV2,
-// rather than EditorView itself calling any v1-specific hooks before the
-// format is known.
+// New tracks (no slug yet) are always the tile-based editor -- there's only
+// one format now (the old spline/heightmap editor and its whole R3F/Rapier
+// rendering stack were deleted in the engine-swap cleanup, see TASKS.md's
+// "Ad hoc -- Engine Swap" entries). For an existing slug, the document is
+// fetched once here rather than inside EditorViewV2 itself, so a track
+// left over from before the cutover (formatVersion 1, no longer
+// renderable at all) can show a clear message instead of a runtime crash.
 export function EditorView({ slug }: EditorViewProps) {
   if (!slug) {
     return <EditorViewV2 slug={null} />;
@@ -47,32 +26,11 @@ export function EditorView({ slug }: EditorViewProps) {
 }
 
 function ExistingTrackEditorView({ slug }: { slug: string }) {
-  const mode = useEditorStore((s) => s.mode);
-  const setMode = useEditorStore((s) => s.setMode);
-  const activeToolId = useEditorStore((s) => s.activeToolId);
-  const trackName = useTrackStore((s) => s.document.meta.name);
-  const [v2Document, setV2Document] = useState<TrackDocumentV2 | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [trackDocument, setTrackDocument] = useState<TrackDocumentV2 | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const autoplay = searchParams.get("autoplay") === "1";
 
-  useAutosave();
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && mode === "play") {
-        setMode("edit");
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mode, setMode]);
-
-  // Reload flow: an existing track loads its saved document on mount and
-  // resets undo history (a fresh load isn't something a prior session's
-  // undo stack should be able to unwind). This editor (spline/heightmap-
-  // based) only renders for v1 documents -- a v2 (tile-based) one hands off
-  // to EditorViewV2 with the already-fetched document instead of re-fetching.
   useEffect(() => {
     let cancelled = false;
 
@@ -85,20 +43,19 @@ function ExistingTrackEditorView({ slug }: { slug: string }) {
         if (cancelled) return;
         const parsed = safeParseTrackDocument(data.document);
         if (!parsed.success) throw new Error("This track's data is corrupted");
-        if (parsed.data.formatVersion === 2) {
-          setV2Document(parsed.data);
-          return;
+        if (parsed.data.formatVersion !== 2) {
+          throw new Error(
+            "This track was saved in a format TrackForge no longer supports."
+          );
         }
-        useTrackStore.getState().loadDocument(parsed.data);
-        useCommandStack.getState().reset();
+        setTrackDocument(parsed.data);
       })
       .catch((error) => {
         if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : "Failed to load track");
+          const message = error instanceof Error ? error.message : "Failed to load track";
+          setError(message);
+          toast.error(message);
         }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
       });
 
     return () => {
@@ -106,126 +63,21 @@ function ExistingTrackEditorView({ slug }: { slug: string }) {
     };
   }, [slug]);
 
-  // "Play" CTA on a track's public page links here with ?autoplay=1 so a
-  // visitor lands directly in the driver's seat instead of the editor. This
-  // is also the one place a "real play" (as opposed to the owner testing
-  // their own track from inside the editor) is unambiguous, so it's the spot
-  // that increments the public playCount (Phase 17) -- fire-and-forget, a
-  // failed count bump shouldn't block or error out the drive.
-  useEffect(() => {
-    if (autoplay && !isLoading) {
-      setMode("play");
-      if (slug) {
-        fetch(`/api/tracks/${slug}/play`, { method: "POST" }).catch(() => {});
-      }
-    }
-  }, [autoplay, isLoading, setMode, slug]);
-
-  if (v2Document) {
-    return <EditorViewV2 slug={slug} initialDocument={v2Document} />;
+  if (error) {
+    return (
+      <div className="flex h-dvh items-center justify-center text-sm text-muted-foreground">
+        {error}
+      </div>
+    );
   }
 
-  return (
-    <div className="fixed inset-0">
-      <TrackForgeCanvas />
-
-      <div className="pointer-events-none absolute inset-0 flex flex-col">
-        <header className="pointer-events-auto flex items-center justify-between p-4">
-          <div className="flex items-center gap-3 text-sm">
-            <span className="font-medium tracking-tight text-foreground/90">
-              TrackForge
-            </span>
-            <span className="text-muted-foreground">/</span>
-            <span className="text-muted-foreground">{trackName}</span>
-            <AnimatePresence mode="popLayout">
-              {mode === "edit" && (
-                <motion.div
-                  key="edit-controls"
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8 }}
-                  transition={{ duration: 0.18 }}
-                  className="flex items-center gap-3"
-                >
-                  <UndoRedoControls />
-                  <TrackStatus />
-                  <CameraModeMenu />
-                  <EnvironmentDialog />
-                  <SaveButton />
-                  <PublishDialog />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-          <ModeToggle />
-        </header>
-
-        {isLoading && (
-          <p className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-            Loading track…
-          </p>
-        )}
-
-        {mode === "edit" && <EmptyStateHint />}
-
-        <AnimatePresence mode="wait">
-          {mode === "edit" && (
-            <motion.div
-              key="edit-mode"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <motion.div
-                initial={{ opacity: 0, x: -16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="pointer-events-auto absolute left-4 top-1/2 -translate-y-1/2"
-              >
-                <Toolbar />
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="pointer-events-auto absolute right-4 top-20"
-              >
-                <InspectorPanel />
-                <TerrainBrushPanel />
-                <PropPalettePanel />
-                <PropInspectorPanel />
-              </motion.div>
-              <p className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
-                {activeToolId === "road"
-                  ? "Road tool: click ground to add a point (Shift angle-snap, Ctrl grid-snap) · drag to move · select + Delete to remove"
-                  : activeToolId === "terrain"
-                    ? "Terrain tool: drag to sculpt or paint · pick a brush and radius/strength in the panel"
-                    : activeToolId === "object"
-                      ? "Object tool: pick a prop, click the ground to place it · drag to move · select + Delete to remove"
-                      : "Select tool: drag a point to move it · click the road to split it · select + Delete to remove"}{" "}
-                · V/G/T/O switch tools · Ctrl+Z / Ctrl+Shift+Z undo/redo · Ctrl+K commands
-              </p>
-            </motion.div>
-          )}
-          {mode === "play" && (
-            <motion.div
-              key="play-mode"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <RaceHud />
-              <p className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
-                WASD / arrows to drive · Esc to return to editing
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+  if (!trackDocument) {
+    return (
+      <div className="flex h-dvh items-center justify-center text-sm text-muted-foreground">
+        Loading track…
       </div>
+    );
+  }
 
-      <CommandPalette />
-    </div>
-  );
+  return <EditorViewV2 slug={slug} document={trackDocument} autoplay={autoplay} />;
 }

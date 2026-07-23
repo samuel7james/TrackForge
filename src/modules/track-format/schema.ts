@@ -1,18 +1,14 @@
 import { z } from "zod";
 import { TYPE_NAMES, GODOT_ORIENTS, type PieceType } from "@/modules/game-engine/track";
 
-// The Track Document — see PROJECT_PLAN.md §7. Only `splines` is populated by
-// the Milestone 1 UI; the rest of the shape exists now so later milestones
-// (terrain, objects, checkpoints, validation) are additive, not migrations.
-//
-// formatVersion 2 (below) is NOT an additive migration of formatVersion 1 --
-// it replaces the spline/heightmap road-building system with the real
-// Starter-Kit-Racing tile-based track format (see modules/game-engine/track.ts),
-// which has no algorithmic path back from a heightmap+spline to a tile grid.
-// Both versions are validated (validate.ts's discriminated union) so existing
-// v1 rows keep reading correctly, but nothing produces new v1 documents once
-// the new editor (Phase 5 of the engine-swap work) lands -- v1 is a dead end,
-// not a format either version keeps writing.
+// The Track Document -- tile-based (see modules/game-engine/track.ts). This
+// used to be formatVersion 2 alongside a formatVersion 1 (spline/heightmap)
+// sibling from TrackForge's original editor; v1 and its entire R3F/Rapier
+// rendering stack were deleted once the new tile-based editor replaced it
+// (see TASKS.md's "Ad hoc -- Engine Swap" entries) -- there was no
+// algorithmic migration path from a heightmap+spline document to a tile
+// grid, so this was a hard cutover, not a version bump either format still
+// needs to understand.
 
 export const vec3Schema = z.object({ x: z.number(), y: z.number(), z: z.number() });
 export type Vec3 = z.infer<typeof vec3Schema>;
@@ -44,55 +40,6 @@ export const weatherSchema = z.enum([
 ]);
 export type Weather = z.infer<typeof weatherSchema>;
 
-export const roadControlPointSchema = z.object({
-  id: z.string(),
-  position: vec3Schema,
-  // "auto" derives tangentIn/tangentOut from neighboring points (Catmull-Rom
-  // equivalent, via RoadCurve in modules/spline/road-curve.ts) every time the
-  // spline changes; "manual" freezes them as authored vectors, editable via
-  // the draggable tangent handles in TangentHandles.tsx (Phase 11).
-  tangentMode: z.enum(["auto", "manual"]).default("auto"),
-  tangentIn: vec3Schema,
-  tangentOut: vec3Schema,
-  width: z.number().positive(),
-  banking: z.number(),
-  elevation: z.number(),
-});
-export type RoadControlPoint = z.infer<typeof roadControlPointSchema>;
-
-export const roadSplineSchema = z.object({
-  id: z.string(),
-  closed: z.boolean(),
-  points: z.array(roadControlPointSchema),
-});
-export type RoadSpline = z.infer<typeof roadSplineSchema>;
-
-export const terrainTextureLayerSchema = z.object({
-  type: z.enum(["grass", "sand", "rock", "dirt", "snow"]),
-  weightmap: z.array(z.number()),
-});
-export type TerrainTextureLayer = z.infer<typeof terrainTextureLayerSchema>;
-
-// resolution is vertices-per-side (not cells), so heightmap/weightmap arrays
-// are always resolution*resolution -- checked below so a corrupted document
-// fails Zod validation at the load boundary (editor-view.tsx) rather than
-// producing a mismatched mesh/collider silently.
-export const terrainDataSchema = z
-  .object({
-    size: z.object({ width: z.number(), depth: z.number() }),
-    resolution: z.number().int().positive(),
-    heightmap: z.array(z.number()),
-    textureLayers: z.array(terrainTextureLayerSchema),
-  })
-  .refine((t) => t.heightmap.length === t.resolution * t.resolution, {
-    message: "terrain heightmap length must equal resolution * resolution",
-  })
-  .refine(
-    (t) => t.textureLayers.every((l) => l.weightmap.length === t.resolution * t.resolution),
-    { message: "each terrain texture layer's weightmap must match the terrain resolution" }
-  );
-export type TerrainData = z.infer<typeof terrainDataSchema>;
-
 export const placedObjectSchema = z.object({
   id: z.string(),
   type: z.string(),
@@ -103,23 +50,12 @@ export const placedObjectSchema = z.object({
 });
 export type PlacedObject = z.infer<typeof placedObjectSchema>;
 
-export const checkpointSchema = z.object({
-  id: z.string(),
-  position: vec3Schema,
-  rotation: quatSchema,
-  order: z.number(),
-});
-export type Checkpoint = z.infer<typeof checkpointSchema>;
-
 export const validationIssueSchema = z.object({
   code: z.string(),
   message: z.string(),
 });
 export type ValidationIssue = z.infer<typeof validationIssueSchema>;
 
-// Shared by both format versions -- a track's name/tags/difficulty and its
-// weather/lighting choice are meaningful regardless of how the road itself
-// is represented underneath.
 export const metaSchema = z.object({
   id: z.string(),
   slug: z.string(),
@@ -149,21 +85,6 @@ export const validationStateSchema = z.object({
   validatedAt: z.string().nullable(),
 });
 export type ValidationState = z.infer<typeof validationStateSchema>;
-
-export const trackDocumentSchema = z.object({
-  formatVersion: z.literal(1),
-  meta: metaSchema,
-  environment: environmentSchema,
-  splines: z.array(roadSplineSchema),
-  terrain: terrainDataSchema,
-  objects: z.array(placedObjectSchema),
-  checkpoints: z.array(checkpointSchema),
-  startLine: z.object({ position: vec3Schema, rotation: quatSchema }),
-  validation: validationStateSchema,
-});
-export type TrackDocument = z.infer<typeof trackDocumentSchema>;
-
-// ─── formatVersion 2 — tile-based track (see modules/game-engine/track.ts) ───
 
 const godotOrientSchema = z.union(GODOT_ORIENTS.map((o) => z.literal(o)) as [
   z.ZodLiteral<0>,
@@ -200,76 +121,6 @@ export const trackDocumentV2Schema = z.object({
   validation: validationStateSchema,
 });
 export type TrackDocumentV2 = z.infer<typeof trackDocumentV2Schema>;
-
-const DEFAULT_ROAD_WIDTH = 8;
-
-// Vertices per side of the terrain grid. 65 (64 cells) over a 500x500 world
-// keeps each cell a manageable ~7.8m -- coarse enough to sculpt and collide
-// with cheaply, fine enough for real hills rather than a handful of facets.
-export const TERRAIN_RESOLUTION = 65;
-export const TERRAIN_SIZE = 500;
-
-export function createControlPoint(position: Vec3): RoadControlPoint {
-  return {
-    id: crypto.randomUUID(),
-    position,
-    tangentMode: "auto",
-    tangentIn: { x: 0, y: 0, z: 0 },
-    tangentOut: { x: 0, y: 0, z: 0 },
-    width: DEFAULT_ROAD_WIDTH,
-    banking: 0,
-    elevation: 0,
-  };
-}
-
-export function createFlatTerrain(): TerrainData {
-  const cellCount = TERRAIN_RESOLUTION * TERRAIN_RESOLUTION;
-  return {
-    size: { width: TERRAIN_SIZE, depth: TERRAIN_SIZE },
-    resolution: TERRAIN_RESOLUTION,
-    heightmap: new Array(cellCount).fill(0),
-    // Grass fully weighted everywhere, dirt/rock at zero -- a real starting
-    // state (rather than empty arrays) so the terrain always has something
-    // valid to render and paint from the first save.
-    textureLayers: [
-      { type: "grass", weightmap: new Array(cellCount).fill(1) },
-      { type: "dirt", weightmap: new Array(cellCount).fill(0) },
-      { type: "rock", weightmap: new Array(cellCount).fill(0) },
-    ],
-  };
-}
-
-export function createEmptyTrackDocument(name = "Untitled Track"): TrackDocument {
-  const now = new Date().toISOString();
-  return {
-    formatVersion: 1,
-    meta: {
-      id: crypto.randomUUID(),
-      slug: "",
-      name,
-      description: "",
-      authorId: "",
-      tags: [],
-      difficulty: "beginner",
-      estimatedLapTimeMs: null,
-      createdAt: now,
-      updatedAt: now,
-    },
-    environment: { weather: "sunny", timeOfDay: 12, fogDensity: 0.02 },
-    // Milestone 1 UI only ever manages a single spline, so it always exists
-    // (even empty) rather than being lazily created — this keeps the Add/
-    // Remove control point commands simple (see modules/editor/commands).
-    splines: [{ id: crypto.randomUUID(), closed: false, points: [] }],
-    terrain: createFlatTerrain(),
-    objects: [],
-    checkpoints: [],
-    startLine: {
-      position: { x: 0, y: 0, z: 0 },
-      rotation: { x: 0, y: 0, z: 0, w: 1 },
-    },
-    validation: { isValid: false, issues: [], validatedAt: null },
-  };
-}
 
 export function createEmptyTrackDocumentV2(name = "Untitled Track"): TrackDocumentV2 {
   const now = new Date().toISOString();

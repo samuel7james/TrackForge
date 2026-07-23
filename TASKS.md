@@ -1463,6 +1463,106 @@ until tile-based layout validators exist); `CommandPalette`/
   every step. Both test tracks deleted after verification. Full
   `tsc`/`eslint`/`next build` clean throughout.
 
+### Phase 6 — Cleanup: delete the old spline/Rapier stack, recreate demo content
+
+The final phase of the engine-swap arc. Turned out more involved than "just
+delete files" once actually attempted: an architecture check found
+`editor-view.tsx` still fully rendered the old spline editor for any
+non-v2 document, meaning every old file was technically still *reachable*,
+not dead code, until that branch itself was removed. Handled in order:
+recreate the real demo track first (so there was a safe, working fallback
+throughout), sever the old rendering path, untangle the couple of places
+v2 still shared code with v1, delete everything left with zero importers,
+then a full regression.
+
+- [x] Recreated the demo track (`azure-delta-thu9`, "Sunny Circuit") as a
+      real `formatVersion: 2` document -- the reference's own 16-cell demo
+      loop plus a few TrackForge-original placed objects (cones, a barrier,
+      a tree, a forest patch, a paddock) for flavor. Updated in place via
+      the real `PATCH` API (not a raw SQL write) using the row's actual
+      edit token, so it went through full schema validation rather than
+      bypassing it -- preserved the original `Track.id`/`authorId`/
+      `createdAt`/slug/play count, so existing links and the 13 recorded
+      plays carried over untouched
+- [x] `editor-view.tsx` rewritten as a thin dispatcher only: no more full
+      v1 UI branch -- an existing track that isn't v2 now shows a clear
+      "this format is no longer supported" message instead of rendering
+      the old spline editor. This is what actually made the rest of the
+      deletion below safe, not just file-count busywork
+- [x] Untangled the handful of places v2 still depended on v1-only code:
+      extracted `editTokenStorageKey` into its own `edit-token-storage.ts`
+      (was living in the now-deleted `use-save-track.ts`); `SaveButton`
+      and `Toolbar` now take their save-function/tool-list as required
+      props instead of defaulting to a v1 hook/registry; `EditorToolDefinition`
+      moved into `tool-registry-v2.ts`, its only remaining home
+- [x] `validate.ts`/`schema.ts` reverted from the v1/v2 discriminated union
+      back to v2 only -- `TrackDocument`(v1)/`trackDocumentSchema`/
+      `RoadSpline`/`TerrainData`/`Checkpoint`/`createEmptyTrackDocument`/etc.
+      all removed; `TrackDocumentV2`/`trackDocumentV2Schema` etc. kept under
+      their existing names (the broader "drop the -v2 suffix now that
+      there's no v1 to disambiguate" renaming is a deliberate follow-up,
+      not attempted in this pass -- see below)
+- [x] Publish route rewritten off the deleted spline validators
+      (`validateTrack`/`validateTerrainAlignment`/etc.) onto a minimal
+      v2-native check: has a finish cell (the same condition LapTimer's own
+      `enabled` flag already uses) and more than one cell total. Real,
+      working, if basic -- not a permanent 501 wall, and not a full
+      connectivity-graph validator either
+- [x] `t/[slug]/page.tsx`'s lap-time estimate simplified to always `null`
+      (shows "—") now that `estimateLapTimeMs`/the spline-based estimator
+      it depended on are gone
+- [x] Deleted: `modules/spline/`, `modules/terrain/`, `modules/race/vehicle/`,
+      `modules/race/physics/`, `modules/race/timing/`, `modules/editor/commands/`,
+      the v1-only `modules/editor/tools/*` and `modules/editor/ui/*` files
+      (point-editing-layer, tangent-handles, elevation-handle,
+      terrain-sculpt-layer, object-placement-layer, inspector-panel,
+      terrain-brush-panel, prop-inspector-panel, camera-mode-menu,
+      environment-dialog, empty-state-hint, command-palette, publish-dialog,
+      track-status, undo-redo-controls), `scene-root.tsx`,
+      `track-forge-canvas.tsx`, `mode-controller.tsx`, `track-markers.tsx`,
+      `play-mode-camera-rig.tsx`, `cinematic-camera-rig.tsx` (sampled the
+      deleted spline system for a scripted flythrough -- no tile-grid
+      equivalent exists yet, and no UI exposed switching to it anyway),
+      `editor-engine.tsx`, `tool-registry.ts`, `game-audio.ts` (the old
+      Rapier-tuned one -- `game-engine/audio.ts` is its replacement),
+      `track-store.ts`, `race-store.ts`, `terrain-brush-store.ts`,
+      `use-save-track.ts`, `use-autosave.ts`, `validate-track.ts`,
+      `generate-track-elements.ts`, `estimate-lap-time.ts`, `hooks.ts`.
+      Every deletion's importers were checked first (real import
+      statements, not comment mentions) to confirm nothing outside this set
+      depended on it
+
+**Deliberately deferred, not attempted:** renaming the `-v2`-suffixed
+files/exports (`TrackDocumentV2`, `EditorViewV2`, `useTrackStoreV2`,
+`SceneRootV2`, `TOOLS_V2`, etc.) back to their plain names now that v1 no
+longer exists to disambiguate against. Cosmetic, not load-bearing, and
+renaming ~15 files' worth of cross-references purely for naming hygiene
+carried more risk (a missed import) than benefit given the scope already
+covered in this phase. A `CameraModeMenu`-equivalent for the new editor
+(free-fly/top-view switching currently has no UI, only the default orbit
+rig is reachable) and a cell-grid-native cinematic flythrough are similarly
+left as follow-ups.
+
+**Notes:**
+
+- Verified in-browser via Playwright across the whole app, not just the
+  editor: home, Discover (showing the recreated "Sunny Circuit" with its
+  original like/play counts intact), Bookmarks, My Tracks, `/editor/new`,
+  `/editor/azure-delta-thu9`, and the public `/t/azure-delta-thu9` page all
+  load with zero console errors. A full edit → play → drive → edit round
+  trip on the real (now-recreated) demo track works end to end through the
+  real vendored engine. `tsc`, `eslint` (project-wide, not just changed
+  files), and `next build` all clean.
+- This closes out the "Ad hoc -- Engine Swap" arc that ran across Phases
+  0-6: TrackForge's game/editor is now genuinely built on the real
+  Starter-Kit-Racing engine (crashcat physics, the actual vehicle/track
+  models, the reference's own camera/audio/lap-timer/drift systems),
+  wrapped in TrackForge's own Next.js/Postgres anonymous social platform,
+  dark-graphite/orange theme, and deploy-readiness work -- exactly the
+  split the user asked for, rather than TrackForge's prior approach of
+  re-implementing pieces of the reference's feel in React Three Fiber/Rapier
+  one feature at a time.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records

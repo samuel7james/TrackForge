@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Bookmark, Copy, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { editTokenStorageKey } from "@/modules/track-format/use-save-track";
+import { editTokenStorageKey } from "@/modules/track-format/edit-token-storage";
 import { useIsBookmarked } from "@/modules/bookmarks/use-bookmarks";
 import { toggleBookmark } from "@/modules/bookmarks/bookmarks-storage";
 

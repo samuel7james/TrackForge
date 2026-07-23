@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
-import {
-  validateTrack,
-  validateTerrainAlignment,
-  validateImpassableCorners,
-  validateObjectsBlockingPath,
-} from "@/modules/track-format/validate-track";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
 }
 
 // The one place "prevent invalid tracks from being published" (from the
-// project brief) is actually enforced -- Phase 5 built the validator and
-// deliberately did NOT gate Play with it, only this.
+// project brief) is actually enforced -- the disabled Publish button
+// client-side is only a UX nicety, not a security boundary, in an
+// auth-free system anyone can POST here directly.
+//
+// Deliberately minimal for the tile-based format: a finish cell (so
+// LapTimer actually activates -- see its own `enabled` check, the same
+// condition) and more than one cell total (so a lone finish tile with
+// nothing built around it doesn't count as a track). A fuller connectivity
+// validator (are all cells actually reachable from the finish) is a
+// reasonable follow-up, not attempted here.
 export async function POST(request: Request, { params }: RouteContext) {
   const { slug } = await params;
   const editToken = request.headers.get("x-edit-token");
@@ -35,28 +37,14 @@ export async function POST(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Track data is corrupted" }, { status: 500 });
   }
 
-  // The engine-swap work's new tile-based format (formatVersion 2) doesn't
-  // have layout validators yet -- that lands with the new editor (Phase 5).
-  // Rejecting cleanly here rather than crashing on `.splines`, which only
-  // exists on v1.
-  if (parsed.data.formatVersion !== 1) {
-    return NextResponse.json(
-      { error: "Publishing this track format isn't supported yet" },
-      { status: 501 }
-    );
+  const issues: { code: string; message: string }[] = [];
+  const cells = parsed.data.track.cells;
+  if (!cells.some((c) => c[2] === "track-finish")) {
+    issues.push({ code: "no-finish", message: "Track needs a finish line" });
   }
-
-  // Mirrors useTrackValidation client-side (Phase 16) -- the disabled Publish
-  // button is only a UX nicety, not a security boundary, in an auth-free
-  // system anyone can POST here directly.
-  const spline = parsed.data.splines[0];
-  const layoutValidation = validateTrack(spline);
-  const issues = [
-    ...layoutValidation.issues,
-    ...validateTerrainAlignment(spline, parsed.data.terrain),
-    ...validateImpassableCorners(spline),
-    ...validateObjectsBlockingPath(spline, parsed.data.objects),
-  ];
+  if (cells.length < 2) {
+    issues.push({ code: "too-short", message: "Track needs more than just the finish line" });
+  }
   if (issues.length > 0) {
     return NextResponse.json(
       { error: "Track is not ready to publish", issues },

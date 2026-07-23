@@ -1,13 +1,10 @@
 "use client";
 
-import { TOOLS, type EditorToolDefinition } from "@/modules/editor/core/tool-registry";
+import type { EditorToolDefinition } from "@/modules/editor/core/tool-registry-v2";
 import { useEditorStore } from "@/store/editor-store";
 import { Button } from "@/components/ui/button";
 
-// `tools` defaults to v1's TOOLS -- the tile editor (editor-view-v2.tsx)
-// passes TOOLS_V2 instead, reusing this same pill-toolbar rendering rather
-// than duplicating it for one differing prop.
-export function Toolbar({ tools = TOOLS }: { tools?: EditorToolDefinition[] }) {
+export function Toolbar({ tools }: { tools: EditorToolDefinition[] }) {
   const activeToolId = useEditorStore((s) => s.activeToolId);
   const setActiveToolId = useEditorStore((s) => s.setActiveToolId);
 
