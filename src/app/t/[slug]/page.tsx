@@ -1,22 +1,17 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
 import { estimateLapTimeMs } from "@/modules/track-format/estimate-lap-time";
 import { PublicTrackActions } from "@/modules/track/public-track-actions";
-import { cookies } from "next/headers";
 import { TrackEngagement } from "@/modules/track/track-engagement";
+import { DIFFICULTY_LABELS } from "@/modules/track/difficulty-labels";
 import { VIEWER_ID_COOKIE } from "@/lib/anonymous-id";
 
 interface PublicTrackPageProps {
   params: Promise<{ slug: string }>;
 }
-
-const DIFFICULTY_LABELS: Record<string, string> = {
-  beginner: "Beginner",
-  intermediate: "Intermediate",
-  advanced: "Advanced",
-  expert: "Expert",
-};
 
 function formatEstimatedTime(ms: number | null): string {
   if (ms === null) return "—";
@@ -86,7 +81,16 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
         </div>
       </dl>
 
-      <PublicTrackActions slug={slug} isPublished={track.isPublished} />
+      <PublicTrackActions slug={slug} name={track.name} isPublished={track.isPublished} />
+
+      {track.isPublished && (
+        <Link
+          href={`/creator/${track.authorId}`}
+          className="w-fit text-sm text-muted-foreground hover:text-foreground"
+        >
+          More tracks by this creator →
+        </Link>
+      )}
 
       {track.isPublished && (
         <TrackEngagement

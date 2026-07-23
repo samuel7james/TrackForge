@@ -3,12 +3,15 @@
 import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Copy, Play } from "lucide-react";
+import { Bookmark, Copy, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { editTokenStorageKey } from "@/modules/track-format/use-save-track";
+import { useIsBookmarked } from "@/modules/bookmarks/use-bookmarks";
+import { toggleBookmark } from "@/modules/bookmarks/bookmarks-storage";
 
 interface PublicTrackActionsProps {
   slug: string;
+  name: string;
   isPublished: boolean;
 }
 
@@ -19,17 +22,23 @@ const noSubscription = () => () => {};
 // Milestone 1 model) -- see PROJECT_PLAN.md §8. useSyncExternalStore (rather
 // than an effect + setState) is the correct tool for reading a browser-only
 // API that also needs a safe SSR snapshot.
-export function PublicTrackActions({ slug, isPublished }: PublicTrackActionsProps) {
+export function PublicTrackActions({ slug, name, isPublished }: PublicTrackActionsProps) {
   const isOwner = useSyncExternalStore(
     noSubscription,
     () => Boolean(localStorage.getItem(editTokenStorageKey(slug))),
     () => false
   );
+  const bookmarked = useIsBookmarked(slug);
 
   const handleCopyLink = async () => {
     const url = `${window.location.origin}/t/${slug}`;
     await navigator.clipboard.writeText(url);
     toast.success("Link copied");
+  };
+
+  const handleBookmark = () => {
+    toggleBookmark(slug, name);
+    toast.success(bookmarked ? "Removed from bookmarks" : "Bookmarked");
   };
 
   if (!isPublished) {
@@ -67,6 +76,14 @@ export function PublicTrackActions({ slug, isPublished }: PublicTrackActionsProp
       <Button variant="outline" onClick={handleCopyLink} className="gap-1.5">
         <Copy className="size-4" />
         Copy link
+      </Button>
+      <Button
+        variant={bookmarked ? "default" : "outline"}
+        onClick={handleBookmark}
+        className="gap-1.5"
+      >
+        <Bookmark className={bookmarked ? "size-4 fill-current" : "size-4"} />
+        {bookmarked ? "Bookmarked" : "Bookmark"}
       </Button>
     </div>
   );

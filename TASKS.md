@@ -615,8 +615,52 @@ anonymous-cookie-based equivalent.
 
 ### Phase 19 — Creator Pages & Bookmarks
 
-- [ ] Public creator page addressed by `authorId`: lists that browser's published tracks
-- [ ] Bookmarks: client-side only (`localStorage`), no server model
+- [x] Public creator page addressed by `authorId`: lists that browser's published tracks
+- [x] Bookmarks: client-side only (`localStorage`), no server model
+
+**Notes:**
+
+- `/creator/[authorId]` lists ONLY published tracks, even for the page's own author —
+  deliberately never drafts, for any authorId. `authorId` is an unguessable UUID but
+  explicitly not a secret (§8/Phase 18 notes) — a non-httpOnly cookie anyone can forge
+  from devtools — so treating "the authorId cookie matches this page's URL" as a security
+  boundary for showing otherwise-hidden drafts would be a real leak. The "Your tracks"
+  heading vs. the generic "Tracks by {id}" one is purely cosmetic, driven by the same
+  comparison, since it doesn't reveal anything a stranger couldn't already see.
+- `/my-tracks` is a convenience redirect, not a real page: reads the `authorId` cookie
+  server-side and `redirect()`s to `/creator/[authorId]`, or shows a "create your first
+  track" empty state if the cookie doesn't exist yet (a browser that's never saved a
+  track has no `authorId` cookie at all — it's only ever set inside `POST /api/tracks`).
+- Extracted `TrackCard` and `PublicNav` (`modules/track/`) out of the Discover page so
+  Discover and the new creator page render identical cards instead of two copies drifting
+  apart; also deduplicated `DIFFICULTY_LABELS` (was defined separately in both
+  `t/[slug]/page.tsx` and `discover/page.tsx`) into `modules/track/difficulty-labels.ts`.
+- Bookmarks are 100% client-side (`modules/bookmarks/bookmarks-storage.ts` +
+  `use-bookmarks.ts`) — no server model, since there's no account to sync a list to.
+  Stores `{slug, name, bookmarkedAt}` as a snapshot at bookmark time rather than
+  re-fetching current data; if a bookmarked track is later renamed or unpublished the
+  entry just shows its old name and links to a live `/t/[slug]`, which reflects reality
+  on its own. Followed the existing `useSyncExternalStore` pattern already used for the
+  `isOwner` check in `public-track-actions.tsx` rather than introducing a new state
+  pattern for one more piece of localStorage-backed UI state.
+- **Real bug found and fixed during verification:** the `/bookmarks` page crashed
+  immediately with "Maximum update depth exceeded" — an infinite render loop.
+  `getBookmarks()` called `JSON.parse` fresh every invocation, returning a new array
+  reference each time; `useSyncExternalStore` requires `getSnapshot` to return a
+  referentially stable result when the underlying data hasn't changed, or React treats
+  every render as "the store changed" and re-renders forever. Fixed by caching the parsed
+  array keyed by the raw string it came from, only re-parsing when the raw value actually
+  differs. A good reminder that `useSyncExternalStore`'s snapshot-stability requirement
+  isn't optional even for "obviously read-only" derived data.
+- Verified in-browser: published two tracks from one browser, confirmed `/my-tracks`
+  redirects to `/creator/[authorId]` showing "Your tracks" and both tracks; loaded the
+  same creator URL from a fresh browser (no cookies) and confirmed it shows the generic
+  heading but still lists both published tracks (no draft leakage either way, since
+  neither was a draft); followed "More tracks by this creator" from a public track page;
+  bookmarked a track, confirmed it appears on `/bookmarks`, persists across reload, and
+  removing it restores the empty state. Reran Phase 17 (Discover) and Phase 18
+  (likes/comments) regressions — both still pass. Zero console errors after the
+  `useSyncExternalStore` fix.
 
 ### Phase 20 — Production Deploy (Vercel + custom domain)
 
