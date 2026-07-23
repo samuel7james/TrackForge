@@ -814,6 +814,64 @@ feel, object collision, and audio only — no editor/UI/page changes.
   path) — still passes, confirming the new object colliders don't interfere with the
   editor-time geometric checks. Full `next build` also still compiles clean.
 
+**Post-ship fix — collision/impact-sound spam on routine driving:**
+
+Reported back as "everything got messed up — track edit, audio, physics, object
+collision, everything," which didn't reproduce in a fresh headless pass (built a track,
+placed objects, drove — zero console errors, screenshots looked correct). Narrowed down
+via follow-up questions: sound was harsh/wrong and physics felt stuck/flying/jittery,
+same browser/dev-server setup used throughout this session.
+
+- **Root cause, confirmed by direct measurement:** `RigidBody.onCollisionEnter` fires on
+  *every new contact*, not just meaningful ones — including the vehicle's routine,
+  continuous contact with the road/terrain while driving completely normally. Logged it
+  directly: 4 seconds of driving straight on the real demo track with no obstacles
+  anywhere nearby fired the collision handler **116–189 times**, with computed "impact
+  velocities" up to 9+ m/s (since that computation is just the car's own forward speed at
+  the moment of the event, which of course is nonzero while driving). Every one of those
+  was playing a full crash sound — turning ordinary driving into a constant barrage of
+  impact audio layered under the engine sound. This is exactly "sound is harsh" and, since
+  a wall of simultaneous procedural crash sounds firing dozens of times a second is
+  jarring enough to make the drive itself feel chaotic, plausibly "physics feels broken"
+  too — one root cause, not three separate bugs. (The "track edit visual glitch" report
+  wasn't reproduced or root-caused separately — see note below.)
+- **First fix attempt failed, caught before shipping:** tried tagging each `ObjectPhysics`
+  `RigidBody` with a `name` prop and checking `payload.other.rigidBodyObject?.name` in the
+  handler. Verified this specific approach empirically rather than trusting it: logged the
+  full collision payload during both routine driving and an actual confirmed object hit —
+  `rigidBodyObject.name` came back `""` in **every** case, including real object contacts.
+  `name` isn't excluded from the props `@react-three/rapier`'s `RigidBody` spreads onto its
+  internal `object3D`, so in principle it should propagate, but empirically it didn't in
+  this version — not worth chasing further into a third-party library's internals.
+- **Actual fix:** `race/physics/placed-object-registry.ts` — a plain `Set<number>` of
+  Rapier rigid-body handles, owned entirely by TrackForge's own code with no dependency on
+  a third-party prop-forwarding path. `ObjectPhysics` registers each prop's handle via a
+  ref callback (React 19's ref-cleanup-function support doubles as the unregister on
+  unmount); `Vehicle`'s collision handler checks `payload.other.rigidBody.handle` against
+  the set and returns early for anything not in it. Verified the fix directly: logged
+  `raw handle / isPlaced` for every collision during a real object hit — the actual prop's
+  handle correctly read `isPlaced=true`, road/terrain contacts read `isPlaced=false`, in
+  the same drive session. Re-ran the demo-track plain-driving check afterward — zero
+  console errors, and the (by-design) 429-style spam is gone since the handler now returns
+  before doing any audio work for non-object contacts.
+  - Aside: `RapierRigidBody.handle` values print as denormalized floats (e.g. `5e-324`,
+    `1e-323`) rather than plain small integers when logged/stringified — cost real
+    debugging time chasing what looked like a broken handle before confirming (by
+    registering and then immediately re-reading the same handle) that they're internally
+    consistent and safe to use as opaque `Set` keys; just don't expect `console.log` on one
+    to look like a normal array index.
+  - Also caught a **test-methodology bug of my own** while chasing this: placed a scaled-up
+    barrier directly on top of an existing spline control point to guarantee a hit, but
+    the Object tool's click landed on the *point* instead (selecting it, not placing the
+    prop), and a follow-up "set the barrier's scale" field-fill actually landed on that
+    point's Position-Y field instead, warping the track into the disconnected, oddly-angled
+    geometry visible in one of this debugging session's screenshots. That specific glitch
+    was self-inflicted by the verification script, not a product bug — but it's a plausible
+    match for what "track edit visual glitch" could describe if triggered by a similar
+    real click landing exactly on an existing point while a different tool is selected.
+    Not confirmed as the same root cause the user hit, just noted here since it produces a
+    strikingly similar-looking symptom and is worth ruling in/out if it recurs.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records

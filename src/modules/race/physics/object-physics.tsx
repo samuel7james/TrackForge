@@ -1,6 +1,6 @@
 "use client";
 
-import { RigidBody, CylinderCollider } from "@react-three/rapier";
+import { RigidBody, CylinderCollider, type RapierRigidBody } from "@react-three/rapier";
 import { useTrackStore } from "@/store/track-store";
 import {
   isPropType,
@@ -8,6 +8,20 @@ import {
   PROP_COLLIDER_HEIGHT,
   PROP_DYNAMIC,
 } from "@/modules/objects/prop-registry";
+import { placedObjectHandles } from "./placed-object-registry";
+
+// Registers this body's handle so Vehicle's collision handler can tell "hit
+// an object" apart from routine road/terrain contact -- both are just Rapier
+// collisions from the vehicle's point of view, but only one should ever
+// trigger the crash sound. React 19 supports cleanup functions returned from
+// callback refs, so this doubles as the unregister on unmount.
+function registerPlacedObjectBody(body: RapierRigidBody | null) {
+  if (!body) return;
+  placedObjectHandles.add(body.handle);
+  return () => {
+    placedObjectHandles.delete(body.handle);
+  };
+}
 
 // One RigidBody per placed object -- PlacedObjects (scene/) stays purely
 // visual (PROJECT_PLAN.md §4: presentational only, shared between edit/play),
@@ -44,6 +58,7 @@ export function ObjectPhysics() {
         return (
           <RigidBody
             key={object.id}
+            ref={registerPlacedObjectBody}
             type={dynamic ? "dynamic" : "fixed"}
             colliders={false}
             position={[object.position.x, object.position.y + halfHeight, object.position.z]}

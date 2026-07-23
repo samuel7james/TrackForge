@@ -2,12 +2,18 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import * as THREE from "three";
-import { RigidBody, RoundCuboidCollider, type RapierRigidBody } from "@react-three/rapier";
+import {
+  RigidBody,
+  RoundCuboidCollider,
+  type RapierRigidBody,
+  type CollisionEnterPayload,
+} from "@react-three/rapier";
 import { useStartLine } from "@/modules/track-format/hooks";
 import { useVehicleController, VEHICLE_MASS } from "./use-vehicle-controller";
 import { useVehicleAudio } from "./use-vehicle-audio";
 import { vehicleHandle } from "./vehicle-ref";
 import { CarModel } from "./car-model";
+import { placedObjectHandles } from "@/modules/race/physics/placed-object-registry";
 
 const CAR_FORWARD = new THREE.Vector3(0, 0, 1);
 
@@ -38,17 +44,35 @@ export function Vehicle() {
   // Rapier's contact data, and it's really "how hard was I driving into
   // whatever I just hit" that should drive the sound, not the physics
   // engine's own resolution of it.
-  const handleCollisionEnter = useCallback(() => {
-    const body = rigidBodyRef.current;
-    if (!body) return;
-    const r = body.rotation();
-    const forward = CAR_FORWARD.clone().applyQuaternion(
-      new THREE.Quaternion(r.x, r.y, r.z, r.w)
-    );
-    const lv = body.linvel();
-    const impactVelocity = Math.abs(forward.dot(new THREE.Vector3(lv.x, lv.y, lv.z)));
-    playImpact(impactVelocity);
-  }, [playImpact]);
+  //
+  // Gated to placed-object hits only -- onCollisionEnter fires for ANY new
+  // contact, including the vehicle's routine, continuous contact with the
+  // road/terrain while driving normally (confirmed empirically: driving
+  // straight for 4s with no obstacles anywhere near fired the handler over a
+  // hundred times). Playing a crash sound on every one of those turned
+  // ordinary driving into a constant barrage of "impact" audio -- exactly
+  // the "sound is harsh, physics feels broken" symptom this fixes.
+  // placedObjectHandles (not the RigidBody `name` prop, which turned out not
+  // to propagate to the collision payload's rigidBodyObject -- confirmed by
+  // logging the full payload) is the one check that tells "hit a prop" apart
+  // from "still driving on the road."
+  const handleCollisionEnter = useCallback(
+    (payload: CollisionEnterPayload) => {
+      const otherHandle = payload.other.rigidBody?.handle;
+      if (otherHandle === undefined || !placedObjectHandles.has(otherHandle)) return;
+
+      const body = rigidBodyRef.current;
+      if (!body) return;
+      const r = body.rotation();
+      const forward = CAR_FORWARD.clone().applyQuaternion(
+        new THREE.Quaternion(r.x, r.y, r.z, r.w)
+      );
+      const lv = body.linvel();
+      const impactVelocity = Math.abs(forward.dot(new THREE.Vector3(lv.x, lv.y, lv.z)));
+      playImpact(impactVelocity);
+    },
+    [playImpact]
+  );
 
   // Position/rotation are set imperatively, once, on mount -- NOT passed as
   // ongoing JSX props. React Three Fiber re-applies array-valued props like
