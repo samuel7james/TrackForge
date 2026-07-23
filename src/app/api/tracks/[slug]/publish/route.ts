@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
-import { validateTrack } from "@/modules/track-format/validate-track";
+import {
+  validateTrack,
+  validateTerrainAlignment,
+  validateImpassableCorners,
+  validateObjectsBlockingPath,
+} from "@/modules/track-format/validate-track";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
@@ -30,8 +35,18 @@ export async function POST(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Track data is corrupted" }, { status: 500 });
   }
 
-  const { isValid, issues } = validateTrack(parsed.data.splines[0]);
-  if (!isValid) {
+  // Mirrors useTrackValidation client-side (Phase 16) -- the disabled Publish
+  // button is only a UX nicety, not a security boundary, in an auth-free
+  // system anyone can POST here directly.
+  const spline = parsed.data.splines[0];
+  const layoutValidation = validateTrack(spline);
+  const issues = [
+    ...layoutValidation.issues,
+    ...validateTerrainAlignment(spline, parsed.data.terrain),
+    ...validateImpassableCorners(spline),
+    ...validateObjectsBlockingPath(spline, parsed.data.objects),
+  ];
+  if (issues.length > 0) {
     return NextResponse.json(
       { error: "Track is not ready to publish", issues },
       { status: 422 }

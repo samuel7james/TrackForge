@@ -506,12 +506,48 @@ loop as Milestone 1.
   understanding why the math correctly left it valid before tuning the repro to actually
   span the road. Reran the Phase 12 terrain-mismatch regression script — still passes
   unchanged. Zero console errors throughout.
+- **Post-phase fix:** `POST /api/tracks/[slug]/publish` was still only running the original
+  `validateTrack` (closed-loop) check server-side — the three new checks only gated the
+  client's Publish button, which is UX only, not a security boundary, in a system with no
+  auth (§8). Anyone could `fetch` the publish endpoint directly with a valid edit token and
+  publish a track with an impassable corner or a road-blocking object. Fixed by running all
+  four checks server-side too. Verified with a direct `fetch` bypassing the disabled UI
+  button entirely: a broken track now gets a 422 with the correct issue code, a clean track
+  still publishes (200) — no regression.
 
-## Milestone 3 — Creator Platform (high-level)
-- [ ] Real auth + `User` model, migrate anonymous `authorId`s
-- [ ] Profiles, track pages richer metadata
-- [ ] Discover feed (trending/new/most played/highest rated)
-- [ ] Likes, comments, bookmarks, follows, search
+## Milestone 3 — Creator Platform (anonymous, no accounts)
+
+Decision: no login, no email auth, ever — free for everyone, sharing is purely by
+link. Deploys to Vercel on a custom domain. See `PROJECT_PLAN.md` §8 (rewritten) for
+the reasoning; this replaces the originally-planned `User`/auth/`Follow` scope with an
+anonymous-cookie-based equivalent.
+
+### Phase 17 — Track Discovery
+
+- [ ] `Track` gains `playCount`, `tags` (richer metadata for browsing)
+- [ ] Discover page: new / most played sorts (highest-rated sort added in Phase 18,
+      once Likes exist to rank by)
+- [ ] Search by name/description/tags
+
+### Phase 18 — Anonymous Engagement
+
+- [ ] Anonymous `viewerId` cookie (distinct from `authorId` — identifies "a browser
+      that can vote," not "a browser that can edit")
+- [ ] Likes: one per (`viewerId`, track), toggle on/off, no login
+- [ ] Discover page gains a highest-rated sort using like counts
+- [ ] Comments: freeform display-name field, no login, basic abuse mitigation
+
+### Phase 19 — Creator Pages & Bookmarks
+
+- [ ] Public creator page addressed by `authorId`: lists that browser's published tracks
+- [ ] Bookmarks: client-side only (`localStorage`), no server model
+
+### Phase 20 — Production Deploy (Vercel + custom domain)
+
+- [ ] Production Postgres (Vercel Postgres/Neon), env config, migration run
+- [ ] OG/share images for track links, sitemap/robots
+- [ ] Rate limiting on likes/comments (no auth to gate abuse otherwise)
+- [ ] Custom domain wired up, deployed build verified live
 
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback

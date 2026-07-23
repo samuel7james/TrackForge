@@ -27,12 +27,20 @@ model Track {
 
   isPublished Boolean  @default(false)
 
+  // Discovery (Phase 17). playCount increments once per visitor Play from the
+  // public track page (see api/tracks/[slug]/play) -- not incremented for the
+  // owner's own in-editor test plays, so it reflects real external interest.
+  playCount   Int      @default(0)
+  tags        String[] @default([])
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   versions    TrackVersion[]
 
   @@index([authorId])
+  @@index([isPublished, createdAt])
+  @@index([isPublished, playCount])
 }
 
 // One row per save. Empty of product features until Milestone 3 (version history UI),

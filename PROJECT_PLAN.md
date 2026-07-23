@@ -287,15 +287,16 @@ model TrackVersion {
 
 ---
 
-## 8. Auth — Deliberately Deferred, Designed Around
+## 8. Auth — Deliberately Permanent, Not Deferred
 
-Full profiles/auth belong to Milestone 3. Milestone 1 still needs *some* notion of "who can edit this track," so:
+**Decision (as of Milestone 3 planning): TrackForge has no login, no accounts, no email auth, ever.** It's free for everyone; sharing happens purely via URL. This was originally scoped as "deferred to Milestone 3" (see git history for the earlier version of this section), but the project owner chose to keep the anonymous/link-sharing model permanently rather than add a `User` model — so the scheme below is the permanent design, not a stopgap:
 
 - On first save, the server generates a random `editToken` and returns it once. The client stores it in `localStorage` keyed by track id.
 - `PATCH /api/tracks/[slug]` requires the token (header) to match.
-- `authorId` is a stable anonymous client id (generated client-side, stored in a cookie) — this becomes the `User.id` foreign key the moment real auth lands; no migration of the `Track` table is needed, only a new `User` table and a login flow that adopts existing anonymous ids.
+- `authorId` is a stable anonymous client id (generated client-side, stored in a cookie) — it identifies "the browser that made this," never a real identity. It's reused, unchanged, as the join key for creator pages (§11) and as the basis for a separate anonymous `viewerId` cookie that gates one-like-per-browser voting.
+- Anything that would normally require login — profiles, following, saved tracks — is instead built either as a page addressed by `authorId` (a "creator page," no login needed to view or to *be* one) or as purely client-side state (bookmarks live in `localStorage`, not the database, since there's no account to sync them to).
 
-This avoids building a throwaway auth system now while ensuring Milestone 3 doesn't require reshaping `Track`.
+This keeps the trust model identical to Milestone 1's: whoever holds the token/cookie can act as that identity, and clearing cookies means starting over as a new anonymous author. That trade-off is accepted deliberately in exchange for zero signup friction.
 
 ---
 
@@ -331,7 +332,7 @@ No serialization round-trip happens when entering Play. This is the direct payof
 The architecture above is chosen specifically so these don't require rewrites:
 
 - **Milestone 2 (Terrain/Objects/Weather/Camera/Validation):** all additive tools in the existing plugin registry; terrain and objects already have first-class slots in `TrackDocument`.
-- **Milestone 3 (Creator platform):** additive Prisma models (`User`, `Like`, `Comment`, `Bookmark`, `Follow`) plus new routes/pages; `authorId` already anonymous-compatible (§8).
+- **Milestone 3 (Creator platform, anonymous):** additive Prisma models (`Like`, `Comment`) plus new routes/pages — deliberately no `User`/`Follow` model (§8: no accounts, ever). Discovery, likes, and comments all key off the existing anonymous `authorId`/new anonymous `viewerId` cookie; bookmarks are client-side only (`localStorage`, no server model needed since there's no account to sync to). Deploys to Vercel on a custom domain.
 - **Milestone 4 (Ghost racing/leaderboards):** `race/ghost` records `{position, rotation, speed, steering, throttle, brake}` samples at a fixed tick rate during Play mode — this is just another consumer of the existing vehicle controller's per-frame state, plus new `Replay`/`LapTime` Prisma models.
 - **Milestone 5 (Live collaboration):** the Command pattern (§5) is the seam. A `RemoteCommandTransport` will broadcast commands through a WebSocket/CRDT layer (likely Yjs) instead of only pushing to the local `CommandStack`. Because tools already never mutate state directly, no tool code changes — only `CommandStack` gains a network-aware backend. `collaboration/` exists today as an empty module specifically to hold this without restructuring `editor/core` later.
 

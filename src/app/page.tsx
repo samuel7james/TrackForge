@@ -2,14 +2,14 @@ import Link from "next/link";
 import { Play, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const DEMO_TRACK_SLUG = "electric-ridge-rvfm";
+const DEMO_TRACK_SLUG = "azure-delta-thu9";
 
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
       <div className="flex flex-col items-center gap-4">
         <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          Now building — Milestone 2
+          Now building — Milestone 3
         </span>
         <h1 className="max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl">
           TrackForge
