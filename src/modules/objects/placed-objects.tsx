@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Instance, Instances } from "@react-three/drei";
+import type * as THREE from "three";
+import { Instance, Instances, useGLTF } from "@react-three/drei";
 import { useTrackStore } from "@/store/track-store";
 import { PROP_REGISTRY, isPropType } from "./prop-registry";
 import type { PlacedObject } from "@/modules/track-format/schema";
@@ -31,9 +32,13 @@ export function PlacedObjects() {
 
   return (
     <>
-      {Array.from(byType.entries()).map(([type, objs]) => (
-        <PropTypeInstances key={type} type={type} objects={objs} />
-      ))}
+      {Array.from(byType.entries()).map(([type, objs]) =>
+        PROP_REGISTRY[type].modelUrl ? (
+          <GltfPropInstances key={type} type={type} objects={objs} />
+        ) : (
+          <PropTypeInstances key={type} type={type} objects={objs} />
+        )
+      )}
     </>
   );
 }
@@ -57,5 +62,53 @@ function PropTypeInstances({ type, objects }: { type: PropType; objects: PlacedO
         </Instances>
       ))}
     </>
+  );
+}
+
+// GLTF-based props (forest/paddock -- real Starter-Kit-Racing decoration
+// tiles) render one <primitive> per placed object rather than drei's
+// <Instances> -- these are whole scenic clusters, not simple repeated
+// primitives, and are placed far less densely than cones/trees, so the
+// instancing win matters less than just reusing the loaded scene directly.
+// useGLTF's cache means every instance shares one parsed scene; each needs
+// its own clone since a THREE.Object3D can only live in one place in the
+// live scene graph at a time.
+function GltfPropInstances({ type, objects }: { type: PropType; objects: PlacedObject[] }) {
+  const modelUrl = PROP_REGISTRY[type].modelUrl!;
+  const { scene } = useGLTF(modelUrl);
+
+  return (
+    <>
+      {objects.map((object) => (
+        <GltfPropInstance key={object.id} scene={scene} object={object} />
+      ))}
+    </>
+  );
+}
+
+function GltfPropInstance({
+  scene,
+  object,
+}: {
+  scene: THREE.Object3D;
+  object: PlacedObject;
+}) {
+  const cloned = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((child) => {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+    return clone;
+  }, [scene]);
+
+  return (
+    <group
+      position={[object.position.x, object.position.y, object.position.z]}
+      quaternion={[object.rotation.x, object.rotation.y, object.rotation.z, object.rotation.w]}
+      scale={[object.scale.x, object.scale.y, object.scale.z]}
+    >
+      <primitive object={cloned} />
+    </group>
   );
 }

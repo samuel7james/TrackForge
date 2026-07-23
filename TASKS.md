@@ -997,6 +997,64 @@ touched or considered for swapping.
   map onto individual prop types — not done here to avoid guessing at asset
   content and shipping a poor-fitting placeholder.
 
+## Ad hoc — Decoration Props & Toolbar Restyle
+
+Follow-up to the vehicle model swap above: picks up both items that pass
+deliberately deferred.
+
+- [x] Visually inspected `decoration-forest.glb`/`decoration-tents.glb` via a
+      temporary debug route before writing any integration code
+- [x] Added `forest` ("Forest patch") and `paddock` ("Paddock") as two new
+      `PropType` entries backed by those GLBs, rendered through a new
+      GLTF-instance path in `PlacedObjects`
+- [x] `PROP_HAS_COLLIDER` registry flag added so `ObjectPhysics` can skip
+      generating a runtime collider for purely-decorative props, independent
+      of Phase 16's editor-time `PROP_BLOCKING_RADIUS` validation
+- [x] Restyled `Toolbar` (rounded-full pill container + buttons, stronger
+      blur, deeper shadow) translating editor.html's glass-pill language into
+      TrackForge's dark theme
+
+**Notes:**
+
+- The debug route's first assumption was wrong: both GLBs looked from their
+  bounding boxes like they might be single trees/tents, but rendering them
+  confirmed each is a whole ~10×10-unit scenic cluster — `decoration-forest`
+  is six pine trees + bushes on a terrain patch (3664 verts), `decoration-tents`
+  is a two-tent paddock scene with a tree, a tire, and a paved platform (3224
+  verts). Neither maps onto TrackForge's single-object placement grain, so
+  each became one new prop type at its native scale rather than being split
+  apart or forced into the existing tree/rock granularity. Debug route deleted
+  once its purpose was served.
+- `PlacedObjects` now branches per prop type on `PROP_REGISTRY[type].modelUrl`:
+  procedural props keep the existing `<Instances>` batching path, GLTF props
+  render one cloned `<primitive>` per placement instead — instancing matters
+  less here since these are large, sparsely-placed scenery pieces rather than
+  many small repeated ones.
+- `PROP_BLOCKING_RADIUS`/`PROP_COLLIDER_HEIGHT` entries were added for both
+  new types (sized generously off the tile footprint) so Phase 16 validation
+  still flags one dropped across the road, even though `PROP_HAS_COLLIDER` is
+  false for both and they don't get an actual runtime `RigidBody`.
+- Verified in-browser: both props appear in the palette with auto-derived
+  icon/label (`Trees`/`Tent` from `PROP_REGISTRY`, zero changes needed to
+  `prop-palette-panel.tsx`), place and render at correct scale in the editor,
+  and a paddock placed directly across the road was driven straight through
+  with the real vehicle model in Play mode with zero collision and zero
+  console errors.
+- Toolbar restyle: changed the container from `rounded-lg`/default
+  `shadow-lg backdrop-blur` to `rounded-full` + `backdrop-blur-xl` + a custom
+  deeper shadow, and added `rounded-full` to each tool button (`tailwind-merge`,
+  already wired through shadcn's `Button`, correctly overrides the variant's
+  default radius). Colors were deliberately kept as TrackForge's own
+  dark/orange theme rather than editor.html's light glass palette — only the
+  shape/blur/shadow language was reused, per the user's earlier "reuse actual
+  visuals" framing being specific to the vehicle model, not a request to
+  relight the whole UI.
+- Full regression after both changes: `tsc --noEmit` clean, `eslint` clean,
+  `next build` clean, and a fresh Playwright screenshot of the editor
+  confirmed the pill toolbar renders correctly with no clipping/layout
+  issues. Dev database checked and confirmed to contain only the real demo
+  track (`azure-delta-thu9`) — no stray test artifacts to clean up.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records

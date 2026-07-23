@@ -7,6 +7,7 @@ import {
   PROP_BLOCKING_RADIUS,
   PROP_COLLIDER_HEIGHT,
   PROP_DYNAMIC,
+  PROP_HAS_COLLIDER,
 } from "@/modules/objects/prop-registry";
 import { placedObjectHandles } from "./placed-object-registry";
 
@@ -50,6 +51,12 @@ export function ObjectPhysics() {
     <>
       {objects.map((object) => {
         if (!isPropType(object.type)) return null;
+        // forest/paddock (real Starter-Kit-Racing decoration tiles) are
+        // purely visual backdrop dressing -- no runtime collider at all.
+        // Editor-time validation still uses PROP_BLOCKING_RADIUS regardless
+        // of this flag, so a decoration piece dropped across the road is
+        // still flagged; it just doesn't also become an invisible wall.
+        if (!PROP_HAS_COLLIDER[object.type]) return null;
 
         const radius = PROP_BLOCKING_RADIUS[object.type] * object.scale.x;
         const halfHeight = (PROP_COLLIDER_HEIGHT[object.type] * object.scale.y) / 2;

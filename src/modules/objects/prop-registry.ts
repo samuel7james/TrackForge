@@ -1,9 +1,9 @@
 import * as THREE from "three";
-import { Gem, TrafficCone, TreePine, Flag, Construction } from "lucide-react";
+import { Gem, TrafficCone, TreePine, Flag, Construction, Trees, Tent } from "lucide-react";
 import type { ComponentType } from "react";
 import type { PlacedObject } from "@/modules/track-format/schema";
 
-export type PropType = "cone" | "barrier" | "tree" | "rock" | "flag";
+export type PropType = "cone" | "barrier" | "tree" | "rock" | "flag" | "forest" | "paddock";
 
 export interface PropPart {
   geometry: THREE.BufferGeometry;
@@ -21,7 +21,17 @@ export interface PropDefinition {
   type: PropType;
   label: string;
   icon: ComponentType<{ className?: string }>;
+  // Procedural props (cone/barrier/tree/rock/flag) build parts from
+  // primitives, same as CarModel/road/SkyDome elsewhere in this codebase.
+  // `modelUrl` props (forest/paddock -- real Starter-Kit-Racing decoration
+  // tiles, see THIRD_PARTY_NOTICES.md) instead load a GLTF scene; parts
+  // stays empty for those and PlacedObjects.tsx branches on modelUrl to
+  // pick the rendering path. Two different asset pipelines under one
+  // registry rather than forcing everything through primitives (these are
+  // whole 10x10-unit scenic clusters, not something worth hand-modeling)
+  // or forcing the simple props through a model-loading path they don't need.
   parts: PropPart[];
+  modelUrl?: string;
 }
 
 function material(color: string) {
@@ -112,6 +122,20 @@ export const PROP_REGISTRY: Record<PropType, PropDefinition> = {
       },
     ],
   },
+  forest: {
+    type: "forest",
+    label: "Forest patch",
+    icon: Trees,
+    parts: [],
+    modelUrl: "/models/decoration-forest.glb",
+  },
+  paddock: {
+    type: "paddock",
+    label: "Paddock",
+    icon: Tent,
+    parts: [],
+    modelUrl: "/models/decoration-tents.glb",
+  },
 };
 
 export const PROP_TYPES = Object.keys(PROP_REGISTRY) as PropType[];
@@ -121,23 +145,38 @@ export const PROP_TYPES = Object.keys(PROP_REGISTRY) as PropType[];
 // road and block the way through. Ground-level specifically -- a tree's
 // wide canopy sits well above where a car's body would ever touch it, so
 // this uses the trunk's radius, not the foliage's.
+//
+// forest/paddock are real 10x10-unit decoration tiles (measured from their
+// own GLTF bounding box, see TASKS.md), not single objects -- their radius
+// here is deliberately generous (half the tile footprint) so Phase 16's
+// validation still catches one dropped squarely across the road, even
+// though (see PROP_HAS_COLLIDER below) they don't get an actual physics
+// collider at runtime.
 export const PROP_BLOCKING_RADIUS: Record<PropType, number> = {
   cone: 0.35,
   barrier: 1.05,
   tree: 0.25,
   rock: 0.65,
   flag: 0.1,
+  forest: 5,
+  paddock: 5,
 };
 
 // Collider height per type -- ground-level footprint again (PROP_BLOCKING_RADIUS's
 // comment applies here too), tall enough to actually stop a car's body, not tall
-// enough to reach into a tree's canopy or a flag's cloth.
+// enough to reach into a tree's canopy or a flag's cloth. Unused for
+// forest/paddock (PROP_HAS_COLLIDER is false for both) but still given a
+// real value rather than 0, since PROP_BLOCKING_RADIUS's validation-only use
+// doesn't care but leaving a nonsensical height here would be confusing to
+// a future reader who assumes every entry here is physics-meaningful.
 export const PROP_COLLIDER_HEIGHT: Record<PropType, number> = {
   cone: 0.6,
   barrier: 0.85,
   tree: 1.6,
   rock: 0.7,
   flag: 2.4,
+  forest: 4,
+  paddock: 3,
 };
 
 // Which props are knockable (dynamic, low-mass rigid bodies the car can push
@@ -152,6 +191,27 @@ export const PROP_DYNAMIC: Record<PropType, boolean> = {
   tree: false,
   rock: false,
   flag: false,
+  forest: false,
+  paddock: false,
+};
+
+// Whether ObjectPhysics gives this prop type an actual runtime collider.
+// forest/paddock are purely decorative backdrop dressing (the reference's
+// own "decoration" naming/design intent -- scenery placed alongside the
+// track, not obstacles on it), and at their real 10-unit footprint a
+// physics collider would be far more likely to block the road unexpectedly
+// than to add anything to the driving. Editor-time validation still uses
+// PROP_BLOCKING_RADIUS above regardless of this flag, so an oversized
+// decoration piece dropped on the road is still caught -- it just doesn't
+// also become an invisible wall at runtime.
+export const PROP_HAS_COLLIDER: Record<PropType, boolean> = {
+  cone: true,
+  barrier: true,
+  tree: true,
+  rock: true,
+  flag: true,
+  forest: false,
+  paddock: false,
 };
 
 export function isPropType(type: string): type is PropType {
