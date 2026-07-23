@@ -2,18 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, Flame, Search } from "lucide-react";
+import { Clock, Flame, Heart, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 interface DiscoverControlsProps {
-  sort: "new" | "played";
+  sort: "new" | "played" | "top";
   query: string;
 }
 
 const SORT_OPTIONS = [
   { value: "new", label: "Newest", icon: Clock },
   { value: "played", label: "Most played", icon: Flame },
+  { value: "top", label: "Highest rated", icon: Heart },
 ] as const;
 
 // A plain GET form (rather than fetch + client-side list state) so sort and

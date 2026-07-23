@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
 import { estimateLapTimeMs } from "@/modules/track-format/estimate-lap-time";
 import { PublicTrackActions } from "@/modules/track/public-track-actions";
+import { cookies } from "next/headers";
+import { TrackEngagement } from "@/modules/track/track-engagement";
+import { VIEWER_ID_COOKIE } from "@/lib/anonymous-id";
 
 interface PublicTrackPageProps {
   params: Promise<{ slug: string }>;
@@ -34,6 +37,26 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
     : null;
   const difficulty = parsed.success ? parsed.data.meta.difficulty : "beginner";
 
+  // Reads the cookie middleware.ts already guaranteed exists -- deliberately
+  // NOT getOrCreateAnonymousId here, since Server Components can only read
+  // cookies (calling .set() from one throws); an empty fallback just means
+  // "not liked yet," never a crash.
+  const viewerId = (await cookies()).get(VIEWER_ID_COOKIE)?.value ?? "";
+  const [initialLike, comments] = track.isPublished
+    ? await Promise.all([
+        viewerId
+          ? prisma.like.findUnique({
+              where: { trackId_viewerId: { trackId: track.id, viewerId } },
+            })
+          : null,
+        prisma.comment.findMany({
+          where: { trackId: track.id },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        }),
+      ])
+    : [null, []];
+
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-6 py-16">
       <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
@@ -64,6 +87,20 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
       </dl>
 
       <PublicTrackActions slug={slug} isPublished={track.isPublished} />
+
+      {track.isPublished && (
+        <TrackEngagement
+          slug={slug}
+          initialLiked={Boolean(initialLike)}
+          initialLikeCount={track.likeCount}
+          initialComments={comments.map((comment) => ({
+            id: comment.id,
+            displayName: comment.displayName,
+            body: comment.body,
+            createdAt: comment.createdAt.toISOString(),
+          }))}
+        />
+      )}
     </div>
   );
 }

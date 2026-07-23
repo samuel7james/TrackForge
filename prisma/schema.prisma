@@ -16,8 +16,10 @@ model Track {
   name        String
   description String   @default("")
 
-  // Anonymous-creator model for Milestone 1 (see PROJECT_PLAN.md §8).
-  // authorId is a stable client-generated id that becomes the User FK once real auth lands.
+  // Anonymous-creator model (PROJECT_PLAN.md §8, permanent as of Milestone 3 --
+  // no accounts, ever). authorId is a stable per-browser id read from a cookie
+  // (see lib/anonymous-id.ts), the same value across every track that browser
+  // creates -- what a Phase 19 creator page groups by.
   authorId    String
   editToken   String
 
@@ -33,14 +35,21 @@ model Track {
   playCount   Int      @default(0)
   tags        String[] @default([])
 
+  // Denormalized from Like rows (Phase 18), same reasoning as playCount --
+  // cheap to sort/index on, kept in sync inside the like-toggle transaction.
+  likeCount   Int      @default(0)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   versions    TrackVersion[]
+  likes       Like[]
+  comments    Comment[]
 
   @@index([authorId])
   @@index([isPublished, createdAt])
   @@index([isPublished, playCount])
+  @@index([isPublished, likeCount])
 }
 
 // One row per save. Empty of product features until Milestone 3 (version history UI),
@@ -53,4 +62,31 @@ model TrackVersion {
   createdAt DateTime @default(now())
 
   @@index([trackId])
+}
+
+// Phase 18 (anonymous engagement, no accounts -- PROJECT_PLAN.md §8). One row
+// per (track, viewerId); the unique constraint IS the "one like per browser"
+// rule, not application logic re-checking it.
+model Like {
+  id        String   @id @default(cuid())
+  trackId   String
+  track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  viewerId  String
+  createdAt DateTime @default(now())
+
+  @@unique([trackId, viewerId])
+}
+
+// Freeform display name instead of an account (§8) -- no login to gate abuse,
+// so keep the body short and rely on Phase 20's rate limiting, not on this
+// model, to control spam volume.
+model Comment {
+  id          String   @id @default(cuid())
+  trackId     String
+  track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  displayName String
+  body        String
+  createdAt   DateTime @default(now())
+
+  @@index([trackId, createdAt])
 }

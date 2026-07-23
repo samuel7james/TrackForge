@@ -567,11 +567,51 @@ anonymous-cookie-based equivalent.
 
 ### Phase 18 — Anonymous Engagement
 
-- [ ] Anonymous `viewerId` cookie (distinct from `authorId` — identifies "a browser
+- [x] Anonymous `viewerId` cookie (distinct from `authorId` — identifies "a browser
       that can vote," not "a browser that can edit")
-- [ ] Likes: one per (`viewerId`, track), toggle on/off, no login
-- [ ] Discover page gains a highest-rated sort using like counts
-- [ ] Comments: freeform display-name field, no login, basic abuse mitigation
+- [x] Likes: one per (`viewerId`, track), toggle on/off, no login
+- [x] Discover page gains a highest-rated sort using like counts
+- [x] Comments: freeform display-name field, no login, basic abuse mitigation
+
+**Notes:**
+
+- **Found while designing `viewerId`, fixed in the same phase:** `authorId` was never
+  actually a stable per-browser id despite PROJECT_PLAN.md §8 saying so — `POST
+  /api/tracks/route.ts` called `randomUUID()` fresh on every save, so two tracks from the
+  same browser got two unrelated `authorId`s. This would have silently broken Phase 19's
+  "creator page addressed by authorId" (it could only ever show one track per page). Fixed
+  alongside `viewerId` since both needed the same underlying mechanism — a new
+  `src/lib/anonymous-id.ts` (`getOrCreateAnonymousId`) reads-or-creates a long-lived (1
+  year), non-httpOnly cookie; it's not a secret like `editToken`; it only ever answers
+  "same browser as before," never grants permission by itself. Verified by creating two
+  tracks in one Playwright session and confirming both rows share one `authorId` in the DB.
+- Server Components (the public track page) can only *read* cookies, never `.set()` them
+  — calling `.set()` from one throws. Since the public track page needs `viewerId` on
+  first render (to know if *this* visitor already liked the track) and can't create one
+  itself, added `src/proxy.ts` (Next.js 16 renamed `middleware.ts` → `proxy.ts`, export
+  must be named `proxy` not `middleware` — discovered via the dev server's own error
+  message when the old name didn't work) to guarantee the cookie exists before any
+  Server Component runs. `getOrCreateAnonymousId` itself is only ever called from Route
+  Handlers (which can set cookies); the public track page does a plain read with an empty
+  fallback instead, so a missing cookie means "not liked yet," never a crash. The
+  proxy's matcher excludes only `_next/static`/`_next/image`/`favicon.ico`, so it runs
+  on every real page and API request.
+- `Track.likeCount` is denormalized from `Like` rows (same reasoning as `playCount`),
+  kept in sync inside the like-toggle transaction (`POST /api/tracks/[slug]/like`) —
+  delete-and-decrement or create-and-increment based on whether a `(trackId, viewerId)`
+  row already exists; the unique constraint on that pair *is* the one-like-per-browser
+  rule, not app-level re-checking. Discover's new "Highest rated" sort just orders by it,
+  identical in shape to the existing "Most played" sort.
+- Comments have no auth to gate abuse (§8) beyond basic length/non-empty validation on
+  `POST /api/tracks/[slug]/comments` — volume-based spam is explicitly Phase 20's
+  rate-limiting job, not this route's.
+- Verified in-browser: published a track, liked it (optimistic UI + real DB write
+  confirmed via `waitForResponse`, not a fixed timeout — an early version of the test
+  flaked because the optimistic UI updates before the request resolves, same class of
+  timing flake as Phase 17's), confirmed the like survives a reload, unliked it back to
+  zero, posted a comment as a freeform display name, confirmed it persists after reload,
+  and confirmed the track surfaces under Discover's new "Highest rated" sort. Reran the
+  Phase 17 Discover/search regression — still passes. Zero console errors throughout.
 
 ### Phase 19 — Creator Pages & Bookmarks
 

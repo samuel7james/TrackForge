@@ -8,7 +8,7 @@ interface DiscoverPageProps {
   searchParams: Promise<{ sort?: string; q?: string }>;
 }
 
-const SORTS = ["new", "played"] as const;
+const SORTS = ["new", "played", "top"] as const;
 type Sort = (typeof SORTS)[number];
 
 function isSort(value: string | undefined): value is Sort {
@@ -27,10 +27,12 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
   const sort = isSort(rawSort) ? rawSort : "new";
   const query = (q ?? "").trim();
 
-  // Highest-rated arrives in Phase 18 once Likes exist to rank by -- only
-  // "new"/"played" are meaningful sorts until then (TASKS.md Phase 17 notes).
   const orderBy: Prisma.TrackOrderByWithRelationInput =
-    sort === "played" ? { playCount: "desc" } : { createdAt: "desc" };
+    sort === "played"
+      ? { playCount: "desc" }
+      : sort === "top"
+        ? { likeCount: "desc" }
+        : { createdAt: "desc" };
 
   const where: Prisma.TrackWhereInput = {
     isPublished: true,
@@ -53,6 +55,7 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
       description: true,
       tags: true,
       playCount: true,
+      likeCount: true,
       document: true,
     },
   });
@@ -109,7 +112,10 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
                   </CardContent>
                   <CardFooter className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>{difficulty ?? "Beginner"}</span>
-                    <span>{track.playCount} play{track.playCount === 1 ? "" : "s"}</span>
+                    <span className="flex items-center gap-2">
+                      <span>{track.likeCount} like{track.likeCount === 1 ? "" : "s"}</span>
+                      <span>{track.playCount} play{track.playCount === 1 ? "" : "s"}</span>
+                    </span>
                   </CardFooter>
                 </Card>
               </Link>

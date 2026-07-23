@@ -1,9 +1,10 @@
-import { randomUUID, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
 import { generateSlug } from "@/server/slug";
+import { getOrCreateAnonymousId, AUTHOR_ID_COOKIE } from "@/lib/anonymous-id";
 
 const MAX_SLUG_ATTEMPTS = 5;
 
@@ -27,7 +28,10 @@ export async function POST(request: Request) {
   }
   const document = parsed.data;
   const editToken = randomBytes(32).toString("hex");
-  const authorId = randomUUID(); // anonymous for Milestone 1 -- see PROJECT_PLAN.md §8
+  // Stable per-browser id (PROJECT_PLAN.md §8) -- the same value across every
+  // track this browser creates, not a fresh one per save, so a Phase 19
+  // creator page can actually group tracks by it.
+  const authorId = await getOrCreateAnonymousId(AUTHOR_ID_COOKIE);
 
   for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
     const slug = generateSlug();
