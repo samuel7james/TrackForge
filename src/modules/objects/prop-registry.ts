@@ -129,6 +129,31 @@ export const PROP_BLOCKING_RADIUS: Record<PropType, number> = {
   flag: 0.1,
 };
 
+// Collider height per type -- ground-level footprint again (PROP_BLOCKING_RADIUS's
+// comment applies here too), tall enough to actually stop a car's body, not tall
+// enough to reach into a tree's canopy or a flag's cloth.
+export const PROP_COLLIDER_HEIGHT: Record<PropType, number> = {
+  cone: 0.6,
+  barrier: 0.85,
+  tree: 1.6,
+  rock: 0.7,
+  flag: 2.4,
+};
+
+// Which props are knockable (dynamic, low-mass rigid bodies the car can push
+// around) vs. solid scenery (fixed, immovable). Only the cone is dynamic --
+// a traffic cone getting knocked flying on contact is the classic arcade-
+// racer feel this is chasing (mrdoob's Starter-Kit-Racing); a barrier/rock/
+// tree/flag staying put keeps Phase 16's "does this object block the path"
+// validation meaningful -- a knockable obstacle can't really block anything.
+export const PROP_DYNAMIC: Record<PropType, boolean> = {
+  cone: true,
+  barrier: false,
+  tree: false,
+  rock: false,
+  flag: false,
+};
+
 export function isPropType(type: string): type is PropType {
   return type in PROP_REGISTRY;
 }

@@ -728,6 +728,92 @@ anonymous-cookie-based equivalent.
    the CLI) and smoke-test the live URL: home page, Discover, publishing a track, /t/
    page, likes/comments, sitemap.xml/robots.txt.
 
+## Ad hoc — Physics, Object Collisions & Vehicle Audio
+
+Not part of the Milestone 3 plan — a direct request to bring physics feel, object
+collision behavior, and vehicle sound (previously nonexistent) up to the standard of
+mrdoob's Starter-Kit-Racing (`github.com/mrdoob/Starter-Kit-Racing`, MIT), adapted into
+TrackForge's existing R3F/Rapier/Zustand architecture rather than that project's own
+vanilla Three.js + crashcat/Jolt stack. Scope deliberately narrow per the request: physics
+feel, object collision, and audio only — no editor/UI/page changes.
+
+- [x] Placed objects (cones, barriers, trees, rocks, flags) gain real physics colliders —
+      previously purely visual, the car drove straight through all of them
+- [x] Cones are knockable (dynamic, low-mass); barriers/trees/rocks/flags are solid
+- [x] Vehicle collider rounded for smoother, more forgiving deflection off objects/walls
+- [x] Procedural vehicle audio: engine (RPM/gear-aware synth), collision impacts, tire
+      skid — all synthesized, no audio assets added
+
+**Notes:**
+
+- **Object integration:** `PlacedObjects` (scene/, visual) stayed untouched; a new
+  `race/physics/object-physics.tsx` adds the play-mode-only physics half, one `RigidBody`
+  per object, mirroring how `TrackPhysics` already splits road/terrain colliders from
+  their visual components. Cylinder colliders (not boxes) sized from Phase 16's existing
+  `PROP_BLOCKING_RADIUS`, plus a new `PROP_COLLIDER_HEIGHT` — a round footprint deflects a
+  grazing car smoothly, a box corner catches it. Only `cone` is dynamic/knockable
+  (`PROP_DYNAMIC`); barrier/tree/rock/flag stay fixed, so Phase 16's "does this object
+  block the path" validation stays meaningful — a knockable obstacle can't really block
+  anything.
+- **Physics feel:** Starter-Kit-Racing's forgiving collision behavior comes from using a
+  bare sphere as the car's entire physics body (steering/heading are fully decoupled,
+  driven kinematically onto a separate visual container — only position round-trips
+  through physics). Rather than that full architectural rewrite (out of scope: "don't
+  change anything else"), swapped `Vehicle`'s sharp `CuboidCollider` for a
+  `RoundCuboidCollider` — same footprint, rounded edges, so the car deflects off objects/
+  walls instead of catching a corner and snagging or flipping. TrackForge's controller
+  was already arcade-style (direct velocity control, not raycast wheel physics), just
+  with a sharp-cornered collider; this is the targeted fix for the specific "physics feel
+  worse than the reference" gap, not a rewrite.
+- **Audio (previously nonexistent):** three procedural pieces adapted from
+  Starter-Kit-Racing's `Audio.js`/`EngineWorklet.js`/`ImpactSound.js` (MIT, ported close
+  to verbatim where the DSP has zero dependency on that project's specifics):
+  - `public/audio/engine-processor.js`: a 4-cylinder engine synth running in an
+    AudioWorklet. Plain JS in `public/`, not TS in `src/` — AudioWorklets load via
+    `audioContext.audioWorklet.addModule(url)` into a separate global scope with no
+    bundler cooperation, so it has to be a self-contained script served by URL, not
+    something Turbopack processes. `modules/audio/engine-constants.ts` mirrors the
+    worklet's RPM range for the main-thread gear model, since the two can't share an
+    import across that boundary.
+  - `modules/audio/impact-sound.ts`: procedural crash/knock buffer generator, ported
+    directly (pure DSP, no dependency on the reference's physics engine).
+  - `modules/audio/skid-sound.ts`: **not** ported — Starter-Kit-Racing plays a recorded
+    `skid.ogg` sample here, but TrackForge ships zero audio/binary assets by design (see
+    `CarModel`/prop-registry: everything is procedural geometry). Synthesizes an
+    equivalent bandpass-noise loop instead, crossfaded at the seam so `buffer.loop = true`
+    doesn't click.
+  - `modules/audio/game-audio.ts` (`GameAudio` class) orchestrates all three: positional
+    audio on the vehicle, camera-mounted listener, an outdoor convolution reverb,
+    distance-based lowpass "perspective" filtering, gear-shift simulation, and the
+    collision-triggered impact one-shots. `race/vehicle/use-vehicle-audio.ts` is the R3F
+    seam — builds and disposes a `GameAudio` in step with `Vehicle` mounting/unmounting
+    (Play mode remounts the vehicle fresh every session), so repeated Play/Escape cycles
+    don't stack up worklet nodes or `window`/`document` event listeners.
+  - Collision impact velocity is computed the same way the reference does: the vehicle's
+    own forward-speed component at the moment of contact (`RigidBody.onCollisionEnter`),
+    not Rapier's contact manifold/impulse — simpler, and it's "how hard was I driving into
+    this" that should drive the sound.
+  - `driftIntensity` (skid sound trigger) needed its own calibration rather than reusing
+    Starter-Kit-Racing's thresholds verbatim: their model runs on an arbitrary "sphere
+    units" speed scale (`MAX_SPEED = 1.5`), TrackForge's controller uses real m/s
+    (`MAX_FORWARD_SPEED = 32`) and already dampens lateral slip hard every physics step
+    (tight grip by design) rather than letting it accumulate, so the numeric ranges don't
+    correspond. `vehicleVisualState.lateralSlip` (the sideways speed the grip model
+    damped out this step) is scaled by an empirically-tuned `SLIP_TO_DRIFT_INTENSITY`
+    constant instead of assuming the reference's numbers transfer directly.
+- Verified in-browser: built a track with a cone and barrier directly in the vehicle's
+  path, drove into them — confirmed via temporary debug logging (removed before
+  committing) that `onCollisionEnter` fires with real, non-trivial impact velocities
+  (up to ~7.3 m/s) during an actual collision, not just resting contact at spawn.
+  Confirmed no console/page errors across a full drive session, and across a Play → Escape
+  → Play remount cycle (exercises `GameAudio`'s dispose/re-init, the exact path that would
+  leak worklet nodes or duplicate event listeners if cleanup were wrong) — no "Engine
+  synth unavailable" warning, meaning the worklet module loaded successfully both times.
+  Drove the real demo track (terrain + props) for a full session with steering — no
+  errors. Reran the Phase 16 validation regression (impassable corners, objects blocking
+  path) — still passes, confirming the new object colliders don't interfere with the
+  editor-time geometric checks. Full `next build` also still compiles clean.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records

@@ -11,7 +11,7 @@ export const VEHICLE_MASS = 900; // kg — kept in sync with Vehicle's RigidBody
 
 const ENGINE_FORCE = 9000; // N
 const BRAKE_FORCE = 7000; // N (also used for reverse)
-const MAX_FORWARD_SPEED = 32; // m/s soft cap
+export const MAX_FORWARD_SPEED = 32; // m/s soft cap -- exported for useVehicleAudio's speed normalization
 const MAX_REVERSE_SPEED = 10; // m/s soft cap
 const MAX_STEER_RATE = 2.2; // rad/s at full speed
 const MIN_STEER_FACTOR = 0.35; // fraction of steer authority available at a standstill
@@ -96,10 +96,12 @@ export function useVehicleController(rigidBodyRef: RefObject<RapierRigidBody | n
     corrected.y = lv.y; // preserve vertical velocity (gravity)
     body.setLinvel(corrected, true);
 
-    // Cosmetic-only state for CarModel's lean/wheel animation — read in its
-    // own useFrame, never fed back into physics.
+    // Cosmetic-only state for CarModel's lean/wheel animation and the skid
+    // sound — read in their own useFrame/update loops, never fed back into
+    // physics.
     vehicleVisualState.forwardSpeed = forwardSpeed;
     vehicleVisualState.steerInput = steer;
     vehicleVisualState.throttleInput = throttle;
+    vehicleVisualState.lateralSlip = Math.abs(lateralSpeed - newLateralSpeed);
   });
 }

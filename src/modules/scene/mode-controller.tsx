@@ -4,6 +4,7 @@ import { Physics } from "@react-three/rapier";
 import { useEditorStore } from "@/store/editor-store";
 import { EditorEngine } from "@/modules/editor/core/editor-engine";
 import { TrackPhysics } from "@/modules/race/physics/track-physics";
+import { ObjectPhysics } from "@/modules/race/physics/object-physics";
 import { Vehicle } from "@/modules/race/vehicle/vehicle";
 import { LapTimer } from "@/modules/race/timing/lap-timer";
 import { EditorCameraRig } from "./editor-camera-rig";
@@ -29,6 +30,7 @@ export function ModeController() {
   return (
     <Physics>
       <TrackPhysics />
+      <ObjectPhysics />
       <Vehicle />
       <LapTimer />
       <PlayModeCameraRig />
