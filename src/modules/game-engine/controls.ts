@@ -2,17 +2,19 @@
 // Ported to TypeScript -- see public/models/THIRD_PARTY_NOTICES.md.
 //
 // Keyboard/gamepad/touch input, unified into one steer/throttle pair per
-// frame. The touch joystick is still raw injected DOM here (matching the
-// original) -- Phase 2 of the engine-swap work replaces it with a themed
-// React overlay reading the same touchDirX/touchDirY/touchActive fields;
-// this phase only adds `dispose()` so the listeners/DOM don't leak across a
-// React mount/unmount cycle, since the original assumes it owns the page
-// forever.
+// frame. Pure input state, no DOM: the touch joystick's pointer-math lives
+// here as public methods (handleSteerStart/Move/End), but drawing the
+// joystick itself is touch-controls-overlay.tsx's job -- it forwards
+// pointer events into these methods and reads touchDirX/touchDirY/
+// touchActive back out to position the knob, the same split lap-timer.ts
+// uses (this class owns the state, a React component owns the pixels).
 export interface ControlsState {
   x: number;
   z: number;
   touchActive: boolean;
 }
+
+const STEER_RANGE = 40;
 
 export class Controls {
   private keys: Record<string, boolean> = {};
@@ -28,8 +30,6 @@ export class Controls {
 
   private handleKeyDown: (e: KeyboardEvent) => void;
   private handleKeyUp: (e: KeyboardEvent) => void;
-  private touchStyleEl: HTMLStyleElement | null = null;
-  private touchContainerEl: HTMLDivElement | null = null;
 
   constructor() {
     this.handleKeyDown = (e: KeyboardEvent) => (this.keys[e.code] = true);
@@ -37,84 +37,39 @@ export class Controls {
 
     window.addEventListener("keydown", this.handleKeyDown);
     window.addEventListener("keyup", this.handleKeyUp);
-
-    this.setupTouchUI();
   }
 
-  private setupTouchUI() {
-    if (!("ontouchstart" in window)) return;
+  handleSteerStart(pointerId: number, clientX: number, clientY: number) {
+    if (this.steerPointerId !== null) return;
+    this.steerPointerId = pointerId;
+    this.steerStartX = clientX;
+    this.steerStartY = clientY;
+    this.touchActive = true;
+    this.touchDirX = 0;
+    this.touchDirY = 0;
+  }
 
-    const css = document.createElement("style");
-    css.textContent = `
-			.touch-controls { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
-			.steer-zone { position: absolute; inset: 0; pointer-events: auto; touch-action: none; }
-			.steer-base { position: absolute; width: 140px; height: 140px; margin: -70px 0 0 -70px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); display: none; }
-			.steer-knob { position: absolute; top: 50%; left: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; background: rgba(255,255,255,0.35); }
-		`;
-    document.head.appendChild(css);
-    this.touchStyleEl = css;
+  handleSteerMove(pointerId: number, clientX: number, clientY: number) {
+    if (pointerId !== this.steerPointerId) return;
+    let dx = (clientX - this.steerStartX) / STEER_RANGE;
+    let dy = (clientY - this.steerStartY) / STEER_RANGE;
+    const mag = Math.sqrt(dx * dx + dy * dy);
 
-    const container = document.createElement("div");
-    container.className = "touch-controls";
+    if (mag > 1) {
+      dx /= mag;
+      dy /= mag;
+    }
 
-    const steerZone = document.createElement("div");
-    steerZone.className = "steer-zone";
+    this.touchDirX = dx;
+    this.touchDirY = dy;
+  }
 
-    const base = document.createElement("div");
-    base.className = "steer-base";
-    const knob = document.createElement("div");
-    knob.className = "steer-knob";
-    base.appendChild(knob);
-    steerZone.appendChild(base);
-
-    container.appendChild(steerZone);
-    document.body.appendChild(container);
-    this.touchContainerEl = container;
-
-    const steerRange = 40;
-
-    steerZone.addEventListener("pointerdown", (e) => {
-      if (this.steerPointerId !== null) return;
-      steerZone.setPointerCapture(e.pointerId);
-      this.steerPointerId = e.pointerId;
-      this.steerStartX = e.clientX;
-      this.steerStartY = e.clientY;
-      this.touchActive = true;
-      this.touchDirX = 0;
-      this.touchDirY = 0;
-      base.style.left = `${e.clientX}px`;
-      base.style.top = `${e.clientY}px`;
-      base.style.display = "block";
-    });
-
-    steerZone.addEventListener("pointermove", (e) => {
-      if (e.pointerId !== this.steerPointerId) return;
-      let dx = (e.clientX - this.steerStartX) / steerRange;
-      let dy = (e.clientY - this.steerStartY) / steerRange;
-      const mag = Math.sqrt(dx * dx + dy * dy);
-
-      if (mag > 1) {
-        dx /= mag;
-        dy /= mag;
-      }
-
-      this.touchDirX = dx;
-      this.touchDirY = dy;
-      knob.style.transform = `translate(${this.touchDirX * 60}px, ${this.touchDirY * 60}px)`;
-    });
-
-    const endSteer = (e: PointerEvent) => {
-      if (e.pointerId !== this.steerPointerId) return;
-      this.steerPointerId = null;
-      this.touchActive = false;
-      this.touchDirX = 0;
-      this.touchDirY = 0;
-      knob.style.transform = "";
-      base.style.display = "none";
-    };
-
-    steerZone.addEventListener("pointerup", endSteer);
-    steerZone.addEventListener("pointercancel", endSteer);
+  handleSteerEnd(pointerId: number) {
+    if (pointerId !== this.steerPointerId) return;
+    this.steerPointerId = null;
+    this.touchActive = false;
+    this.touchDirX = 0;
+    this.touchDirY = 0;
   }
 
   update(): ControlsState {
@@ -168,7 +123,5 @@ export class Controls {
   dispose() {
     window.removeEventListener("keydown", this.handleKeyDown);
     window.removeEventListener("keyup", this.handleKeyUp);
-    this.touchContainerEl?.remove();
-    this.touchStyleEl?.remove();
   }
 }

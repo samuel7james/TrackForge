@@ -8,7 +8,7 @@ import { EngineMount } from "@/modules/game-engine/engine-mount";
 export default function PlayDemoPage() {
   return (
     <div className="relative h-dvh w-dvw overflow-hidden bg-background">
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between p-4">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-end p-4">
         <div className="pointer-events-auto rounded-full border border-border/50 bg-card/90 px-4 py-2 text-sm font-semibold text-foreground shadow-lg backdrop-blur-xl">
           TrackForge <span className="font-normal text-muted-foreground">/ Engine Demo</span>
         </div>

@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createEngine, type EngineHandle } from "./engine-core";
 import type { Cell } from "./track";
+import { HudOverlay } from "./hud-overlay";
+import { TouchControlsOverlay } from "./touch-controls-overlay";
 
 export interface EngineMountProps {
   /** null/omitted plays the reference's own built-in demo grid. */
@@ -19,33 +21,43 @@ export interface EngineMountProps {
 // than expecting props to hot-swap an already-running engine.
 export function EngineMount({ mapCells = null, trackId = null }: EngineMountProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const handleRef = useRef<EngineHandle | null>(null);
+  const [handle, setHandle] = useState<EngineHandle | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const abortController = new AbortController();
     let cancelled = false;
-    let handle: EngineHandle | null = null;
 
-    createEngine({ canvas, mapCells, trackId }).then((createdHandle) => {
+    createEngine({ canvas, mapCells, trackId, signal: abortController.signal }).then((createdHandle) => {
       if (cancelled) {
         createdHandle.dispose();
         return;
       }
-      handle = createdHandle;
+      handleRef.current = createdHandle;
+      setHandle(createdHandle);
     });
 
     return () => {
       cancelled = true;
-      handle?.dispose();
+      abortController.abort();
+      handleRef.current?.dispose();
+      handleRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", display: "block" }}
-    />
+    <div style={{ position: "fixed", inset: 0 }}>
+      <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
+      {handle && (
+        <>
+          <HudOverlay lapTimer={handle.lapTimer} />
+          <TouchControlsOverlay controls={handle.controls} />
+        </>
+      )}
+    </div>
   );
 }

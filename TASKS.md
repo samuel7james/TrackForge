@@ -1228,6 +1228,57 @@ scope, risks) at `C:\Users\samue\.claude\plans\immutable-questing-cocke.md`.
   `Untitled Track` row (autosave noise from unrelated testing, not real
   content) was deleted, leaving only the real demo track.
 
+### Phase 2 — HUD re-theming: raw DOM → React overlays
+
+- [x] `lap-timer.ts` stripped of all DOM (`buildUI()`, injected `<style>`/
+      `<div>`) — `lap`/`currentLapTime`/`lastLap`/`bestLap`/`lastLapWasBest`
+      are now plain public fields, no more `dispose()` needed since there's
+      nothing left to clean up
+- [x] `controls.ts` stripped of its injected touch-joystick DOM — the
+      pointer-math (`handleSteerStart`/`handleSteerMove`/`handleSteerEnd`)
+      stays as public methods, same class, just no longer draws anything
+- [x] `hud-overlay.tsx` — themed lap timer card (dark card, rounded-2xl,
+      backdrop blur, matching the toolbar's existing glass-pill language),
+      reading the `LapTimer` instance every frame via refs mutated directly
+      (not React state), the same pattern `race-hud.tsx` already established
+      for TrackForge's old lap timer
+- [x] `touch-controls-overlay.tsx` — themed joystick base/knob, forwarding
+      pointer events into `Controls`' own methods and reading
+      `touchDirX`/`touchDirY`/`touchActive` back out each frame to position
+      the knob
+- [x] `EngineHandle` extended with `lapTimer`/`controls` so `engine-mount.tsx`
+      can hand them to the new overlays once the engine finishes loading
+
+**Notes:**
+
+- Real bug caught and fixed along the way: the initial
+  `createEngine`/`engine-mount.tsx` cancellation handling from Phase 1 had a
+  dead branch — a `disposed` flag inside `createEngine` was checked once
+  right after model loading, but nothing could ever set it to `true` before
+  that point (the returned `dispose()` method, the only thing that sets it,
+  doesn't exist yet during the async model-load gap). Replaced with a real
+  `AbortSignal` passed in via `EngineOptions`, which `engine-mount.tsx`'s
+  effect cleanup actually aborts, so an unmount that happens mid-load now
+  correctly skips building the rest of the scene/world/vehicle instead of
+  silently never triggering.
+- `useSyncExternalStore` (not `useState`+`useEffect`) is what
+  `touch-controls-overlay.tsx` uses to read `"ontouchstart" in window` —
+  this project's `react-hooks` (React Compiler) lint rule flags calling
+  `setState` synchronously inside an effect body as a cascading-render risk.
+  Since touch capability never changes over a page's lifetime there's
+  nothing to actually subscribe to, but `useSyncExternalStore` is still the
+  clean way to get the browser-vs-server snapshot split needed to read
+  `window` once without a hydration mismatch, and it doesn't trip the lint
+  rule the way the effect-based version did.
+- Verified in-browser via Playwright: `/play-demo`'s HUD now shows a
+  properly themed "LAP 1 / 0:00.00 / Last / Best" card instead of the
+  reference's plain dark box, with zero layout conflicts once the demo
+  page's own branding chip was moved out of the top-left corner it was
+  overlapping with. Re-verified touch controls on an emulated Pixel 7
+  viewport — HUD renders correctly at that size, a tap on the joystick zone
+  produces no console errors. Zero console errors across every run. Full
+  `tsc`/`eslint`/`next build` clean; dev database still clean.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records

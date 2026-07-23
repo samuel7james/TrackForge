@@ -42,9 +42,17 @@ export interface EngineOptions {
   mapCells?: Cell[] | null;
   /** localStorage key suffix for best-lap/drift-mark persistence. */
   trackId?: string | null;
+  /** Aborted by engine-mount.tsx if the component unmounts while model
+   * loading is still in flight, so createEngine can skip building the rest
+   * of the scene/world/vehicle for a mount that's already gone. */
+  signal?: AbortSignal;
 }
 
 export interface EngineHandle {
+  /** Read by hud-overlay.tsx every frame for the lap/time display. */
+  lapTimer: LapTimer;
+  /** Read/driven by touch-controls-overlay.tsx for the on-screen joystick. */
+  controls: Controls;
   dispose(): void;
 }
 
@@ -73,7 +81,7 @@ function disposeObject3D(obj: THREE.Object3D) {
 }
 
 export async function createEngine(options: EngineOptions): Promise<EngineHandle> {
-  const { canvas, mapCells = null, trackId = null } = options;
+  const { canvas, mapCells = null, trackId = null, signal } = options;
   let disposed = false;
 
   const renderer = new THREE.WebGLRenderer({
@@ -155,9 +163,11 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
     )
   );
 
-  if (disposed) {
+  if (signal?.aborted) {
     renderer.dispose();
-    return { dispose() {} };
+    const controls = new Controls();
+    controls.dispose();
+    return { lapTimer: new LapTimer(null, null), controls, dispose() {} };
   }
 
   const spawn = mapCells ? computeSpawnPosition(mapCells) : null;
@@ -301,6 +311,8 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   frameId = requestAnimationFrame(animate);
 
   return {
+    lapTimer,
+    controls,
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -311,7 +323,6 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
       cam.dispose();
       controls.dispose();
       driftMarks.dispose();
-      lapTimer.dispose();
       audio.dispose();
 
       probes.dispose();

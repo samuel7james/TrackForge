@@ -4,11 +4,11 @@
 // Tracks lap completion by requiring the car to visit every non-finish cell
 // at least once, then cross the finish line moving forward -- not just
 // "crossed the line," which would let a car ping-pong across it for free
-// laps. Still builds its own raw DOM HUD here (buildUI()); Phase 2 of the
-// engine-swap work replaces this with a themed React overlay reading the
-// same lap/currentLapTime/bestLap/lastLap fields, mirroring the plain-
-// mutable-state pattern TrackForge's own vehicle-visual-state.ts already
-// uses. `dispose()` is a TrackForge addition for clean unmount.
+// laps. Pure state, no DOM: `lap`/`currentLapTime`/`lastLap`/`bestLap`/
+// `lastLapWasBest` are plain public fields, same pattern TrackForge's own
+// vehicle-visual-state.ts already uses -- hud-overlay.tsx reads them every
+// frame instead of this class building its own UI, which the reference's
+// original buildUI() did.
 import * as THREE from "three";
 import { CELL_RAW, GRID_SCALE, TRACK_CELLS, TYPE_NAMES, computeSpawnPosition, type Cell } from "./track";
 
@@ -34,7 +34,7 @@ function saveBest(key: string, value: number) {
   }
 }
 
-function formatTime(t: number | null | undefined): string {
+export function formatLapTime(t: number | null | undefined): string {
   if (t === null || t === undefined) return "0:00.00";
 
   const m = Math.floor(t / 60);
@@ -48,6 +48,9 @@ export class LapTimer {
   bestLap: number | null;
   lastLap: number | null = null;
   currentLapTime = 0;
+  /** Whether the most recently completed lap was a new best -- read once by
+   * the HUD alongside a `lap` change to decide the completion flash color. */
+  lastLapWasBest = false;
   private running = false;
 
   private lineCenter = new THREE.Vector3();
@@ -60,14 +63,10 @@ export class LapTimer {
   private requiredCells = new Set<string>();
   private visitedCells = new Set<string>();
 
-  private enabled: boolean;
-
-  private lapEl: HTMLElement | null = null;
-  private currentEl: HTMLElement | null = null;
-  private lastEl: HTMLElement | null = null;
-  private bestEl: HTMLElement | null = null;
-  private styleEl: HTMLStyleElement | null = null;
-  private rootEl: HTMLElement | null = null;
+  /** Whether this track even has a finish line -- if not, lap tracking is a
+   * no-op (matches the reference: a track with no finish cell never enables
+   * the timer at all). */
+  enabled: boolean;
 
   constructor(cells: Cell[] | null, trackId: string | null) {
     this.storageKey = STORAGE_PREFIX + (trackId || "default");
@@ -87,55 +86,7 @@ export class LapTimer {
       for (const c of list) {
         if (c[2] !== FINISH) this.requiredCells.add(c[0] + "," + c[1]);
       }
-
-      this.buildUI();
     }
-  }
-
-  private buildUI() {
-    const style = document.createElement("style");
-    style.textContent = `
-			#lap-timer {
-				position: absolute;
-				top: 12px;
-				left: 12px;
-				color: #fff;
-				font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-				background: rgba(0,0,0,0.5);
-				padding: 10px 14px;
-				border-radius: 10px;
-				line-height: 1.4;
-				text-shadow: 0 1px 2px rgba(0,0,0,0.6);
-				user-select: none;
-				pointer-events: none;
-				z-index: 10;
-				min-width: 140px;
-				backdrop-filter: blur(8px);
-				-webkit-backdrop-filter: blur(8px);
-			}
-			#lap-timer .row { display: flex; justify-content: space-between; gap: 12px; }
-			#lap-timer .label { opacity: 0.65; font-weight: 500; letter-spacing: 0.06em; }
-			#lap-timer .current { font: 700 24px/1.1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-variant-numeric: tabular-nums; margin: 4px 0 6px; }
-			#lap-timer .stat { font-size: 12px; font-variant-numeric: tabular-nums; opacity: 0.9; }
-		`;
-    document.head.appendChild(style);
-    this.styleEl = style;
-
-    const placeholder = formatTime(null);
-    const el = document.createElement("div");
-    el.id = "lap-timer";
-    el.innerHTML =
-      '<div class="row"><span class="label">LAP</span><span class="lap">1</span></div>' +
-      `<div class="current">${placeholder}</div>` +
-      `<div class="row stat"><span class="label">LAST</span><span class="last">${placeholder}</span></div>` +
-      `<div class="row stat"><span class="label">BEST</span><span class="best">${formatTime(this.bestLap)}</span></div>`;
-    document.body.appendChild(el);
-    this.rootEl = el;
-
-    this.lapEl = el.querySelector(".lap");
-    this.currentEl = el.querySelector(".current");
-    this.lastEl = el.querySelector(".last");
-    this.bestEl = el.querySelector(".best");
   }
 
   update(dt: number, position: THREE.Vector3, hasInput: boolean) {
@@ -144,7 +95,6 @@ export class LapTimer {
     this.running = true;
 
     this.currentLapTime += dt;
-    if (this.currentEl) this.currentEl.textContent = formatTime(this.currentLapTime);
 
     const gx = Math.floor(position.x / this.cellSize);
     const gz = Math.floor(position.z / this.cellSize);
@@ -173,23 +123,12 @@ export class LapTimer {
     const isBest = this.bestLap === null || this.currentLapTime < this.bestLap;
 
     this.lastLap = this.currentLapTime;
+    this.lastLapWasBest = isBest;
     if (isBest) {
       this.bestLap = this.currentLapTime;
       saveBest(this.storageKey, this.bestLap);
     }
     this.lap += 1;
     this.currentLapTime = 0;
-
-    if (this.lapEl) this.lapEl.textContent = String(this.lap);
-    if (this.lastEl) this.lastEl.textContent = formatTime(this.lastLap);
-    if (this.bestEl) this.bestEl.textContent = formatTime(this.bestLap);
-
-    const color = isBest ? "#5af168" : "#ff6e6e";
-    this.currentEl?.animate([{ color }, { color }, { color: "#fff" }], { duration: 1200, easing: "ease-out" });
-  }
-
-  dispose() {
-    this.rootEl?.remove();
-    this.styleEl?.remove();
   }
 }
