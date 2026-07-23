@@ -27,9 +27,11 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
   if (!track) notFound();
 
   const parsed = safeParseTrackDocument(track.document);
-  const estimatedLapTimeMs = parsed.success
-    ? estimateLapTimeMs(parsed.data.splines)
-    : null;
+  // estimateLapTimeMs only understands v1's spline geometry -- the tile-based
+  // format (v2) doesn't have a lap-time estimator yet (lands with the new
+  // editor, Phase 5 of the engine-swap work), so it just shows "—" for now.
+  const estimatedLapTimeMs =
+    parsed.success && parsed.data.formatVersion === 1 ? estimateLapTimeMs(parsed.data.splines) : null;
   const difficulty = parsed.success ? parsed.data.meta.difficulty : "beginner";
 
   // Reads the cookie middleware.ts already guaranteed exists -- deliberately

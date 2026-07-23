@@ -1279,6 +1279,59 @@ scope, risks) at `C:\Users\samue\.claude\plans\immutable-questing-cocke.md`.
   produces no console errors. Zero console errors across every run. Full
   `tsc`/`eslint`/`next build` clean; dev database still clean.
 
+### Phase 3 — TrackDocument v2 (tile-based cell format)
+
+- [x] `schema.ts`: extracted `metaSchema`/`environmentSchema`/
+      `validationStateSchema` (previously inlined separately inside the v1
+      object) so both format versions share one definition instead of two
+      copies that could drift
+- [x] Added `trackDocumentV2Schema`/`TrackDocumentV2`/
+      `createEmptyTrackDocumentV2()` — `formatVersion: 2`, keeps `meta`/
+      `environment`/`objects`/`validation`, replaces `splines`/`terrain`
+      with `track: { cells, deco }` (raw `Cell[]`/`DecoCell[]` tuples, reusing
+      `modules/game-engine/track.ts`'s own types directly rather than
+      duplicating them)
+- [x] Dropped `checkpoints`/`startLine` entirely for v2 — both are now
+      redundant: `computeSpawnPosition`/`LapTimer`'s required-cell tracking
+      already derive the spawn point and lap-completion rule directly from
+      `cells`, so a separately-stored copy would just be a second source of
+      truth that could drift from it
+- [x] `validate.ts`: `safeParseTrackDocument`/`parseTrackDocument` now parse
+      a `z.discriminatedUnion("formatVersion", [v1, v2])` instead of v1 alone
+- [x] Gated the 3 call sites that only make sense for one version: the
+      publish route (rejects v2 with 501 — no tile-based layout validators
+      exist yet, that's Phase 5's job), the public track page's lap-time
+      estimate (skips it for v2, same reason), and the old spline editor's
+      load path (shows a clear "this editor doesn't support this format yet"
+      error instead of crashing on a missing `.splines`)
+
+**Notes:**
+
+- No Prisma migration needed — `Track.document` is already an untyped
+  `Json` column, so a v2 document is just a differently-shaped value in the
+  same column, not a schema change.
+- This is a hard format cutover, not an additive migration: there's no
+  algorithmic path from a heightmap+spline document to a tile grid, so v1
+  and v2 are validated as siblings (a discriminated union) rather than v1
+  being upgraded to v2. Nothing will produce new v1 documents once the new
+  editor (Phase 5) lands — v1 just keeps reading correctly forever for
+  whatever already exists.
+- Confirmed the full remaining consumer surface compiles against the
+  widened `TrackDocument | TrackDocumentV2` return type with zero changes
+  needed beyond the 3 gated call sites above — every other place touching a
+  parsed document (both API routes' writes, `t/[slug]/page.tsx`'s
+  difficulty badge) only ever reads `meta.*` fields, which are identical
+  between both versions, so TypeScript allows accessing them without
+  narrowing.
+- Verified against the real API, not just the schema in isolation: a
+  hand-built v2 document round-tripped through `POST` → `GET` → `PATCH`
+  correctly (confirmed `formatVersion`/`track.cells` survived intact), and
+  publishing it was correctly rejected with 501. Re-verified the existing
+  v1 demo track still opens in the old spline editor with zero console
+  errors, confirming the discriminated union didn't disturb v1 parsing at
+  all. Test track row deleted after verification. Full `tsc`/`eslint`/
+  `next build` clean.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records

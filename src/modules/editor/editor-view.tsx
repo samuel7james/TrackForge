@@ -67,6 +67,12 @@ export function EditorView({ slug }: EditorViewProps) {
         if (cancelled) return;
         const parsed = safeParseTrackDocument(data.document);
         if (!parsed.success) throw new Error("This track's data is corrupted");
+        // This editor (spline/heightmap-based) only understands v1 documents
+        // -- the tile-based format (v2) gets its own editor (Phase 5 of the
+        // engine-swap work), not a migration path back into this one.
+        if (parsed.data.formatVersion !== 1) {
+          throw new Error("This track uses a format this editor doesn't support yet");
+        }
         useTrackStore.getState().loadDocument(parsed.data);
         useCommandStack.getState().reset();
       })

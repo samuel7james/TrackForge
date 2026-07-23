@@ -35,6 +35,17 @@ export async function POST(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Track data is corrupted" }, { status: 500 });
   }
 
+  // The engine-swap work's new tile-based format (formatVersion 2) doesn't
+  // have layout validators yet -- that lands with the new editor (Phase 5).
+  // Rejecting cleanly here rather than crashing on `.splines`, which only
+  // exists on v1.
+  if (parsed.data.formatVersion !== 1) {
+    return NextResponse.json(
+      { error: "Publishing this track format isn't supported yet" },
+      { status: 501 }
+    );
+  }
+
   // Mirrors useTrackValidation client-side (Phase 16) -- the disabled Publish
   // button is only a UX nicety, not a security boundary, in an auth-free
   // system anyone can POST here directly.

@@ -7,8 +7,14 @@
 // code (0/10/16/22), not plain degrees -- ORIENT_DEG maps it to a Y-rotation.
 // A whole track's cells pack into a compact base64url string via
 // encodeCells/decodeCells, which is what both the game (`?map=`) and the
-// editor (localStorage / "Play" handoff) use as the wire format -- also
-// exactly what TrackForge's TrackDocument v2 schema stores in Postgres.
+// editor (localStorage / "Play" handoff) use as the wire format. TrackForge's
+// own TrackDocument v2 schema (track-format/schema.ts) stores the raw
+// `Cell[]`/`DecoCell[]` tuples directly instead -- consistent with the rest
+// of that schema (meta/environment/objects are all structured JSON, not
+// opaque encoded blobs), and it's what buildTrack/buildWallColliders/
+// computeSpawnPosition all take directly, so loading a saved track never
+// needs a decode step. encodeCells/decodeCells stay available here for the
+// editor's own localStorage/URL-handoff use, not because the DB needs them.
 import * as THREE from "three";
 
 export type PieceType = "track-straight" | "track-corner" | "track-bump" | "track-finish";
@@ -17,6 +23,9 @@ export type GodotOrient = 0 | 10 | 16 | 22;
 
 export type Cell = [gx: number, gz: number, type: PieceType, orient: GodotOrient];
 export type DecoCell = [gx: number, gz: number, type: DecoType, orient: GodotOrient];
+
+export const DECO_TYPE_NAMES: DecoType[] = ["decoration-empty", "decoration-forest", "decoration-tents"];
+export const GODOT_ORIENTS: GodotOrient[] = [0, 10, 16, 22];
 
 export const ORIENT_DEG: Record<GodotOrient, number> = { 0: 0, 10: 180, 16: 90, 22: 270 };
 
