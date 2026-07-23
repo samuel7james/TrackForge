@@ -1135,6 +1135,99 @@ wasn't touched — this is entirely new Play-mode-only visual/camera code.
   `tsc`/`eslint`/`next build` clean; dev database confirmed to contain only
   the real demo track.
 
+## Ad hoc — Engine Swap: Vendor the Real Starter-Kit-Racing Engine
+
+Major pivot: rather than keep converging TrackForge's own React Three
+Fiber/Rapier game layer toward mimicking Starter-Kit-Racing's look and feel
+one feature at a time (the previous three "Ad hoc" entries above), vendor
+the reference's actual vanilla Three.js source as TrackForge's real game
+engine going forward. TrackForge's own architecture is kept around it: the
+Next.js/Postgres anonymous social platform (Discover, likes, comments,
+bookmarks, creator pages — no accounts, ever), the dark-graphite/orange
+theme, "TrackForge" branding, and the deploy-readiness work all stay;
+only the editor/game internals get replaced. Full plan (phases, file-by-file
+scope, risks) at `C:\Users\samue\.claude\plans\immutable-questing-cocke.md`.
+
+### Phase 0 — Vendor + dependency groundwork
+
+- [x] Added `crashcat` (the reference's physics engine, real npm package by
+      Isaac Mason, MIT, peer dep `three>=0.182.0` — confirmed compatible with
+      TrackForge's existing `three@^0.185.1`, no CDN import-map needed)
+- [x] Ported `js/{Track,Vehicle,Camera,Controls,Physics,Loader,DriftMarks,
+      Particles,LapTimer,Audio}.js` to TypeScript under
+      `src/modules/game-engine/` (kept under TrackForge's own module
+      naming throughout, never a separate "starter-kit-racing" folder)
+- [x] Copied remaining model/sprite assets (4 track pieces,
+      decoration-empty, 2 more NPC truck colors, smoke sprite)
+
+### Phase 1 — Minimal playable demo
+
+- [x] `engine-core.ts`: adapted `main.js`'s one-shot `init()` into
+      `createEngine(options) -> Promise<{ dispose() }>` — a React-mountable
+      handle instead of a script that assumes it owns the page forever
+- [x] `engine-mount.tsx`: a client component owning a `<canvas>`, calling
+      `createEngine` in a `useEffect` and `handle.dispose()` on cleanup
+- [x] Throwaway `/play-demo` route wrapped in minimal TrackForge chrome
+
+**Notes:**
+
+- `crashcat`'s real API (inspected via its own shipped `.d.ts` files, not
+  guessed) matches the reference's usage exactly — `createWorldSettings`,
+  `addBroadphaseLayer`/`addObjectLayer`/`enableCollision`,
+  `rigidBody.create`/`setAngularVelocity`/etc., `box.create`/`sphere.create`,
+  `MotionType`. One deliberate deviation from the reference: rather than
+  stash object-layer ids as ad-hoc properties on the `world` object (the
+  reference's own `world._OL_STATIC = ...` hack), `buildWallColliders`/
+  `createSphereBody` take them as explicit parameters — same behavior,
+  no `as unknown as` casts needed.
+- The vehicle's actual physics body is a single rolling **sphere**, not a
+  car-shaped rigid body (confirmed by reading `Vehicle.js`/`Physics.js`
+  directly rather than assuming) — torque spins the sphere forward, and the
+  visible car model container follows its position kinematically with
+  heading set directly via `container.rotateY`, not derived from the
+  sphere's own rotation. A deliberate simplification in the original, not a
+  gap introduced by this port.
+- Vendored a dedicated `audio.ts` (faithful port of the reference's own
+  `Audio.js`) rather than reusing TrackForge's existing
+  `src/modules/audio/game-audio.ts` — that class's impact-velocity
+  constants (`IMPACT_MAX_VELOCITY=14`) were tuned for the old Rapier
+  vehicle's real 0-32 m/s range, which doesn't match the vendored sphere
+  vehicle's own velocity scale (`MAX_SPEED=1.5`, reference's own tuning:
+  `IMPACT_MAX_VELOCITY=6`). Reused the existing DSP buffer generators
+  (`impact-sound.ts`/`skid-sound.ts`/`engine-constants.ts`) unchanged since
+  those have no velocity-scale coupling.
+- `LapTimer`/`Controls` still build raw DOM for their UI, same as the
+  reference — deliberately not re-themed yet (that's Phase 2); each got a
+  `dispose()` added so their listeners/injected `<style>`/`<div>` elements
+  don't leak across a React mount/unmount cycle, same treatment given to
+  `Camera` (removes its `resize` listener) and the crashcat `World` (a plain
+  JS object with no native handle to free, confirmed via crashcat's own
+  `world.d.ts` — nothing to explicitly destroy beyond dropping the
+  reference).
+- Real bug caught before it shipped: `loader.ts`'s shared colormap texture
+  was originally created at module top level
+  (`new THREE.TextureLoader().load(...)`, matching the reference exactly).
+  `next build`'s static-generation pass evaluates every module reachable
+  from a page — including ones only used by "use client" components — in a
+  Node environment with no `document`, so this crashed prerendering
+  `/play-demo` with `ReferenceError: document is not defined`. Fixed by
+  deferring texture creation into a lazily-initialized getter, only ever
+  called from inside `GLTFLoader`'s own parse step (browser-only, inside
+  `engine-core.ts`'s client-side effect).
+- Verified in-browser via Playwright: `/play-demo` renders the real
+  finish-line arch, paddock/tent scenery, walled track, and vehicle at
+  spawn; driving and turning work with the reference's own camera
+  lead/deadzone follow behavior; the (still raw-DOM, pre-Phase-2) lap timer
+  HUD ticks correctly. Zero console errors across load, driving, and a
+  full page-reload cycle. Since the dev server already runs React
+  StrictMode (which double-invokes effects on every mount), seeing exactly
+  one `<canvas>` and one `#lap-timer` element after a normal page load is
+  already good evidence `engine-mount.tsx`'s dispose/cleanup handles a
+  mount→unmount→mount cycle without leaking, not just a single mount.
+  `tsc`/`eslint`/`next build` all clean. Dev database checked and a stray
+  `Untitled Track` row (autosave noise from unrelated testing, not real
+  content) was deleted, leaving only the real demo track.
+
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback
 - [ ] Leaderboards, personal bests, world records

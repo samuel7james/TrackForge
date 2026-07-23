@@ -8,9 +8,21 @@
 import * as THREE from "three";
 import { GLTFLoader, type GLTFParser, type GLTFLoaderPlugin } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-const sharedColormap = new THREE.TextureLoader().load("/models/Textures/colormap.png");
-sharedColormap.colorSpace = THREE.SRGBColorSpace;
-sharedColormap.flipY = false;
+// Lazily created on first use, not at module load -- this module is
+// transitively imported by a page that Next.js prerenders on the server for
+// static generation, and a top-level TextureLoader().load() call touches
+// `document` immediately, which doesn't exist there. Deferring construction
+// until a GLTFLoader actually parses a model (browser-only, inside
+// engine-core.ts's client-side effect) avoids that entirely.
+let sharedColormap: THREE.Texture | null = null;
+function getSharedColormap(): THREE.Texture {
+  if (!sharedColormap) {
+    sharedColormap = new THREE.TextureLoader().load("/models/Textures/colormap.png");
+    sharedColormap.colorSpace = THREE.SRGBColorSpace;
+    sharedColormap.flipY = false;
+  }
+  return sharedColormap;
+}
 
 class SharedColorMapPlugin implements GLTFLoaderPlugin {
   name = "SHARED_COLORMAP";
@@ -26,7 +38,7 @@ class SharedColorMapPlugin implements GLTFLoaderPlugin {
     const sourceDef = json.images[textureDef.source];
 
     if (sourceDef.uri === "Textures/colormap.png") {
-      return Promise.resolve(sharedColormap);
+      return Promise.resolve(getSharedColormap());
     }
 
     return null;
