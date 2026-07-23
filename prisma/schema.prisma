@@ -6,8 +6,13 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Neon/Vercel Postgres put a connection pooler in front of DATABASE_URL in
+  // production; migrations need a direct (unpooled) connection instead. Both
+  // point at the same local Postgres in dev (see .env.example) -- this only
+  // matters once Phase 20's production database is wired up.
+  directUrl = env("DIRECT_URL")
 }
 
 model Track {

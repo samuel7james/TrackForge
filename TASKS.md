@@ -664,10 +664,69 @@ anonymous-cookie-based equivalent.
 
 ### Phase 20 — Production Deploy (Vercel + custom domain)
 
-- [ ] Production Postgres (Vercel Postgres/Neon), env config, migration run
-- [ ] OG/share images for track links, sitemap/robots
-- [ ] Rate limiting on likes/comments (no auth to gate abuse otherwise)
-- [ ] Custom domain wired up, deployed build verified live
+- [x] Env config for production Postgres (Vercel Postgres/Neon) — code-side prep done;
+      actual provisioning + first `migrate deploy` is a manual step (see checklist below)
+- [x] OG/share images for track links, sitemap/robots
+- [x] Rate limiting on likes/comments (no auth to gate abuse otherwise)
+- [ ] Custom domain wired up, deployed build verified live — **manual, needs the project
+      owner's Vercel/domain-registrar accounts; see checklist below**
+
+**Notes:**
+
+- `schema.prisma`'s datasource gained `directUrl = env("DIRECT_URL")` — Neon/Vercel
+  Postgres put a connection pooler in front of the main `DATABASE_URL` in production;
+  `prisma migrate` needs an unpooled connection instead. Both point at the same local
+  Postgres in dev (`.env`/`.env.example` updated), so this is a no-op locally and only
+  matters once the production database exists.
+- Added `postinstall: "prisma generate"` to `package.json` — Vercel's build often
+  auto-detects Prisma and runs this anyway, but making it explicit means the build doesn't
+  depend on that platform-specific auto-detection continuing to work.
+- `src/lib/site-url.ts`: a single place resolving the absolute origin (custom domain via
+  `NEXT_PUBLIC_SITE_URL` > Vercel's automatic per-deployment `VERCEL_URL` > localhost),
+  used by `metadataBase` (root layout), `sitemap.ts`, and `robots.ts` — all three need a
+  real origin, not a relative path.
+- `sitemap.ts` lists home, `/discover`, and every published track (keyed by `updatedAt`
+  for `lastmod`); `robots.ts` disallows `/editor/` (a workspace, not content) and `/api/`,
+  and points at the sitemap. `/creator/[id]`, `/my-tracks`, `/bookmarks` are deliberately
+  left crawlable — normal content pages, just addressed by an anonymous id.
+- Two OG images via `next/og`'s `ImageResponse`: a static branded one at the root, and a
+  per-track dynamic one (`t/[slug]/opengraph-image.tsx`) rendering the real name/
+  description/difficulty from the database. The per-track one needs `export const runtime
+  = "nodejs"` explicitly — Prisma's client needs Node.js APIs, but `next/og` routes default
+  to the Edge runtime otherwise.
+- Rate limiting (`src/lib/rate-limit.ts`): an in-memory sliding-window counter, no Redis/
+  paid service added — comments capped at 5 per `viewerId` per 10 minutes, like-toggles at
+  20 per `viewerId` per minute. Documented honestly as a courtesy deterrent, not a security
+  boundary: on Vercel's serverless functions this state is per-instance, so an abuser
+  hitting multiple warm instances could exceed the nominal limit by that multiple. Good
+  enough for a solo project's actual threat model (casual spam, not a determined attacker);
+  revisit with Upstash/Vercel KV only if real abuse shows up.
+- Verified: rate limits confirmed with 7 rapid comment POSTs (5×200, then 429) and 22
+  rapid like-toggle POSTs (20×200, then 429) against a real track. `sitemap.xml`/
+  `robots.txt` fetched directly and checked for correct content (includes the real demo
+  track). Both OG images fetched directly and visually confirmed — the per-track one
+  pulls the actual track name/description/difficulty. Ran a full `next build` (not just
+  `tsc`/`eslint`) since this phase is specifically about deploy-readiness — compiled
+  clean, all routes (including the two OG image routes and the proxy) built successfully.
+  Reran Phase 17/18/19 regressions — all still pass. Zero console errors.
+
+**Manual deployment checklist (project owner, outside this session):**
+
+1. Create/sign in to a Vercel account, import this GitHub repo as a new project.
+2. Provision a production Postgres (Vercel Postgres, or Neon directly) and copy its
+   pooled + direct connection strings.
+3. In the Vercel project's Environment Variables: set `DATABASE_URL` (pooled) and
+   `DIRECT_URL` (unpooled) from step 2, plus `NEXT_PUBLIC_SITE_URL` once the custom
+   domain (step 5) is chosen.
+4. Run `npx prisma migrate deploy` once against the production `DIRECT_URL` (locally,
+   with `DIRECT_URL` temporarily pointed at production) to create the schema before the
+   first deploy — `postinstall`'s `prisma generate` runs on every build automatically,
+   but applying migrations is deliberately a separate, deliberate step, not automatic.
+5. Add the custom domain in the Vercel project's Domains settings, update DNS at the
+   registrar per Vercel's instructions, wait for it to verify.
+6. Deploy (Vercel auto-deploys on push to the connected branch, or `vercel --prod` from
+   the CLI) and smoke-test the live URL: home page, Discover, publishing a track, /t/
+   page, likes/comments, sitemap.xml/robots.txt.
 
 ## Milestone 4 — Competition (high-level)
 - [ ] Ghost recording/playback

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateAnonymousId, VIEWER_ID_COOKIE } from "@/lib/anonymous-id";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
@@ -7,12 +9,23 @@ interface RouteContext {
 
 const MAX_DISPLAY_NAME_LENGTH = 40;
 const MAX_BODY_LENGTH = 500;
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const RATE_LIMIT_MAX = 5; // 5 comments per viewerId per 10 minutes
 
 // Freeform display name instead of an account (§8) -- no login, so no
-// identity to check beyond "not empty, not absurdly long." Volume-based
-// abuse (spam floods) is a Phase 20 rate-limiting concern, not this route's.
+// identity to check beyond "not empty, not absurdly long," plus a rate limit
+// keyed by viewerId (the cookie exists for likes already; reused here purely
+// as a rate-limit key, never stored on the comment itself).
 export async function POST(request: Request, { params }: RouteContext) {
   const { slug } = await params;
+  const viewerId = await getOrCreateAnonymousId(VIEWER_ID_COOKIE);
+  if (!checkRateLimit(`comment:${viewerId}`, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX)) {
+    return NextResponse.json(
+      { error: "Too many comments — try again in a few minutes." },
+      { status: 429 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
 
   const displayName = typeof body?.displayName === "string" ? body.displayName.trim() : "";

@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateAnonymousId, VIEWER_ID_COOKIE } from "@/lib/anonymous-id";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
 }
+
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX = 20; // 20 toggles per viewerId per minute -- generous, this is a courtesy limit against scripted spam, not real usage
 
 // Toggle, not set/unset -- the client always POSTs here and the server
 // decides add-or-remove based on whether a Like row already exists for this
@@ -14,6 +18,9 @@ interface RouteContext {
 export async function POST(_request: Request, { params }: RouteContext) {
   const { slug } = await params;
   const viewerId = await getOrCreateAnonymousId(VIEWER_ID_COOKIE);
+  if (!checkRateLimit(`like:${viewerId}`, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX)) {
+    return NextResponse.json({ error: "Too many requests — slow down." }, { status: 429 });
+  }
 
   const track = await prisma.track.findUnique({ where: { slug } });
   if (!track) {
