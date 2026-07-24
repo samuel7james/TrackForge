@@ -33,9 +33,19 @@ export async function POST(request: Request, { params }: RouteContext) {
   // The authoritative name for this viewer, not whatever the client sent --
   // DisplayNameGate claims a name via /api/display-names/claim before ever
   // letting a race start, so this closes the loophole of a raw POST here
-  // attaching a name that isn't actually this viewer's claimed one.
+  // attaching a name that isn't actually this viewer's claimed one. No
+  // "Anonymous" fallback: a viewer with no active claim (never claimed one,
+  // or an admin removed their player row since) gets rejected outright
+  // rather than silently recorded under a fake shared identity -- the
+  // client treats this code as "clear the stale local name and ask again."
   const claimed = await prisma.displayName.findUnique({ where: { viewerId } });
-  const displayName = claimed?.name ?? "Anonymous";
+  if (!claimed) {
+    return NextResponse.json(
+      { error: "No display name claimed for this browser", code: "NEEDS_DISPLAY_NAME" },
+      { status: 401 }
+    );
+  }
+  const displayName = claimed.name;
 
   const track = await prisma.track.findUnique({ where: { slug }, select: { id: true } });
   if (!track) {

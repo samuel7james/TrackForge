@@ -19,3 +19,16 @@ export function setDisplayName(name: string) {
     // storage unavailable -- name just won't persist across sessions
   }
 }
+
+// Called when the server rejects a lap-time submission for having no active
+// claim (see laptimes/route.ts's NEEDS_DISPLAY_NAME) -- the cached local
+// name is stale (an admin removed the underlying claim, or it predates the
+// claim system entirely), so it's cleared rather than kept around to fail
+// the same way on every future race.
+export function clearDisplayName() {
+  try {
+    localStorage.removeItem(DISPLAY_NAME_KEY);
+  } catch {
+    // storage unavailable -- nothing to clear
+  }
+}

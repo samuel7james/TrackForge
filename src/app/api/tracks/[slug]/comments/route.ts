@@ -7,15 +7,15 @@ interface RouteContext {
   params: Promise<{ slug: string }>;
 }
 
-const MAX_DISPLAY_NAME_LENGTH = 40;
 const MAX_BODY_LENGTH = 500;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX = 5; // 5 comments per viewerId per 10 minutes
 
-// Freeform display name instead of an account (§8) -- no login, so no
-// identity to check beyond "not empty, not absurdly long," plus a rate limit
-// keyed by viewerId (the cookie exists for likes already; reused here purely
-// as a rate-limit key, never stored on the comment itself).
+// No accounts (§8), but no anonymous identities either -- a comment's name
+// is the same globally-claimed DisplayName racing uses (see
+// laptimes/route.ts's identical pattern), never a client-submitted string.
+// A viewer with no active claim gets rejected, matching NEEDS_DISPLAY_NAME
+// there, rather than letting them post under an unaccountable made-up name.
 export async function POST(request: Request, { params }: RouteContext) {
   const { slug } = await params;
   const viewerId = await getOrCreateAnonymousId(VIEWER_ID_COOKIE);
@@ -26,14 +26,18 @@ export async function POST(request: Request, { params }: RouteContext) {
     );
   }
 
-  const body = await request.json().catch(() => null);
+  const claimed = await prisma.displayName.findUnique({ where: { viewerId } });
+  if (!claimed) {
+    return NextResponse.json(
+      { error: "Claim a display name before commenting", code: "NEEDS_DISPLAY_NAME" },
+      { status: 401 }
+    );
+  }
+  const displayName = claimed.name;
 
-  const displayName = typeof body?.displayName === "string" ? body.displayName.trim() : "";
+  const body = await request.json().catch(() => null);
   const text = typeof body?.body === "string" ? body.body.trim() : "";
 
-  if (!displayName || displayName.length > MAX_DISPLAY_NAME_LENGTH) {
-    return NextResponse.json({ error: "Name must be 1-40 characters" }, { status: 400 });
-  }
   if (!text || text.length > MAX_BODY_LENGTH) {
     return NextResponse.json({ error: "Comment must be 1-500 characters" }, { status: 400 });
   }

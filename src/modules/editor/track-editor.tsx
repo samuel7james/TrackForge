@@ -6,7 +6,7 @@ import { BackButton } from "@/components/ui/back-button";
 import { TrackForgeCanvas } from "@/modules/scene/track-forge-canvas";
 import { EngineMount } from "@/modules/game-engine/engine-mount";
 import { DisplayNameGate } from "@/modules/game-engine/display-name-gate";
-import { getDisplayName } from "@/modules/game-engine/display-name-storage";
+import { getDisplayName, clearDisplayName } from "@/modules/game-engine/display-name-storage";
 import { ModeToggle } from "@/modules/editor/ui/mode-toggle";
 import { Toolbar } from "@/modules/editor/ui/toolbar";
 import { PropPalettePanel } from "@/modules/editor/ui/prop-palette-panel";
@@ -68,6 +68,18 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
   const [submittedName, setSubmittedName] = useState<string | null>(null);
   const displayName = submittedName ?? storedDisplayName;
 
+  // Bumped (rather than read) purely to force a re-render after
+  // clearDisplayName() -- noSubscription above means storedDisplayName only
+  // ever re-reads localStorage when something else causes this component to
+  // render, and clearing a name that was never re-submitted this session
+  // (submittedName already null) wouldn't otherwise trigger one.
+  const [, forceRerender] = useState(0);
+  const handleDisplayNameInvalid = () => {
+    clearDisplayName();
+    setSubmittedName(null);
+    forceRerender((n) => n + 1);
+  };
+
   // Fresh editor session: load the given document (or keep the store's
   // default empty one for a brand-new track), reset undo history, and
   // default to the road tool.
@@ -112,6 +124,7 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
           trackId={slug}
           submitLapTimes={autoplay}
           displayName={displayName}
+          onDisplayNameInvalid={handleDisplayNameInvalid}
         />
       ) : (
         <DisplayNameGate onSubmit={setSubmittedName} />

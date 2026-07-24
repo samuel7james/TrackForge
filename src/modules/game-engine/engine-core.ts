@@ -57,6 +57,13 @@ export interface EngineOptions {
    * submitLapTimes is true, since track-editor.tsx gates entering Play
    * mode at all behind DisplayNameGate. */
   displayName?: string | null;
+  /** Called if a lap-time submission comes back rejected for having no
+   * active display-name claim (see laptimes/route.ts's NEEDS_DISPLAY_NAME) --
+   * the stored name is stale (an admin removed the claim, or it predates
+   * the claim system), so the parent clears it and re-gates the next Play
+   * session behind DisplayNameGate rather than continuing to submit under
+   * a name that no longer resolves to anyone. */
+  onDisplayNameInvalid?: () => void;
   /** Aborted by engine-mount.tsx if the component unmounts while model
    * loading is still in flight, so createEngine can skip building the rest
    * of the scene/world/vehicle for a mount that's already gone. */
@@ -139,6 +146,7 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
     trackId = null,
     submitLapTimes = false,
     displayName = null,
+    onDisplayNameInvalid,
     signal,
   } = options;
   let disposed = false;
@@ -376,8 +384,12 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ timeMs, displayName }),
         })
-          .then((res) => res.json())
-          .then((data: { isNewPersonalBest?: boolean; worldRecordMs?: number }) => {
+          .then(async (res) => {
+            const data = await res.json();
+            if (!res.ok) {
+              if (data?.code === "NEEDS_DISPLAY_NAME") onDisplayNameInvalid?.();
+              return;
+            }
             if (data.isNewPersonalBest && data.worldRecordMs === timeMs) {
               toast.success("New world record!");
             } else if (data.isNewPersonalBest) {

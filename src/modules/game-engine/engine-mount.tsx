@@ -17,6 +17,7 @@ export interface EngineMountProps {
    * reasoning behind gating this on "real play" only. */
   submitLapTimes?: boolean;
   displayName?: string | null;
+  onDisplayNameInvalid?: () => void;
 }
 
 // Owns a <canvas> and the vendored engine's whole imperative lifecycle --
@@ -32,6 +33,7 @@ export function EngineMount({
   trackId = null,
   submitLapTimes = false,
   displayName = null,
+  onDisplayNameInvalid,
 }: EngineMountProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handleRef = useRef<EngineHandle | null>(null);
@@ -51,6 +53,7 @@ export function EngineMount({
       trackId,
       submitLapTimes,
       displayName,
+      onDisplayNameInvalid,
       signal: abortController.signal,
     }).then((createdHandle) => {
       if (cancelled) {
