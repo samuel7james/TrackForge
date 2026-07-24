@@ -28,9 +28,20 @@ export function SceneRoot() {
   );
   const sunIntensity = preset.sunIntensity * elevationFactor;
 
+  // The editor's OrbitControls allow zooming out to 120 units (see
+  // editor-camera-rig.tsx) to see a whole track while building it --
+  // exponential fog's opacity grows with distance squared, so a
+  // fogDensity tuned to look right at Play's much closer chase-cam range
+  // (engine-core.ts sets its own separate, unrelated fog) turns almost
+  // fully opaque well before max zoom for any but the lightest weather
+  // presets. Capped here, editor-only, so editing stays usable regardless
+  // of the track's chosen weather -- Play itself is unaffected, it never
+  // reads this component's fog at all.
+  const editorFogDensity = Math.min(environment.fogDensity, 0.008);
+
   return (
     <>
-      <fogExp2 attach="fog" args={[preset.fogColor, environment.fogDensity]} />
+      <fogExp2 attach="fog" args={[preset.fogColor, editorFogDensity]} />
       <SkyDome gradient={preset.skyGradient} />
 
       <hemisphereLight

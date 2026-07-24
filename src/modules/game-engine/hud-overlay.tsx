@@ -45,7 +45,7 @@ export function HudOverlay({ lapTimer }: { lapTimer: LapTimer }) {
   if (!lapTimer.enabled) return null;
 
   return (
-    <div className="pointer-events-none absolute left-3 top-3 z-10 min-w-[150px] rounded-2xl border border-border/50 bg-card/80 px-4 py-3 text-foreground shadow-lg backdrop-blur-xl">
+    <div className="pointer-events-none absolute left-3 top-20 z-10 min-w-[150px] rounded-2xl border border-border/50 bg-card/80 px-4 py-3 text-foreground shadow-lg backdrop-blur-xl">
       <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         <span>Lap</span>
         <span ref={lapElRef}>1</span>

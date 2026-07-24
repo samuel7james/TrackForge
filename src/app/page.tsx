@@ -1,8 +1,6 @@
 import Link from "next/link";
-import { Compass, Play, Sparkles } from "lucide-react";
+import { Compass, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const DEMO_TRACK_SLUG = "azure-delta-thu9";
 
 export default function Home() {
   return (
@@ -22,16 +20,6 @@ export default function Home() {
       <div className="flex flex-col items-center gap-3 sm:flex-row">
         <Button
           size="lg"
-          className="gap-2"
-          nativeButton={false}
-          render={<Link href={`/t/${DEMO_TRACK_SLUG}`} />}
-        >
-          <Play className="size-4" />
-          Play
-        </Button>
-        <Button
-          size="lg"
-          variant="outline"
           className="gap-2"
           nativeButton={false}
           render={<Link href="/editor/new" />}

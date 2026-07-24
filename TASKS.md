@@ -395,6 +395,49 @@ the full reasoning.
 
 ### Phase 3 — Conflict/save-race handling (not yet designed)
 
+### Production deploy — blocked (no paid services, by explicit choice)
+
+`npx partykit deploy` fails on **both** free paths:
+
+- Default shared `partykit.dev` domain → Cloudflare's platform-wide limit
+  of 10,000 custom domains per zone, already exceeded (not specific to
+  this account — a capacity issue on PartyKit's shared free hosting).
+- Custom domain via a bring-your-own Cloudflare account
+  (`--domain party.samueljames.dev`, using the user's own
+  `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN`) → Cloudflare's free
+  Workers plan requires Durable Objects to use the newer SQLite-backed
+  storage class (`new_sqlite_classes`), and PartyKit CLI `v0.0.115`
+  (confirmed latest published version) has no config surface to request
+  that migration type. Upgrading to Cloudflare's paid Workers plan would
+  lift this restriction, but is explicitly off the table (no paid
+  services, by the user's explicit, repeated instruction).
+
+**Decision**: keep local dev working as-is (already fully verified with
+two Playwright browser contexts, see Phase 1's own notes) and periodically
+retry the plain `npx partykit deploy` (no `--domain`) to check whether
+Cloudflare's shared-zone capacity has freed up. No code changes pending on
+this — if it stays blocked long-term, revisit swapping the transport
+entirely (Liveblocks' free tier was the leading alternative discussed,
+since it needs no Cloudflare account/Durable Objects at all).
+
+## Ad hoc — Remove the dead landing-page Play button
+
+- [x] The production Neon database is empty (migrations create schema, not
+      data — the local `azure-delta-thu9` demo track only ever existed in
+      the dev Docker Postgres). Seeding it onto production hit a
+      non-reproducible `P1001` connection error and was dropped as a
+      goal — recreating a demo track through the live editor, if wanted,
+      is the user's call, not something this repo needs to carry.
+- [x] Removed the landing page's `Play` button (`src/app/page.tsx`), which
+      linked to `/t/azure-delta-thu9` — a track that no longer exists in
+      production, so it led nowhere. "Create a new track" is now the sole
+      primary CTA next to "Discover tracks."
+
+**Notes:**
+
+- Verified via Playwright: landing page renders with zero `Play` links
+  present, zero console errors. Full `tsc`/`eslint`/`next build` clean.
+
 ---
 
 ## Notes
