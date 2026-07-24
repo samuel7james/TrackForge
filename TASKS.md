@@ -438,6 +438,38 @@ since it needs no Cloudflare account/Durable Objects at all).
 - Verified via Playwright: landing page renders with zero `Play` links
   present, zero console errors. Full `tsc`/`eslint`/`next build` clean.
 
+## Ad hoc — Fix HUD/header overlap and editor fog blowout
+
+- [x] `HudOverlay` (`src/modules/game-engine/hud-overlay.tsx`) was pinned
+      at `top-3`, the same corner `track-editor.tsx`'s header ("TrackForge
+      / track name") occupies in normal flow — during Play they visually
+      collided, the HUD panel's `bg-card/80`/`backdrop-blur-xl` making the
+      header text underneath look faint/translucent rather than actually
+      overlapping content. Moved to `top-20`, clearing the header (matches
+      the same `top-20` offset `PropPalettePanel` already uses for its own
+      corner).
+- [x] `SceneRoot` (`src/modules/scene/scene-root.tsx`, editor-only —
+      Play's own engine sets a separate, unrelated fog in `engine-core.ts`)
+      applied a track's stored `environment.fogDensity` to `THREE.FogExp2`
+      uncapped. Exponential fog's opacity grows with distance *squared*,
+      and the editor's `OrbitControls` allow zooming out to 120 units
+      (`editor-camera-rig.tsx`) — a density tuned to look right at Play's
+      much closer chase-cam range turns almost fully opaque well before
+      max zoom for most weather presets (the demo track's stored 0.02,
+      predating a later tuning pass, was especially bad). Capped at 0.008
+      for editor rendering only, so zooming out to see a whole track while
+      editing stays usable regardless of the track's chosen weather; the
+      stored value and Play's own rendering are untouched.
+
+**Notes:**
+
+- Verified via Playwright: in Play mode, the lap-timer panel now sits
+  clearly below the header with no overlap; zoomed the editor camera all
+  the way out (15 scroll-wheel dolly steps) and confirmed the track,
+  buildings, and trees stay clearly legible instead of washing out to a
+  uniform haze. Zero console errors. Full `tsc`/`eslint`/`next build`
+  clean.
+
 ---
 
 ## Notes
