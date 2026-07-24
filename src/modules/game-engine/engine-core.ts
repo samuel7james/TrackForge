@@ -308,6 +308,14 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   const lapTimer = new LapTimer(mapCells, trackId);
   const sessionStats = new SessionStats(lapTimer.enabled);
 
+  const ghostRecorder = new GhostRecorder();
+  const ghostPlayer = new GhostPlayer(lapTimer.enabled ? loadGhost(trackId) : null);
+  const ghostMesh = lapTimer.enabled ? buildGhostMesh(models[PLAYER_MODEL]) : null;
+  if (ghostMesh) {
+    ghostMesh.visible = false;
+    scene.add(ghostMesh);
+  }
+
   const _forward = new THREE.Vector3();
   const _camLead = new THREE.Vector3();
 
@@ -336,7 +344,17 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   function onLapComplete() {
     if (lapTimer.lastLap !== null) {
       sessionStats.recordLap(Math.round(lapTimer.lastLap * 1000), lapTimer.lastLapWasBest);
+
+      if (lapTimer.lastLapWasBest) {
+        const samples = ghostRecorder.getSamples();
+        saveGhost(trackId, samples);
+        ghostPlayer.setSamples(samples);
+      }
     }
+
+    // Start the next lap's recording fresh, win or lose -- the ghost only
+    // ever replays the best lap saved above, never the in-progress one.
+    ghostRecorder.reset();
   }
 
   function animate() {
@@ -370,6 +388,21 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
     if (lapTimer.lap !== prevLap) {
       prevLap = lapTimer.lap;
       onLapComplete();
+    }
+
+    if (lapTimer.enabled) {
+      ghostRecorder.record(lapTimer.currentLapTime, vehicle.container.position, vehicle.container.quaternion);
+    }
+
+    if (ghostMesh) {
+      const frame = ghostPlayer.sampleAt(lapTimer.currentLapTime);
+      if (frame) {
+        ghostMesh.position.copy(frame.position);
+        ghostMesh.quaternion.copy(frame.quaternion);
+        ghostMesh.visible = true;
+      } else {
+        ghostMesh.visible = false;
+      }
     }
 
     renderer.render(scene, cam.camera);

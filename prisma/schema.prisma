@@ -50,6 +50,7 @@ model Track {
   versions    TrackVersion[]
   likes       Like[]
   comments    Comment[]
+  lapRecords  LapRecord[]
 
   @@index([authorId])
   @@index([isPublished, createdAt])
@@ -94,4 +95,27 @@ model Comment {
   createdAt   DateTime @default(now())
 
   @@index([trackId, createdAt])
+}
+
+// Milestone 4 (Competition). One row per (track, viewer) = that viewer's
+// personal best -- the world record for a track is just MIN(timeMs) across
+// its rows, not a separate denormalized field, since it's cheap to
+// aggregate on demand and there's no hot path calling it per-frame.
+// displayName is stored per-row (not joined from elsewhere -- there's no
+// "elsewhere," no accounts) and only updated when timeMs itself improves,
+// same anonymous-identity trade-off as Comment.displayName: it can go
+// stale if the viewer renames themselves without setting a new best, which
+// is accepted rather than engineered around.
+model LapRecord {
+  id          String   @id @default(cuid())
+  trackId     String
+  track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  viewerId    String
+  displayName String
+  timeMs      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([trackId, viewerId])
+  @@index([trackId, timeMs])
 }

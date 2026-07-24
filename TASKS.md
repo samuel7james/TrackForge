@@ -173,7 +173,52 @@
   edit and clicking Play again does *not* re-show the gate (persisted).
   Zero console errors. Full `tsc`/`eslint`/`next build` clean.
 
-### Phase 2 — Ghost recording/playback (pending)
+### Phase 2 — Ghost recording/playback
+
+- [x] `GhostRecorder` (`src/modules/game-engine/ghost-recorder.ts`) — samples
+      the vehicle's world position/quaternion at a capped ~15Hz (not every
+      frame; a 60fps recording would bloat `localStorage` with no
+      perceptible playback benefit once interpolated). Samples are plain
+      number tuples, not `Vector3`/`Quaternion` instances, so the buffer
+      round-trips through `JSON.stringify` with zero conversion.
+- [x] `ghost-playback.ts` — `saveGhost`/`loadGhost` under
+      `racing.bestGhost.<trackId>` (same `try/catch`-guarded style as
+      `lap-timer.ts`'s `loadBest`/`saveBest`), and `GhostPlayer.sampleAt`
+      linearly interpolates position and `slerp`s rotation between the two
+      bracketing samples for the given lap time -- necessary since the
+      ~15Hz recording rate is far coarser than the 60fps render loop.
+- [x] `engine-core.ts`: a semi-transparent clone of the player vehicle
+      (`buildGhostMesh`, materials explicitly cloned so transparency never
+      leaks onto the real vehicle's shared materials) is positioned each
+      frame from `ghostPlayer.sampleAt(lapTimer.currentLapTime)`. Recording
+      runs every frame while `lapTimer.enabled`; the shared
+      `onLapComplete()` hook (from Phase 1) saves the recording and swaps
+      `ghostPlayer` onto it whenever `lapTimer.lastLapWasBest`, then resets
+      the recorder for the next lap attempt regardless of outcome.
+
+**Notes:**
+
+- Unit-verified `GhostRecorder`/`GhostPlayer`'s actual logic (not a
+  reimplementation) via a `tsx`-run script importing the real modules
+  directly: sample-rate capping, `reset()`, mid-recording interpolation,
+  clamping before the first sample, `null` past the recording's end (ghost
+  finished), and an exact `saveGhost`/`loadGhost` round-trip. All passed.
+- Live-verified the load → render → interpolate pipeline in the browser by
+  injecting a hand-crafted "previous session's best ghost" into
+  `localStorage` before mounting the engine (the same key format
+  `saveGhost` itself would have written), then confirmed via screenshots: a
+  second, visibly semi-transparent vehicle appears immediately at its first
+  sample, moves independently along its own recorded path as lap time
+  advances, all with zero console errors.
+- Driving an actual full lap around the demo circuit purely via scripted
+  Playwright keyboard input (to verify the record → auto-save-on-lap-
+  complete trigger end-to-end) proved impractical -- the track needs real
+  cornering, and neither "hold forward" nor "hold forward + constant turn"
+  completed a lap within a generous time budget. Accepted as a known gap:
+  the save-on-best-lap trigger is a small, low-risk extension of Phase 1's
+  already-tested `onLapComplete()` hook (same diffing mechanism, one more
+  branch), not new detection logic of its own.
+- Full `tsc`/`eslint`/`next build` clean.
 
 ### Phase 3 — Leaderboards, personal bests, world records (pending)
 
