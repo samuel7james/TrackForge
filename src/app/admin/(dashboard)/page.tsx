@@ -4,6 +4,8 @@ import { formatLapTime } from "@/modules/game-engine/lap-timer";
 import { DIFFICULTY_LABELS } from "@/modules/track/difficulty-labels";
 import { AdminTrackActions } from "./admin-track-actions";
 import { AdminCommentActions } from "./admin-comment-actions";
+import { AdminPlayerActions } from "./admin-player-actions";
+import { AdminLapTimeActions } from "./admin-laptime-actions";
 import { LogoutButton } from "./logout-button";
 
 function formatDate(date: Date): string {
@@ -13,9 +15,11 @@ function formatDate(date: Date): string {
 // Every content type in the schema, one list each: tracks (full detail --
 // description/tags/difficulty/comment+lap+save counts), players (every
 // claimed racer name, merged with their race count/best time), lap times
-// (site-wide, fastest first), likes, comments. Track/comment moderation
-// actions mirror what an owner already has, exercised site-wide instead of
-// per-track. No search/filter, no pagination beyond a fixed cap -- not
+// (site-wide, fastest first), likes, comments. Track/lap-time moderation
+// mirrors what an owner already has (see /api/tracks/[slug]/laptimes/[id]),
+// exercised site-wide instead of per-track; player deletion and comment
+// deletion have no owner-facing equivalent at all, admin-only. No
+// search/filter, no pagination beyond a fixed cap -- not
 // needed at this scale yet.
 export default async function AdminDashboardPage() {
   const [
@@ -217,6 +221,7 @@ export default async function AdminDashboardPage() {
                 <th className="p-3 font-medium">Races</th>
                 <th className="p-3 font-medium">Best lap</th>
                 <th className="p-3 font-medium">Claimed</th>
+                <th className="p-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -235,6 +240,9 @@ export default async function AdminDashboardPage() {
                       {stat?._min.timeMs ? formatLapTime(stat._min.timeMs / 1000) : "—"}
                     </td>
                     <td className="p-3 text-muted-foreground">{formatDate(player.createdAt)}</td>
+                    <td className="p-3">
+                      <AdminPlayerActions id={player.id} />
+                    </td>
                   </tr>
                 );
               })}
@@ -253,6 +261,7 @@ export default async function AdminDashboardPage() {
                 <th className="p-3 font-medium">Track</th>
                 <th className="p-3 font-medium">Time</th>
                 <th className="p-3 font-medium">Updated</th>
+                <th className="p-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -268,6 +277,9 @@ export default async function AdminDashboardPage() {
                     {formatLapTime(lap.timeMs / 1000)}
                   </td>
                   <td className="p-3 text-muted-foreground">{formatDate(lap.updatedAt)}</td>
+                  <td className="p-3">
+                    <AdminLapTimeActions id={lap.id} />
+                  </td>
                 </tr>
               ))}
             </tbody>

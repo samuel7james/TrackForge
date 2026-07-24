@@ -57,7 +57,7 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
           where: { trackId: track.id },
           orderBy: { timeMs: "asc" },
           take: LEADERBOARD_TOP_N,
-          select: { displayName: true, timeMs: true, viewerId: true },
+          select: { id: true, displayName: true, timeMs: true, viewerId: true },
         }),
       ])
     : [null, [], []];
@@ -70,13 +70,13 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
   if (track.isPublished && viewerId && !topLapRecords.some((r) => r.viewerId === viewerId)) {
     const mine = await prisma.lapRecord.findUnique({
       where: { trackId_viewerId: { trackId: track.id, viewerId } },
-      select: { displayName: true, timeMs: true },
+      select: { id: true, displayName: true, timeMs: true },
     });
     if (mine) {
       const rank = await prisma.lapRecord.count({
         where: { trackId: track.id, timeMs: { lt: mine.timeMs } },
       });
-      ownLapRecord = { rank: rank + 1, displayName: mine.displayName, timeMs: mine.timeMs };
+      ownLapRecord = { id: mine.id, rank: rank + 1, displayName: mine.displayName, timeMs: mine.timeMs };
     }
   }
 
@@ -125,7 +125,9 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
 
       {track.isPublished && (
         <Leaderboard
+          slug={slug}
           entries={topLapRecords.map((r, i) => ({
+            id: r.id,
             rank: i + 1,
             displayName: r.displayName,
             timeMs: r.timeMs,
