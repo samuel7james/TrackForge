@@ -18,11 +18,10 @@ export default async function Image({ params }: Props) {
   const { slug } = await params;
   const track = await prisma.track.findUnique({
     where: { slug },
-    select: { name: true, description: true, document: true },
+    select: { name: true, description: true, difficulty: true },
   });
 
-  const meta = (track?.document as { meta?: { difficulty?: string } })?.meta;
-  const difficulty = meta?.difficulty ? DIFFICULTY_LABELS[meta.difficulty] : "Beginner";
+  const difficulty = track ? (DIFFICULTY_LABELS[track.difficulty] ?? "Beginner") : "Beginner";
 
   return new ImageResponse(
     (
