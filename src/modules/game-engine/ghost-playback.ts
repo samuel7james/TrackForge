@@ -7,13 +7,17 @@ import type { GhostSample } from "./ghost-recorder";
 
 const STORAGE_PREFIX = "racing.bestGhost.";
 
-function storageKey(trackId: string | null): string {
-  return STORAGE_PREFIX + (trackId || "default");
+// `cellsFingerprint` (encodeCells' output, see engine-core.ts) is folded
+// into the key alongside trackId -- a ghost recorded on a track's previous
+// layout would otherwise keep replaying after the owner edits it, driving
+// a route that no longer matches what's actually built.
+function storageKey(trackId: string | null, cellsFingerprint: string): string {
+  return STORAGE_PREFIX + (trackId || "default") + "." + cellsFingerprint;
 }
 
-export function loadGhost(trackId: string | null): GhostSample[] | null {
+export function loadGhost(trackId: string | null, cellsFingerprint: string): GhostSample[] | null {
   try {
-    const raw = localStorage.getItem(storageKey(trackId));
+    const raw = localStorage.getItem(storageKey(trackId, cellsFingerprint));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
@@ -22,10 +26,10 @@ export function loadGhost(trackId: string | null): GhostSample[] | null {
   }
 }
 
-export function saveGhost(trackId: string | null, samples: GhostSample[]) {
+export function saveGhost(trackId: string | null, cellsFingerprint: string, samples: GhostSample[]) {
   try {
     if (samples.length === 0) return;
-    localStorage.setItem(storageKey(trackId), JSON.stringify(samples));
+    localStorage.setItem(storageKey(trackId, cellsFingerprint), JSON.stringify(samples));
   } catch {
     // storage unavailable -- ghost just won't persist
   }

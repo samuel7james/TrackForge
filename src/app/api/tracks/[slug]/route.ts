@@ -7,6 +7,18 @@ interface RouteContext {
   params: Promise<{ slug: string }>;
 }
 
+// Order-independent -- the editor can rebuild the cells array in a
+// different order without the layout actually changing (e.g. re-tiling
+// over the same footprint), so this compares the set of placed cells, not
+// array position.
+function cellsChanged(oldCells: unknown[], newCells: unknown[]): boolean {
+  if (oldCells.length !== newCells.length) return true;
+  const normalize = (cells: unknown[]) => cells.map((c) => JSON.stringify(c)).sort();
+  const a = normalize(oldCells);
+  const b = normalize(newCells);
+  return a.some((v, i) => v !== b[i]);
+}
+
 // Public read — anyone can view a track's current document (also what
 // Milestone 3's published track pages will use).
 export async function GET(_request: Request, { params }: RouteContext) {
@@ -47,7 +59,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   const existing = await prisma.track.findUnique({
     where: { slug },
-    select: { id: true, editToken: true },
+    select: { id: true, editToken: true, document: true },
   });
   if (!existing) {
     return NextResponse.json({ error: "Track not found" }, { status: 404 });
@@ -55,6 +67,17 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (existing.editToken !== editToken) {
     return NextResponse.json({ error: "Invalid edit token" }, { status: 403 });
   }
+
+  // A leaderboard reflects laps driven on a specific layout -- once the
+  // owner changes the actual tiles, every recorded time (everyone else's,
+  // not just the owner's own local best/ghost handled client-side in
+  // engine-core.ts) was set on a route that no longer exists, so it's
+  // cleared to let a new leaderboard form for the new layout. A rename/
+  // description/tag-only save leaves cells untouched and doesn't trigger
+  // this at all.
+  const oldParsed = safeParseTrackDocument(existing.document);
+  const layoutChanged =
+    oldParsed.success && cellsChanged(oldParsed.data.track.cells, document.track.cells);
 
   const [updated] = await prisma.$transaction([
     prisma.track.update({
@@ -73,6 +96,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     prisma.trackVersion.create({
       data: { trackId: existing.id, document },
     }),
+    ...(layoutChanged ? [prisma.lapRecord.deleteMany({ where: { trackId: existing.id } })] : []),
   ]);
 
   return NextResponse.json({ ok: true, updatedAt: updated.updatedAt });

@@ -63,8 +63,14 @@ export class LapTimer {
    * the timer at all). */
   enabled: boolean;
 
-  constructor(cells: Cell[] | null, trackId: string | null) {
-    this.storageKey = STORAGE_PREFIX + (trackId || "default");
+  // `cellsFingerprint` folds the track's current layout into the storage
+  // key alongside trackId -- a best lap set before the owner edited this
+  // track no longer means anything against the new layout, so an edit
+  // starts the HUD's "Best" display fresh instead of showing a leftover
+  // time from a route that doesn't exist anymore (see ghost-playback.ts's
+  // identical reasoning).
+  constructor(cells: Cell[] | null, trackId: string | null, cellsFingerprint = "") {
+    this.storageKey = STORAGE_PREFIX + (trackId || "default") + "." + cellsFingerprint;
     this.bestLap = loadBest(this.storageKey);
 
     this.cellSize = CELL_RAW * GRID_SCALE;

@@ -26,7 +26,7 @@ import {
 import { Vehicle, MAX_SPEED } from "./vehicle";
 import { Camera } from "./camera";
 import { Controls } from "./controls";
-import { buildTrack, computeSpawnPosition, computeTrackBounds, type Cell, type ModelMap } from "./track";
+import { buildTrack, computeSpawnPosition, computeTrackBounds, encodeCells, TRACK_CELLS, type Cell, type ModelMap } from "./track";
 import { buildWallColliders, createSphereBody } from "./physics";
 import { SmokeTrails } from "./particles";
 import { DriftMarks } from "./drift-marks";
@@ -331,11 +331,20 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   const audio = new GameAudio();
   audio.init(cam.camera, vehicleGroup);
 
-  const lapTimer = new LapTimer(mapCells, trackId);
+  // A best lap/ghost recorded before the owner edited this track's layout
+  // is meaningless against the new one (different corners, different
+  // possible route) -- keying local storage off the layout itself, not
+  // just trackId, means an edit naturally starts fresh instead of
+  // resurfacing a stale time/ghost that no longer matches what's on track.
+  const cellsFingerprint = encodeCells(mapCells || TRACK_CELLS);
+
+  const lapTimer = new LapTimer(mapCells, trackId, cellsFingerprint);
   const sessionStats = new SessionStats(lapTimer.enabled);
 
   const ghostRecorder = new GhostRecorder();
-  const ghostPlayer = new GhostPlayer(lapTimer.enabled ? loadGhost(trackId) : null);
+  const ghostPlayer = new GhostPlayer(
+    lapTimer.enabled ? loadGhost(trackId, cellsFingerprint) : null
+  );
   const ghostMesh = lapTimer.enabled ? buildGhostMesh(models[PLAYER_MODEL]) : null;
   if (ghostMesh) {
     ghostMesh.visible = false;
@@ -373,7 +382,7 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
 
       if (lapTimer.lastLapWasBest) {
         const samples = ghostRecorder.getSamples();
-        saveGhost(trackId, samples);
+        saveGhost(trackId, cellsFingerprint, samples);
         ghostPlayer.setSamples(samples);
       }
 
