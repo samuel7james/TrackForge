@@ -22,7 +22,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
   }
 
-  const { token, maxAge } = createAdminSessionToken();
+  let token: string;
+  let maxAge: number;
+  try {
+    ({ token, maxAge } = createAdminSessionToken());
+  } catch {
+    // ADMIN_SESSION_SECRET missing in this environment -- a clear error
+    // instead of an unhandled 500, since the credentials themselves were
+    // actually correct.
+    return NextResponse.json(
+      { error: "Server isn't configured for admin login yet (missing ADMIN_SESSION_SECRET)" },
+      { status: 500 }
+    );
+  }
   const store = await cookies();
   store.set(ADMIN_SESSION_COOKIE, token, {
     httpOnly: true,

@@ -52,7 +52,16 @@ export function verifyAdminSessionToken(token: string | undefined | null): boole
   const payload = token.slice(0, separatorIndex);
   const signature = token.slice(separatorIndex + 1);
   if (!payload || !signature) return false;
-  if (!timingSafeStringEqual(signature, sign(payload))) return false;
+  try {
+    // Fail closed (treat as "not authenticated"), not an unhandled crash --
+    // sign() throws if ADMIN_SESSION_SECRET isn't set in this environment,
+    // and a misconfigured secret should redirect to login, not 500 the
+    // whole page. This is the one path a real cookie can reach `sign()`
+    // from, so it's the one place this needs guarding.
+    if (!timingSafeStringEqual(signature, sign(payload))) return false;
+  } catch {
+    return false;
+  }
   const expiresAt = Number(payload);
   return Number.isFinite(expiresAt) && expiresAt > Date.now();
 }
