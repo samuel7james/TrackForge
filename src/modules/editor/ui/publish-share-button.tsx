@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { useTrackStore } from "@/store/track-store";
 import { editTokenStorageKey } from "@/modules/track-format/edit-token-storage";
+import { DEFAULT_TRACK_NAME } from "@/modules/track-format/schema";
 
 interface PublishIssue {
   code: string;
@@ -137,9 +138,22 @@ export function PublishShareButton({
                 placeholder="Untitled Track"
                 className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground"
               />
+              {name.trim().toLowerCase() === DEFAULT_TRACK_NAME.toLowerCase() && (
+                <p className="text-xs text-amber-500">
+                  Give it a real name — every published track needs a unique one.
+                </p>
+              )}
             </div>
             <DialogFooter>
-              <Button onClick={handlePublish} disabled={isPublishing || !name.trim()} className="gap-1.5">
+              <Button
+                onClick={handlePublish}
+                disabled={
+                  isPublishing ||
+                  !name.trim() ||
+                  name.trim().toLowerCase() === DEFAULT_TRACK_NAME.toLowerCase()
+                }
+                className="gap-1.5"
+              >
                 <Rocket className="size-4" />
                 {isPublishing ? "Publishing…" : "Publish"}
               </Button>

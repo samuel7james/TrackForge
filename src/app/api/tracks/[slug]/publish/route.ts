@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
+import { DEFAULT_TRACK_NAME } from "@/modules/track-format/schema";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
@@ -46,24 +47,33 @@ export async function POST(request: Request, { params }: RouteContext) {
     issues.push({ code: "too-short", message: "Track needs more than just the finish line" });
   }
 
-  // Checked at publish time, not on every save -- every brand-new track
-  // starts out named "Untitled Track" (see createEmptyTrackDocument), so a
-  // hard uniqueness rule on every autosave would make it impossible for a
-  // second draft to even exist before it's renamed. Publishing is the
-  // point a name actually becomes publicly visible, so that's where "no
-  // one else can have this name" gets enforced. Case-insensitive so
-  // "Sunny Circuit" and "sunny circuit" don't coexist as confusingly
-  // near-duplicates.
-  const nameConflict = await prisma.track.findFirst({
-    where: {
-      id: { not: track.id },
-      isPublished: true,
-      name: { equals: track.name, mode: "insensitive" },
-    },
-    select: { id: true },
-  });
-  if (nameConflict) {
-    issues.push({ code: "duplicate-name", message: "Another published track already has this name" });
+  // Every brand-new track starts out named "Untitled Track" (see
+  // createEmptyTrackDocument) -- checked and rejected before the
+  // uniqueness query below, not folded into it, because whoever published
+  // first under that placeholder would otherwise silently block every
+  // other person who also didn't bother renaming, with a "duplicate name"
+  // message that doesn't explain why. This is the actionable version of
+  // that same requirement.
+  if (track.name.trim().toLowerCase() === DEFAULT_TRACK_NAME.toLowerCase()) {
+    issues.push({ code: "default-name", message: "Give your track a name before publishing" });
+  } else {
+    // Checked at publish time, not on every save -- a hard uniqueness rule
+    // on every autosave would make it impossible for a second draft to even
+    // exist before it's renamed. Publishing is the point a name actually
+    // becomes publicly visible, so that's where "no one else can have this
+    // name" gets enforced. Case-insensitive so "Sunny Circuit" and "sunny
+    // circuit" don't coexist as confusingly near-duplicates.
+    const nameConflict = await prisma.track.findFirst({
+      where: {
+        id: { not: track.id },
+        isPublished: true,
+        name: { equals: track.name, mode: "insensitive" },
+      },
+      select: { id: true },
+    });
+    if (nameConflict) {
+      issues.push({ code: "duplicate-name", message: "Another published track already has this name" });
+    }
   }
 
   if (issues.length > 0) {

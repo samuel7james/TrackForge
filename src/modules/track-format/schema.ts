@@ -115,7 +115,12 @@ export const trackDocumentSchema = z.object({
 });
 export type TrackDocument = z.infer<typeof trackDocumentSchema>;
 
-export function createEmptyTrackDocument(name = "Untitled Track"): TrackDocument {
+// Exported so the publish route can reject this exact placeholder rather
+// than letting it collide silently with every other track someone forgot
+// to rename before publishing.
+export const DEFAULT_TRACK_NAME = "Untitled Track";
+
+export function createEmptyTrackDocument(name = DEFAULT_TRACK_NAME): TrackDocument {
   const now = new Date().toISOString();
   return {
     formatVersion: 2,
