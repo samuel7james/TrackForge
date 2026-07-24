@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
+import { computeTrackDifficulty } from "@/modules/track-format/auto-difficulty";
 import { generateSlug } from "@/server/slug";
 import { getOrCreateAnonymousId, AUTHOR_ID_COOKIE } from "@/lib/anonymous-id";
 
@@ -26,7 +27,8 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid track document" }, { status: 400 });
   }
-  const document = parsed.data;
+  const difficulty = computeTrackDifficulty(parsed.data.track.cells);
+  const document = { ...parsed.data, meta: { ...parsed.data.meta, difficulty } };
   const editToken = randomBytes(32).toString("hex");
   // Stable per-browser id (PROJECT_PLAN.md §8) -- the same value across every
   // track this browser creates, not a fresh one per save, so a Phase 19

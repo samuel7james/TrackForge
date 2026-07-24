@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
+import { computeTrackDifficulty } from "@/modules/track-format/auto-difficulty";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
@@ -41,7 +42,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid track document" }, { status: 400 });
   }
-  const document = parsed.data;
+  const difficulty = computeTrackDifficulty(parsed.data.track.cells);
+  const document = { ...parsed.data, meta: { ...parsed.data.meta, difficulty } };
 
   const existing = await prisma.track.findUnique({
     where: { slug },
