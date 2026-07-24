@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { DiscoverControls } from "@/modules/discover/discover-controls";
 import { TrackCard } from "@/modules/track/track-card";
 import { PublicNav } from "@/modules/track/public-nav";
+import { BackButton } from "@/components/ui/back-button";
 
 interface DiscoverPageProps {
   searchParams: Promise<{ sort?: string; q?: string }>;
@@ -56,11 +57,14 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-16">
       <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            TrackForge
-          </span>
-          <h1 className="text-3xl font-semibold tracking-tight">Discover tracks</h1>
+        <div className="flex items-center gap-3">
+          <BackButton />
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              TrackForge
+            </span>
+            <h1 className="text-3xl font-semibold tracking-tight">Discover tracks</h1>
+          </div>
         </div>
         <PublicNav current="/discover" />
       </div>

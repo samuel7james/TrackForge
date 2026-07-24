@@ -126,3 +126,19 @@ model LapRecord {
   @@unique([trackId, viewerId])
   @@index([trackId, timeMs])
 }
+
+// A racer's chosen name, claimed globally -- one row per viewer, `name`
+// itself unique so no two browsers can hold the same racer name at once.
+// Renaming updates this same row (frees the old name for someone else to
+// claim, doesn't leave a trail of every name a viewer has ever tried).
+// Unlike Track.name (see the publish route's own uniqueness check), a hard
+// DB-level unique constraint is safe here -- there's no auto-generated
+// default racer name analogous to "Untitled Track" that would collide on
+// every claim attempt.
+model DisplayName {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  viewerId  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

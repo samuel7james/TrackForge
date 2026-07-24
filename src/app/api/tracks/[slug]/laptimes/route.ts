@@ -26,10 +26,16 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   const body = await request.json().catch(() => null);
   const timeMs = body?.timeMs;
-  const displayName = typeof body?.displayName === "string" ? body.displayName.trim().slice(0, 40) : "";
-  if (!Number.isFinite(timeMs) || timeMs <= 0 || !displayName) {
+  if (!Number.isFinite(timeMs) || timeMs <= 0) {
     return NextResponse.json({ error: "Invalid lap time submission" }, { status: 400 });
   }
+
+  // The authoritative name for this viewer, not whatever the client sent --
+  // DisplayNameGate claims a name via /api/display-names/claim before ever
+  // letting a race start, so this closes the loophole of a raw POST here
+  // attaching a name that isn't actually this viewer's claimed one.
+  const claimed = await prisma.displayName.findUnique({ where: { viewerId } });
+  const displayName = claimed?.name ?? "Anonymous";
 
   const track = await prisma.track.findUnique({ where: { slug }, select: { id: true } });
   if (!track) {

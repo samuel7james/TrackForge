@@ -1,8 +1,6 @@
 # TrackForge
 
-Figma for race tracks — design tracks with splines, drive them instantly, publish, and share a link, all in the browser.
-
-See [`PROJECT_PLAN.md`](./PROJECT_PLAN.md) for the full architecture and [`TASKS.md`](./TASKS.md) for milestone progress.
+Design race tracks tile by tile, drive them instantly, publish, and share a link — all in the browser, no account needed.
 
 ## Getting started
 

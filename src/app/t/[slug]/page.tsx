@@ -8,6 +8,7 @@ import { TrackEngagement } from "@/modules/track/track-engagement";
 import { Leaderboard, type LeaderboardOwnEntry } from "@/modules/track/leaderboard";
 import { DIFFICULTY_LABELS } from "@/modules/track/difficulty-labels";
 import { VIEWER_ID_COOKIE } from "@/lib/anonymous-id";
+import { BackButton } from "@/components/ui/back-button";
 
 const LEADERBOARD_TOP_N = 20;
 
@@ -81,13 +82,16 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-6 py-16">
-      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-        <span>TrackForge</span>
-        {!track.isPublished && (
-          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-400">
-            Draft
-          </span>
-        )}
+      <div className="flex items-center gap-3">
+        <BackButton />
+        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          <span>TrackForge</span>
+          {!track.isPublished && (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-400">
+              Draft
+            </span>
+          )}
+        </div>
       </div>
 
       <h1 className="text-4xl font-semibold tracking-tight">{track.name}</h1>

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AUTHOR_ID_COOKIE } from "@/lib/anonymous-id";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/ui/back-button";
 import { PublicNav } from "@/modules/track/public-nav";
 
 // authorId is only ever set by POST /api/tracks (Route Handlers can set
@@ -16,11 +17,14 @@ export default async function MyTracksPage() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-16">
       <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            TrackForge
-          </span>
-          <h1 className="text-3xl font-semibold tracking-tight">My tracks</h1>
+        <div className="flex items-center gap-3">
+          <BackButton />
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              TrackForge
+            </span>
+            <h1 className="text-3xl font-semibold tracking-tight">My tracks</h1>
+          </div>
         </div>
         <PublicNav current="/my-tracks" />
       </div>

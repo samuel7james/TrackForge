@@ -146,7 +146,7 @@ export const PROP_TYPES = Object.keys(PROP_REGISTRY) as PropType[];
 // this uses the trunk's radius, not the foliage's.
 //
 // forest/paddock are real 10x10-unit decoration tiles (measured from their
-// own GLTF bounding box, see TASKS.md), not single objects -- their radius
+// own GLTF bounding box), not single objects -- their radius
 // here is deliberately generous (half the tile footprint) so Phase 16's
 // validation still catches one dropped squarely across the road, even
 // though (see PROP_HAS_COLLIDER below) they don't get an actual physics
