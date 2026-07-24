@@ -13,6 +13,9 @@ import { SaveButton } from "@/modules/editor/ui/save-button";
 import { PublishShareButton } from "@/modules/editor/ui/publish-share-button";
 import { ResetTrackButton } from "@/modules/editor/ui/reset-track-button";
 import { DeleteTrackButton } from "@/modules/editor/ui/delete-track-button";
+import { usePresenceRoom } from "@/modules/editor/collab/use-presence-room";
+import { PresenceProvider } from "@/modules/editor/collab/presence-context";
+import { PresenceAvatars } from "@/modules/editor/collab/presence-avatars";
 import { useEditorStore } from "@/store/editor-store";
 import { useTrackStore } from "@/store/track-store";
 import { useCommandStack } from "@/modules/editor/core/command-stack";
@@ -68,6 +71,11 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
   const [submittedName, setSubmittedName] = useState<string | null>(null);
   const displayName = submittedName ?? storedDisplayName;
 
+  // Milestone 5 Phase 1: presence + live cursors, scoped to this track's
+  // room (a no-op connection while currentSlug is null -- a brand-new
+  // unsaved track has nothing to collaborate on yet).
+  const { peers, broadcastCursor } = usePresenceRoom(currentSlug || null);
+
   // Fresh editor session: load the given document (or keep the store's
   // default empty one for a brand-new track), reset undo history, and
   // default to the road tool.
@@ -101,85 +109,88 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
   }, []);
 
   return (
-    <div className="fixed inset-0">
-      {mode === "edit" ? (
-        <TrackForgeCanvas />
-      ) : displayName ? (
-        <EngineMount
-          key={slug ?? "new"}
-          mapCells={cells}
-          objects={objects}
-          trackId={slug}
-          submitLapTimes={autoplay}
-          displayName={displayName}
-        />
-      ) : (
-        <DisplayNameGate onSubmit={setSubmittedName} />
-      )}
+    <PresenceProvider value={{ peers, broadcastCursor }}>
+      <div className="fixed inset-0">
+        {mode === "edit" ? (
+          <TrackForgeCanvas />
+        ) : displayName ? (
+          <EngineMount
+            key={slug ?? "new"}
+            mapCells={cells}
+            objects={objects}
+            trackId={slug}
+            submitLapTimes={autoplay}
+            displayName={displayName}
+          />
+        ) : (
+          <DisplayNameGate onSubmit={setSubmittedName} />
+        )}
 
-      <div className="pointer-events-none absolute inset-0 flex flex-col">
-        <header className="pointer-events-auto flex items-center justify-between p-4">
-          <div className="flex items-center gap-3 text-sm">
-            <span className="font-medium tracking-tight text-foreground/90">TrackForge</span>
-            <span className="text-muted-foreground">/</span>
-            <span className="text-muted-foreground">{trackName}</span>
+        <div className="pointer-events-none absolute inset-0 flex flex-col">
+          <header className="pointer-events-auto flex items-center justify-between p-4">
+            <div className="flex items-center gap-3 text-sm">
+              <span className="font-medium tracking-tight text-foreground/90">TrackForge</span>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-muted-foreground">{trackName}</span>
+              {mode === "edit" && (
+                <>
+                  <SaveButton saveTrack={saveTrack} />
+                  <PublishShareButton initiallyPublished={initiallyPublished ?? false} saveTrack={saveTrack} />
+                  <ResetTrackButton />
+                  {currentSlug && <DeleteTrackButton slug={currentSlug} name={trackName} />}
+                  {currentSlug && <PresenceAvatars />}
+                </>
+              )}
+            </div>
+            <ModeToggle />
+          </header>
+
+          <AnimatePresence mode="wait">
             {mode === "edit" && (
-              <>
-                <SaveButton saveTrack={saveTrack} />
-                <PublishShareButton initiallyPublished={initiallyPublished ?? false} saveTrack={saveTrack} />
-                <ResetTrackButton />
-                {currentSlug && <DeleteTrackButton slug={currentSlug} name={trackName} />}
-              </>
+              <motion.div
+                key="edit-mode"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <motion.div
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="pointer-events-auto absolute left-4 top-1/2 -translate-y-1/2"
+                >
+                  <Toolbar tools={TOOLS} />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="pointer-events-auto absolute right-4 top-20"
+                >
+                  <PropPalettePanel />
+                </motion.div>
+                <p className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
+                  Road tool: click to place/auto-tile · Erase tool: click to remove · Object tool:
+                  pick a prop, click to place, Delete to remove selected · V/G/E/O switch tools
+                </p>
+              </motion.div>
             )}
-          </div>
-          <ModeToggle />
-        </header>
-
-        <AnimatePresence mode="wait">
-          {mode === "edit" && (
-            <motion.div
-              key="edit-mode"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <motion.div
-                initial={{ opacity: 0, x: -16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="pointer-events-auto absolute left-4 top-1/2 -translate-y-1/2"
+            {mode === "play" && (
+              <motion.p
+                key="play-mode"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground"
               >
-                <Toolbar tools={TOOLS} />
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="pointer-events-auto absolute right-4 top-20"
-              >
-                <PropPalettePanel />
-              </motion.div>
-              <p className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
-                Road tool: click to place/auto-tile · Erase tool: click to remove · Object tool:
-                pick a prop, click to place, Delete to remove selected · V/G/E/O switch tools
-              </p>
-            </motion.div>
-          )}
-          {mode === "play" && (
-            <motion.p
-              key="play-mode"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground"
-            >
-              WASD / arrows to drive · Esc to return to editing
-            </motion.p>
-          )}
-        </AnimatePresence>
+                WASD / arrows to drive · Esc to return to editing
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
+    </PresenceProvider>
   );
 }

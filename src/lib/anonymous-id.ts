@@ -1,10 +1,9 @@
 import { cookies } from "next/headers";
 import { randomUUID } from "node:crypto";
 
-const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
+export { AUTHOR_ID_COOKIE, VIEWER_ID_COOKIE } from "./anonymous-id-cookies";
 
-export const AUTHOR_ID_COOKIE = "trackforge-author-id";
-export const VIEWER_ID_COOKIE = "trackforge-viewer-id";
+const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
 // A stable per-browser id, not a secret -- unlike editToken it grants no
 // permission by itself (ownership is still gated by editToken per-track), it

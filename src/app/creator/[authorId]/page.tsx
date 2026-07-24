@@ -29,7 +29,7 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
       tags: true,
       playCount: true,
       likeCount: true,
-      document: true,
+      difficulty: true,
     },
   });
 

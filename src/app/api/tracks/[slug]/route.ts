@@ -43,7 +43,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   }
   const document = parsed.data;
 
-  const existing = await prisma.track.findUnique({ where: { slug } });
+  const existing = await prisma.track.findUnique({
+    where: { slug },
+    select: { id: true, editToken: true },
+  });
   if (!existing) {
     return NextResponse.json({ error: "Track not found" }, { status: 404 });
   }
@@ -59,6 +62,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         name: document.meta.name,
         description: document.meta.description,
         tags: document.meta.tags,
+        difficulty: document.meta.difficulty,
       },
     }),
     // One row per save (PROJECT_PLAN.md §7) — empty of product features
@@ -82,7 +86,10 @@ export async function DELETE(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Missing edit token" }, { status: 401 });
   }
 
-  const existing = await prisma.track.findUnique({ where: { slug } });
+  const existing = await prisma.track.findUnique({
+    where: { slug },
+    select: { editToken: true },
+  });
   if (!existing) {
     return NextResponse.json({ error: "Track not found" }, { status: 404 });
   }

@@ -6,6 +6,7 @@ import { useTrackStore } from "@/store/track-store";
 import { useEditorStore } from "@/store/editor-store";
 import { usePropPaletteStore } from "@/store/prop-palette-store";
 import { createPlacedObject } from "@/modules/objects/prop-registry";
+import { usePresenceContext } from "@/modules/editor/collab/presence-context";
 import { CELL_RAW, GRID_SCALE } from "@/modules/game-engine/track";
 import {
   cellsToGrid,
@@ -42,6 +43,7 @@ export function TileGridLayer() {
   const selectedId = useEditorStore((s) => s.selectedId);
   const setSelectedId = useEditorStore((s) => s.setSelectedId);
   const selectedPropType = usePropPaletteStore((s) => s.selectedType);
+  const { broadcastCursor } = usePresenceContext();
 
   // A brand-new track (opened with an empty grid) starts with a finish cell,
   // same as the reference editor's own bootstrap ("start with a finish cell
@@ -84,6 +86,13 @@ export function TileGridLayer() {
     [activeToolId, cells, setCells, selectedPropType, insertPlacedObject, setSelectedId]
   );
 
+  const handleGroundPointerMove = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      broadcastCursor(e.point.x, e.point.z);
+    },
+    [broadcastCursor]
+  );
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (isTypingIntoField(e.target)) return;
@@ -107,6 +116,7 @@ export function TileGridLayer() {
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
           onClick={handleGroundClick}
+          onPointerMove={handleGroundPointerMove}
           onPointerDown={(e) => e.stopPropagation()}
         >
           <planeGeometry args={[500, 500]} />

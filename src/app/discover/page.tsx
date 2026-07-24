@@ -49,7 +49,7 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
       tags: true,
       playCount: true,
       likeCount: true,
-      document: true,
+      difficulty: true,
     },
   });
 

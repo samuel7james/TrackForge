@@ -22,7 +22,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Too many requests — slow down." }, { status: 429 });
   }
 
-  const track = await prisma.track.findUnique({ where: { slug } });
+  const track = await prisma.track.findUnique({ where: { slug }, select: { id: true } });
   if (!track) {
     return NextResponse.json({ error: "Track not found" }, { status: 404 });
   }

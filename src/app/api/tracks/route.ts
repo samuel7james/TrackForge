@@ -48,6 +48,7 @@ export async function POST(request: Request) {
           name: document.meta.name,
           description: document.meta.description,
           tags: document.meta.tags,
+          difficulty: document.meta.difficulty,
           authorId,
           editToken,
           document: documentWithSlug,

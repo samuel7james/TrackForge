@@ -275,10 +275,125 @@
   both fields directly via SQL to remove the name.
 - Full `tsc`/`eslint`/`next build` clean.
 
-## Milestone 5 — Live Collaboration (high-level)
-- [ ] Networked `CommandStack` backend (Yjs or custom CRDT)
-- [ ] Live cursors, live selection highlights
-- [ ] Presence/session UI, conflict handling
+## Ad hoc — Optimization pass
+
+A project-wide audit (DB query patterns, bundle size, React rendering,
+game-engine per-frame allocations, assets, API route efficiency) turned up
+a short list of concrete, fixable issues — no speculative optimization for
+scale nobody's asked for.
+
+- [x] **Denormalized `Track.difficulty`** (`prisma/schema.prisma`,
+      migration `20260724095934_track_difficulty_and_tags_index`) — same
+      pattern already used for `name`/`description`/`tags`. Discover and
+      the creator page were fetching each track's *entire* `document` JSON
+      (the whole tile grid + placed objects, unbounded size) in a 24-row
+      list purely to read `meta.difficulty` for `TrackCard`. Both pages
+      and `TrackCard` now `select`/accept `difficulty` directly.
+- [x] **Trimmed four over-fetching routes** (`comments`, `like`,
+      `laptimes`, `leaderboard`, plus `PATCH`/`DELETE` on
+      `/api/tracks/[slug]`) — all did `prisma.track.findUnique({ where:
+      { slug } })` with no `select`, pulling the full `document` blob just
+      to read `.id`/`.editToken`. Now `select: { id: true }` (or
+      `{ editToken: true }` where that's the only other field checked).
+- [x] **Added a GIN index on `Track.tags`** (`@@index([tags], type: Gin)`)
+      — Discover's tag search (`{ tags: { has: query } }`) was an
+      unindexed sequential scan.
+- [x] **Removed two genuinely dead dependencies**: `@dimforge/rapier3d-compat`
+      and `@react-three/rapier` — leftover from the v1 spline/Rapier stack
+      deleted in the earlier engine-swap arc, confirmed via `grep` to have
+      zero remaining imports anywhere in `src/`. Rapier ships a WASM
+      binary, not a trivial remove.
+- [x] Moved `@types/three` and `shadcn` from `dependencies` to
+      `devDependencies` — neither is imported at runtime (`shadcn` is a
+      CLI scaffolder, `@types/three` is types-only).
+
+**Notes:**
+
+- Everything else the audit checked came back clean: no N+1 patterns,
+  Zustand selectors are already granular everywhere, `engine-core.ts`'s
+  `animate()` loop (including all of Milestone 4's additions) already
+  follows the codebase's own no-per-frame-allocation convention, no
+  oversized assets, Three.js is already isolated from `/`/`/discover` by
+  Next's per-route code splitting.
+- `npm audit` surfaces 6 pre-existing vulnerabilities, all in dev-only
+  tooling transitive deps (`shadcn`'s bundled MCP SDK, `next`'s bundled
+  `postcss`/`sharp`) — `npm audit fix --force`'s suggested fix would
+  downgrade Next.js to v9, so left alone rather than "fixed" destructively.
+- Verified via Playwright: Discover and the creator page still render the
+  correct name/description/difficulty; the trimmed like/comment/leaderboard
+  routes still function correctly end-to-end. Full `tsc`/`eslint`/
+  `next build` clean. Test comment/like created during verification
+  cleaned up from the dev database afterward.
+
+## Milestone 5 — Live Collaboration
+
+### Phase 1 — Presence + live cursors
+
+Real-time transport: **PartyKit** (user's choice — purpose-built for Yjs/
+collab rooms, generous free tier, deploys separately from the Vercel-hosted
+Next.js app). Scoped down to presence + live cursors first, no CRDT
+document merge yet (that's Phase 2) — see the plan this phase followed for
+the full reasoning.
+
+- [x] `party/index.ts` (new top-level `party/` dir, sibling to `src/`) — a
+      minimal presence-relay `Party.Server`. One room per track (room id =
+      slug). `onMessage` handles `identify` (viewerId + displayName +
+      color) and `cursor` (world x/z), storing state on the connection
+      itself and broadcasting the full peer list on every change; `onClose`/
+      `onError` re-broadcast so a disconnect is reflected immediately.
+      `partykit.json` config; `partykit`/`partysocket` added as deps; new
+      `dev:party` npm script (`partykit dev`, run alongside `next dev` in a
+      second terminal, not auto-started by `npm run dev`).
+- [x] `use-presence-room.ts` (`src/modules/editor/collab/`) — connects via
+      `partysocket/react`'s `usePartySocket`, only when a track has a slug
+      (nothing to collaborate on for a brand-new unsaved track). Sends
+      `identify` on open (viewerId read from the existing, non-httpOnly
+      `VIEWER_ID_COOKIE`; displayName from the Milestone-4 racing name
+      storage, falling back to "Anonymous" -- editing doesn't get a hard
+      name-gate like racing does). Exposes `{ peers, broadcastCursor }`,
+      `peers` always excluding the local browser's own entry.
+- [x] `presence-context.tsx` — a React Context (not a Zustand store, unlike
+      most cross-cutting state in this codebase) carrying `{ peers,
+      broadcastCursor }` from `track-editor.tsx` (the one place `slug` is
+      known) down through `TrackForgeCanvas`/`EditorEngine` to
+      `TileGridLayer` and `PresenceCursors`, and up to the header's
+      `PresenceAvatars` -- avoids prop-drilling through components that
+      don't otherwise care about presence at all.
+- [x] `presence-cursors.tsx` — world-space cursor markers (a small ring +
+      a `drei` `<Html>` name tag), mounted in `scene-root.tsx`. A 3D
+      editor's cursor is meaningfully a world position, not a 2D
+      screen-space one (every viewer's camera angle differs).
+      `tile-grid-layer.tsx` gained an `onPointerMove` on its existing
+      ground-catcher mesh, throttled to ~20Hz, reusing the exact
+      world-space hit-testing already used for tile placement.
+- [x] `presence-avatars.tsx` — a small avatar stack in the editor header,
+      next to Save/Publish/Reset/Delete, showing everyone in the room
+      (including a "1" for just yourself, so it's discoverable solo).
+- [x] `NEXT_PUBLIC_PARTYKIT_HOST` env var (`.env`/`.env.example`) --
+      `127.0.0.1:1999` locally; the deployed `<project>.<user>.partykit.dev`
+      host is the user's own to set up (a PartyKit account/deploy is
+      theirs to run, not mine to do on their behalf).
+
+**Notes:**
+
+- Fixed a real bug hit during the build: `use-presence-room.ts` imported
+  `VIEWER_ID_COOKIE` from `lib/anonymous-id.ts`, which also has a top-level
+  `next/headers` import (server-only) -- pulling that into the client
+  bundle broke `next build`. Split just the two cookie *name* constants
+  into a new `lib/anonymous-id-cookies.ts` with zero imports;
+  `anonymous-id.ts` re-exports them for its existing server-side callers.
+- Verified with two separate Playwright browser contexts (two distinct
+  `viewerId` cookies) against `partykit dev` (local emulator) run alongside
+  `next dev`: both contexts show 2 avatars once presence syncs; moving the
+  pointer in one context's Road-tool ground-catcher shows a live cursor
+  pin + name tag at the correct world position in the other's `<Canvas>`;
+  closing one context drops the avatar count back to 1 in the other within
+  ~2s. Zero console errors in either context. Full `tsc`/`eslint`/
+  `next build` clean.
+
+### Phase 2 — Yjs-backed collaborative editing (not yet designed)
+
+### Phase 3 — Conflict/save-race handling (not yet designed)
 
 ---
 

@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Invalid lap time submission" }, { status: 400 });
   }
 
-  const track = await prisma.track.findUnique({ where: { slug } });
+  const track = await prisma.track.findUnique({ where: { slug }, select: { id: true } });
   if (!track) {
     return NextResponse.json({ error: "Track not found" }, { status: 404 });
   }

@@ -44,6 +44,12 @@ model Track {
   // cheap to sort/index on, kept in sync inside the like-toggle transaction.
   likeCount   Int      @default(0)
 
+  // Denormalized from document.meta.difficulty, same reasoning/pattern as
+  // name/description/tags below (kept in sync in the PATCH route) -- added
+  // so Discover/creator-page cards can select just this instead of the
+  // entire (unbounded) `document` JSON blob just to show one word per card.
+  difficulty  String   @default("beginner")
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -56,6 +62,7 @@ model Track {
   @@index([isPublished, createdAt])
   @@index([isPublished, playCount])
   @@index([isPublished, likeCount])
+  @@index([tags], type: Gin)
 }
 
 // One row per save. Empty of product features until Milestone 3 (version history UI),

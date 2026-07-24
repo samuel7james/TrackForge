@@ -38,7 +38,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Comment must be 1-500 characters" }, { status: 400 });
   }
 
-  const track = await prisma.track.findUnique({ where: { slug } });
+  const track = await prisma.track.findUnique({ where: { slug }, select: { id: true } });
   if (!track) {
     return NextResponse.json({ error: "Track not found" }, { status: 404 });
   }

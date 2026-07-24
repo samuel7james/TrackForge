@@ -38,6 +38,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# partykit (Milestone 5) -- local dev emulator's durable-object storage
+.partykit/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

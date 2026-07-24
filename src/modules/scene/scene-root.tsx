@@ -8,6 +8,7 @@ import { WEATHER_PRESETS, sunPositionAndFactor } from "@/modules/environment/wea
 import { CELL_RAW, GRID_SCALE } from "@/modules/game-engine/track";
 import { TileTrackRenderer } from "./tile-track-renderer";
 import { SkyDome } from "./sky-dome";
+import { PresenceCursors } from "@/modules/editor/collab/presence-cursors";
 
 const CELL_WORLD_SIZE = CELL_RAW * GRID_SCALE;
 
@@ -69,6 +70,7 @@ export function SceneRoot() {
 
       <TileTrackRenderer />
       <PlacedObjects objects={objects} />
+      <PresenceCursors />
     </>
   );
 }

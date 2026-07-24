@@ -9,15 +9,14 @@ export interface TrackCardData {
   tags: string[];
   playCount: number;
   likeCount: number;
-  document: unknown;
+  difficulty: string;
 }
 
 // Shared between Discover and creator pages -- both list published tracks in
 // the same card shape, and letting them drift into two copies would just
 // mean fixing the same layout bug twice.
 export function TrackCard({ track }: { track: TrackCardData }) {
-  const meta = (track.document as { meta?: { difficulty?: string } })?.meta;
-  const difficulty = meta?.difficulty ? DIFFICULTY_LABELS[meta.difficulty] : null;
+  const difficulty = DIFFICULTY_LABELS[track.difficulty];
 
   return (
     <Link href={`/t/${track.slug}`}>
