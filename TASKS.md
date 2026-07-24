@@ -220,7 +220,60 @@
   branch), not new detection logic of its own.
 - Full `tsc`/`eslint`/`next build` clean.
 
-### Phase 3 — Leaderboards, personal bests, world records (pending)
+### Phase 3 — Leaderboards, personal bests, world records
+
+- [x] `LapRecord` model (`prisma/schema.prisma`, migration
+      `20260724093351_lap_records`) — one row per (track, viewer) = that
+      viewer's personal best; the world record is just `MIN(timeMs)`
+      aggregated on demand, not a separate denormalized field. Includes
+      `displayName` (the name from the new racing gate), only updated when
+      `timeMs` itself improves — same accepted-staleness trade-off as
+      `Comment.displayName`.
+- [x] `POST /api/tracks/[slug]/laptimes` — viewerId + rate-limit pattern
+      copied verbatim from `like/route.ts`; manual read-then-write (not a
+      blind Prisma `upsert`) since "only write if better" isn't expressible
+      as one. Returns whether it was a new personal best and the current
+      world record.
+- [x] `GET /api/tracks/[slug]/leaderboard` — public, top 20 by `timeMs`,
+      plus the requesting viewer's own rank/entry even when outside the
+      top 20.
+- [x] `submitLapTimes`/`displayName` threaded through
+      `EngineOptions`/`EngineMount`/`track-editor.tsx` — `track-editor.tsx`
+      passes `submitLapTimes={autoplay}`, the *exact same flag* that
+      already gates the `playCount` POST, so an owner testing their own
+      track from the editor's mode toggle can never inflate their own
+      leaderboard position. A `sonner` toast fires on a new personal best
+      or new world record.
+- [x] `Leaderboard` (`src/modules/track/leaderboard.tsx`) — server-rendered
+      initial data fetched in `t/[slug]/page.tsx` (same `Promise.all` block
+      already fetching likes/comments), ranked list with a trophy badge on
+      #1 and the viewer's own row highlighted.
+
+**Notes:**
+
+- Verified the full API path directly (driving an actual lap end-to-end
+  wasn't reliably scriptable, per Phase 2's note, so this exercises the
+  same route/DB code a real submission would hit): submitted a lap time →
+  confirmed `isNewPersonalBest: true` and the correct world record;
+  submitted a *slower* time from the same viewer → confirmed it did **not**
+  overwrite the personal best (`isNewPersonalBest: false`, unchanged
+  `personalBestMs`); `GET /leaderboard` returned the entry correctly
+  ranked; reloaded the actual public track page and confirmed the rendered
+  `Leaderboard` component shows the name and correctly formatted time.
+  Zero console errors throughout.
+- The anti-inflation gate (`submitLapTimes={autoplay}`) was verified by
+  code inspection end-to-end (`track-editor.tsx` → `EngineMount` →
+  `createEngine` → the submission call), since it's structurally
+  impossible for the editor's own mode-toggle path to set it.
+- Incidental fix while reviewing the public track page: the demo track's
+  stored `description` (both the `Track.description` column and the
+  `document.meta.description` JSON field, which stays in sync via the
+  `PATCH` route) still said "...now built with the real
+  Starter-Kit-Racing tile track" — a leftover from before this session's
+  earlier request to strip all mrdoob/Starter-Kit-Racing name references,
+  which only touched code comments, not existing database content. Updated
+  both fields directly via SQL to remove the name.
+- Full `tsc`/`eslint`/`next build` clean.
 
 ## Milestone 5 — Live Collaboration (high-level)
 - [ ] Networked `CommandStack` backend (Yjs or custom CRDT)

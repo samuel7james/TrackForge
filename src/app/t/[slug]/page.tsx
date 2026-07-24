@@ -5,8 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
 import { PublicTrackActions } from "@/modules/track/public-track-actions";
 import { TrackEngagement } from "@/modules/track/track-engagement";
+import { Leaderboard, type LeaderboardOwnEntry } from "@/modules/track/leaderboard";
 import { DIFFICULTY_LABELS } from "@/modules/track/difficulty-labels";
 import { VIEWER_ID_COOKIE } from "@/lib/anonymous-id";
+
+const LEADERBOARD_TOP_N = 20;
 
 interface PublicTrackPageProps {
   params: Promise<{ slug: string }>;
@@ -37,7 +40,7 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
   // cookies (calling .set() from one throws); an empty fallback just means
   // "not liked yet," never a crash.
   const viewerId = (await cookies()).get(VIEWER_ID_COOKIE)?.value ?? "";
-  const [initialLike, comments] = track.isPublished
+  const [initialLike, comments, topLapRecords] = track.isPublished
     ? await Promise.all([
         viewerId
           ? prisma.like.findUnique({
@@ -49,8 +52,32 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
           orderBy: { createdAt: "desc" },
           take: 50,
         }),
+        prisma.lapRecord.findMany({
+          where: { trackId: track.id },
+          orderBy: { timeMs: "asc" },
+          take: LEADERBOARD_TOP_N,
+          select: { displayName: true, timeMs: true, viewerId: true },
+        }),
       ])
-    : [null, []];
+    : [null, [], []];
+
+  // Same "top N, plus your own entry even if it's outside that" shape as
+  // the GET /leaderboard route (see its own comment) -- computed directly
+  // here rather than via an internal fetch, since it's the same request's
+  // Server Component render.
+  let ownLapRecord: LeaderboardOwnEntry | null = null;
+  if (track.isPublished && viewerId && !topLapRecords.some((r) => r.viewerId === viewerId)) {
+    const mine = await prisma.lapRecord.findUnique({
+      where: { trackId_viewerId: { trackId: track.id, viewerId } },
+      select: { displayName: true, timeMs: true },
+    });
+    if (mine) {
+      const rank = await prisma.lapRecord.count({
+        where: { trackId: track.id, timeMs: { lt: mine.timeMs } },
+      });
+      ownLapRecord = { rank: rank + 1, displayName: mine.displayName, timeMs: mine.timeMs };
+    }
+  }
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-6 py-16">
@@ -90,6 +117,18 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
         >
           More tracks by this creator →
         </Link>
+      )}
+
+      {track.isPublished && (
+        <Leaderboard
+          entries={topLapRecords.map((r, i) => ({
+            rank: i + 1,
+            displayName: r.displayName,
+            timeMs: r.timeMs,
+            isViewer: r.viewerId === viewerId,
+          }))}
+          own={ownLapRecord}
+        />
       )}
 
       {track.isPublished && (

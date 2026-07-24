@@ -6,6 +6,7 @@
 // `handle.dispose()` on unmount without leaking the render loop, listeners,
 // or GPU resources.
 import * as THREE from "three";
+import { toast } from "sonner";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { LightProbeGrid } from "three/examples/jsm/lighting/LightProbeGrid.js";
 import {
@@ -47,6 +48,15 @@ export interface EngineOptions {
   objects?: PlacedObject[];
   /** localStorage key suffix for best-lap/drift-mark persistence. */
   trackId?: string | null;
+  /** Whether completed best laps get POSTed to the leaderboard -- true only
+   * for a "real play" session (the public track page's autoplay link),
+   * never the owner testing their own track from inside the editor, so a
+   * leaderboard position can't be inflated by repeat in-editor testing. */
+  submitLapTimes?: boolean;
+  /** Attached to leaderboard submissions -- always set by the time
+   * submitLapTimes is true, since track-editor.tsx gates entering Play
+   * mode at all behind DisplayNameGate. */
+  displayName?: string | null;
   /** Aborted by engine-mount.tsx if the component unmounts while model
    * loading is still in flight, so createEngine can skip building the rest
    * of the scene/world/vehicle for a mount that's already gone. */
@@ -122,7 +132,15 @@ function buildGhostMesh(model: THREE.Object3D): THREE.Group {
 }
 
 export async function createEngine(options: EngineOptions): Promise<EngineHandle> {
-  const { canvas, mapCells = null, objects = [], trackId = null, signal } = options;
+  const {
+    canvas,
+    mapCells = null,
+    objects = [],
+    trackId = null,
+    submitLapTimes = false,
+    displayName = null,
+    signal,
+  } = options;
   let disposed = false;
 
   const renderer = new THREE.WebGLRenderer({
@@ -349,6 +367,26 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
         const samples = ghostRecorder.getSamples();
         saveGhost(trackId, samples);
         ghostPlayer.setSamples(samples);
+      }
+
+      if (submitLapTimes && trackId && displayName) {
+        const timeMs = Math.round(lapTimer.lastLap * 1000);
+        fetch(`/api/tracks/${trackId}/laptimes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ timeMs, displayName }),
+        })
+          .then((res) => res.json())
+          .then((data: { isNewPersonalBest?: boolean; worldRecordMs?: number }) => {
+            if (data.isNewPersonalBest && data.worldRecordMs === timeMs) {
+              toast.success("New world record!");
+            } else if (data.isNewPersonalBest) {
+              toast.success("New personal best — leaderboard updated");
+            }
+          })
+          .catch(() => {
+            // Silent -- a failed leaderboard submission shouldn't interrupt the drive.
+          });
       }
     }
 

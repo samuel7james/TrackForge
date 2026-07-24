@@ -105,7 +105,14 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
       {mode === "edit" ? (
         <TrackForgeCanvas />
       ) : displayName ? (
-        <EngineMount key={slug ?? "new"} mapCells={cells} objects={objects} trackId={slug} />
+        <EngineMount
+          key={slug ?? "new"}
+          mapCells={cells}
+          objects={objects}
+          trackId={slug}
+          submitLapTimes={autoplay}
+          displayName={displayName}
+        />
       ) : (
         <DisplayNameGate onSubmit={setSubmittedName} />
       )}

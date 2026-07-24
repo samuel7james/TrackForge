@@ -13,6 +13,10 @@ export interface EngineMountProps {
   mapCells?: Cell[] | null;
   objects?: PlacedObject[];
   trackId?: string | null;
+  /** Forwarded to createEngine -- see EngineOptions for the anti-inflation
+   * reasoning behind gating this on "real play" only. */
+  submitLapTimes?: boolean;
+  displayName?: string | null;
 }
 
 // Owns a <canvas> and the vendored engine's whole imperative lifecycle --
@@ -22,7 +26,13 @@ export interface EngineMountProps {
 // "remount the whole thing fresh" (see ModeController/Vehicle), so a parent
 // switching tracks should change this component's `key` to force a remount
 // rather than expecting props to hot-swap an already-running engine.
-export function EngineMount({ mapCells = null, objects = [], trackId = null }: EngineMountProps) {
+export function EngineMount({
+  mapCells = null,
+  objects = [],
+  trackId = null,
+  submitLapTimes = false,
+  displayName = null,
+}: EngineMountProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handleRef = useRef<EngineHandle | null>(null);
   const [handle, setHandle] = useState<EngineHandle | null>(null);
@@ -34,7 +44,15 @@ export function EngineMount({ mapCells = null, objects = [], trackId = null }: E
     const abortController = new AbortController();
     let cancelled = false;
 
-    createEngine({ canvas, mapCells, objects, trackId, signal: abortController.signal }).then((createdHandle) => {
+    createEngine({
+      canvas,
+      mapCells,
+      objects,
+      trackId,
+      submitLapTimes,
+      displayName,
+      signal: abortController.signal,
+    }).then((createdHandle) => {
       if (cancelled) {
         createdHandle.dispose();
         return;
