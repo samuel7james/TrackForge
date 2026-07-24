@@ -31,6 +31,9 @@ import { SmokeTrails } from "./particles";
 import { DriftMarks } from "./drift-marks";
 import { GameAudio } from "./audio";
 import { LapTimer } from "./lap-timer";
+import { SessionStats } from "./session-stats";
+import { GhostRecorder } from "./ghost-recorder";
+import { loadGhost, saveGhost, GhostPlayer } from "./ghost-playback";
 import { ColorMapGLTFLoader } from "./loader";
 import { buildPlacedObjectMeshes, buildPlacedObjectBodies } from "./placed-objects";
 import type { PlacedObject } from "@/modules/track-format/schema";
@@ -53,6 +56,8 @@ export interface EngineOptions {
 export interface EngineHandle {
   /** Read by hud-overlay.tsx every frame for the lap/time display. */
   lapTimer: LapTimer;
+  /** Read by session-stats-panel.tsx every frame for the stats display. */
+  sessionStats: SessionStats;
   /** Read/driven by touch-controls-overlay.tsx for the on-screen joystick. */
   controls: Controls;
   dispose(): void;
@@ -86,6 +91,34 @@ function disposeObject3D(obj: THREE.Object3D) {
     if (Array.isArray(material)) material.forEach((m) => m.dispose());
     else material?.dispose();
   }
+}
+
+// A semi-transparent clone of the player vehicle, positioned/rotated each
+// frame from GhostPlayer's playback (see ghost-playback.ts) rather than
+// driven by input/physics. Object3D.clone(true) only deep-clones the
+// hierarchy, not materials -- cloning materials explicitly here means
+// setting them transparent never affects the real vehicle's own materials,
+// which the vehicle's own clone in Vehicle.init() would otherwise share.
+function buildGhostMesh(model: THREE.Object3D): THREE.Group {
+  const cloned = model.clone(true);
+  cloned.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const material = Array.isArray(child.material)
+      ? child.material.map((m) => m.clone())
+      : child.material.clone();
+    for (const m of Array.isArray(material) ? material : [material]) {
+      m.transparent = true;
+      m.opacity = 0.35;
+      m.depthWrite = false;
+    }
+    child.material = material;
+    child.castShadow = false;
+    child.receiveShadow = false;
+  });
+
+  const container = new THREE.Group();
+  container.add(cloned);
+  return container;
 }
 
 export async function createEngine(options: EngineOptions): Promise<EngineHandle> {
@@ -175,7 +208,12 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
     renderer.dispose();
     const controls = new Controls();
     controls.dispose();
-    return { lapTimer: new LapTimer(null, null), controls, dispose() {} };
+    return {
+      lapTimer: new LapTimer(null, null),
+      sessionStats: new SessionStats(false),
+      controls,
+      dispose() {},
+    };
   }
 
   const spawn = mapCells ? computeSpawnPosition(mapCells) : null;
@@ -268,6 +306,7 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   audio.init(cam.camera, vehicleGroup);
 
   const lapTimer = new LapTimer(mapCells, trackId);
+  const sessionStats = new SessionStats(lapTimer.enabled);
 
   const _forward = new THREE.Vector3();
   const _camLead = new THREE.Vector3();
@@ -287,6 +326,18 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
 
   const timer = new THREE.Timer();
   let frameId = 0;
+  let prevLap = lapTimer.lap;
+
+  // Shared "a lap just completed" hook -- lapTimer has no event system, just
+  // plain fields (see its own comment), so this is the one place that diffs
+  // `lapTimer.lap` frame-to-frame, rather than every feature that cares
+  // about lap completion (session stats, and later ghost/leaderboard
+  // submission) duplicating that diff itself.
+  function onLapComplete() {
+    if (lapTimer.lastLap !== null) {
+      sessionStats.recordLap(Math.round(lapTimer.lastLap * 1000), lapTimer.lastLapWasBest);
+    }
+  }
 
   function animate() {
     frameId = requestAnimationFrame(animate);
@@ -314,6 +365,12 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
 
     const hasInput = input.touchActive || Math.abs(input.x) > 0.05 || Math.abs(input.z) > 0.05;
     lapTimer.update(dt, vehicle.spherePos, hasInput);
+    sessionStats.update(dt, vehicle.linearSpeed / MAX_SPEED);
+
+    if (lapTimer.lap !== prevLap) {
+      prevLap = lapTimer.lap;
+      onLapComplete();
+    }
 
     renderer.render(scene, cam.camera);
   }
@@ -322,6 +379,7 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
 
   return {
     lapTimer,
+    sessionStats,
     controls,
     dispose() {
       if (disposed) return;

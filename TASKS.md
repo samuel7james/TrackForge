@@ -125,10 +125,57 @@
   "RRMMC" found in the same query wasn't created by any verification
   script this session and was left untouched as likely the user's own work.
 
-## Milestone 4 — Competition (high-level)
-- [ ] Ghost recording/playback
-- [ ] Leaderboards, personal bests, world records
-- [ ] Session stats (avg/top speed, history)
+## Milestone 4 — Competition
+
+### Phase 1 — Session stats
+
+- [x] `SessionStats` (`src/modules/game-engine/session-stats.ts`) — per-
+      session (not persisted) top speed / time-weighted average speed, both
+      as % of `MAX_SPEED` (no real-world speed unit exists anywhere in this
+      codebase to convert to), plus a lap-history list. Gated behind
+      `lapTimer.enabled`, same as every other lap-based feature.
+- [x] `engine-core.ts` gained a single shared `onLapComplete()` hook
+      (diffs `lapTimer.lap` frame-to-frame once, in one place) that Phase 2
+      and Phase 3 will also attach to, rather than each duplicating the diff.
+- [x] `SessionStatsPanel` (`src/modules/game-engine/session-stats-panel.tsx`)
+      — collapsed-by-default themed panel, bottom-right (opposite
+      `HudOverlay`'s top-left), same rAF-tick-over-refs pattern as
+      `HudOverlay`. Wired into `engine-mount.tsx`.
+
+**Notes:**
+
+- Verified via Playwright: drove the demo track, opened the stats toggle,
+  confirmed Top Speed/Avg Speed update live (42%/23% after a few seconds of
+  driving) and the panel is properly themed. Zero console errors. Full
+  `tsc`/`eslint`/`next build` clean.
+
+### Ad hoc — Name yourself before racing
+
+- [x] `DisplayNameGate` (`src/modules/game-engine/display-name-gate.tsx`) —
+      shown in place of the engine the first time a browser enters Play
+      mode (editor or public-page autoplay, either path), since the
+      upcoming Leaderboard phase needs a human-readable name per lap-time
+      submission, not just an anonymous `viewerId`. A one-time gate: the
+      name is saved to `localStorage` (`display-name-storage.ts`,
+      `trackforge:displayName`) and never asked for again from that
+      browser — same "durable per-browser value, not an account" trade-off
+      already accepted for `editToken`/`authorId`.
+- [x] Wired into `track-editor.tsx`: `useSyncExternalStore` reads the
+      stored name (SSR-safe, same pattern as `PublicTrackActions`'
+      `isOwner` check), layered under a plain `submittedName` state so
+      submitting the gate unblocks Play immediately in the same session
+      rather than waiting on a storage event that would never fire.
+
+**Notes:**
+
+- Verified via Playwright: fresh browser context → clicking Play shows the
+  gate → submitting a name mounts the engine immediately → returning to
+  edit and clicking Play again does *not* re-show the gate (persisted).
+  Zero console errors. Full `tsc`/`eslint`/`next build` clean.
+
+### Phase 2 — Ghost recording/playback (pending)
+
+### Phase 3 — Leaderboards, personal bests, world records (pending)
 
 ## Milestone 5 — Live Collaboration (high-level)
 - [ ] Networked `CommandStack` backend (Yjs or custom CRDT)

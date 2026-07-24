@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { TrackForgeCanvas } from "@/modules/scene/track-forge-canvas";
 import { EngineMount } from "@/modules/game-engine/engine-mount";
+import { DisplayNameGate } from "@/modules/game-engine/display-name-gate";
+import { getDisplayName } from "@/modules/game-engine/display-name-storage";
 import { ModeToggle } from "@/modules/editor/ui/mode-toggle";
 import { Toolbar } from "@/modules/editor/ui/toolbar";
 import { PropPalettePanel } from "@/modules/editor/ui/prop-palette-panel";
@@ -18,6 +20,8 @@ import { useAutosave } from "@/modules/track-format/use-autosave";
 import { useSaveTrack } from "@/modules/track-format/use-save-track";
 import { TOOLS } from "@/modules/editor/core/tool-registry";
 import type { TrackDocument } from "@/modules/track-format/schema";
+
+const noSubscription = () => () => {};
 
 interface TrackEditorProps {
   slug: string | null;
@@ -50,6 +54,19 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
 
   useAutosave();
   const saveTrack = useSaveTrack();
+
+  // The leaderboard needs a human-readable name per lap-time submission.
+  // useSyncExternalStore reads localStorage safely across SSR (same pattern
+  // as PublicTrackActions' isOwner check); `submittedName` layers on top so
+  // the DisplayNameGate below can unblock Play immediately in the same
+  // session without waiting on a storage-change event that will never fire.
+  const storedDisplayName = useSyncExternalStore(
+    noSubscription,
+    () => getDisplayName(),
+    () => null
+  );
+  const [submittedName, setSubmittedName] = useState<string | null>(null);
+  const displayName = submittedName ?? storedDisplayName;
 
   // Fresh editor session: load the given document (or keep the store's
   // default empty one for a brand-new track), reset undo history, and
@@ -87,8 +104,10 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
     <div className="fixed inset-0">
       {mode === "edit" ? (
         <TrackForgeCanvas />
-      ) : (
+      ) : displayName ? (
         <EngineMount key={slug ?? "new"} mapCells={cells} objects={objects} trackId={slug} />
+      ) : (
+        <DisplayNameGate onSubmit={setSubmittedName} />
       )}
 
       <div className="pointer-events-none absolute inset-0 flex flex-col">

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createEngine, type EngineHandle } from "./engine-core";
 import type { Cell } from "./track";
 import { HudOverlay } from "./hud-overlay";
+import { SessionStatsPanel } from "./session-stats-panel";
 import { TouchControlsOverlay } from "./touch-controls-overlay";
 import type { PlacedObject } from "@/modules/track-format/schema";
 
@@ -57,6 +58,7 @@ export function EngineMount({ mapCells = null, objects = [], trackId = null }: E
       {handle && (
         <>
           <HudOverlay lapTimer={handle.lapTimer} />
+          <SessionStatsPanel stats={handle.sessionStats} />
           <TouchControlsOverlay controls={handle.controls} />
         </>
       )}
