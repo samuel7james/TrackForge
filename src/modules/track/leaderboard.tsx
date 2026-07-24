@@ -1,15 +1,9 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Trophy, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Trophy } from "lucide-react";
 import { formatLapTime } from "@/modules/game-engine/lap-timer";
-import { editTokenStorageKey } from "@/modules/track-format/edit-token-storage";
 
 export interface LeaderboardEntry {
-  id: string;
   rank: number;
   displayName: string;
   timeMs: number;
@@ -17,19 +11,15 @@ export interface LeaderboardEntry {
 }
 
 export interface LeaderboardOwnEntry {
-  id: string;
   rank: number;
   displayName: string;
   timeMs: number;
 }
 
 interface LeaderboardProps {
-  slug: string;
   entries: LeaderboardEntry[];
   own: LeaderboardOwnEntry | null;
 }
-
-const noSubscription = () => () => {};
 
 // Server-rendered initial data (see t/[slug]/page.tsx's own fetch, same
 // Promise.all block that already fetches likes/comments) -- no client
@@ -38,41 +28,11 @@ const noSubscription = () => () => {};
 // the next page load. `own` covers "you're #47" even when outside the
 // rendered top N, same reasoning the API route itself documents.
 //
-// Deletion is the one owner-moderation power scoped to a track's content
-// rather than the track row itself (see /api/tracks/[slug]/laptimes/[id])
-// -- same "does this browser hold the edit token" check as
-// PublicTrackActions, so a delete control only ever renders for whoever
-// owns this track, never for other racers.
-export function Leaderboard({ slug, entries, own }: LeaderboardProps) {
-  const router = useRouter();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const isOwner = useSyncExternalStore(
-    noSubscription,
-    () => Boolean(localStorage.getItem(editTokenStorageKey(slug))),
-    () => false
-  );
-
-  const handleDelete = async (id: string) => {
-    const editToken = localStorage.getItem(editTokenStorageKey(slug));
-    if (!editToken) return;
-    setDeletingId(id);
-    try {
-      const res = await fetch(`/api/tracks/${slug}/laptimes/${id}`, {
-        method: "DELETE",
-        headers: { "X-Edit-Token": editToken },
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        toast.error(body?.error ?? "Failed to delete lap time");
-        return;
-      }
-      toast.success("Lap time removed");
-      router.refresh();
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
+// Read-only, including for the track's own owner -- deleting a lap time
+// (even your own track's) is a moderation power reserved for the admin
+// dashboard, not something a track owner gets to exercise over other
+// racers' scores.
+export function Leaderboard({ entries, own }: LeaderboardProps) {
   if (entries.length === 0) {
     return (
       <div className="flex flex-col gap-3">
@@ -90,7 +50,7 @@ export function Leaderboard({ slug, entries, own }: LeaderboardProps) {
       <ol className="flex flex-col gap-1.5">
         {entries.map((entry) => (
           <li
-            key={entry.id}
+            key={entry.rank}
             className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
               entry.isViewer
                 ? "border-primary/40 bg-primary/10"
@@ -104,21 +64,8 @@ export function Leaderboard({ slug, entries, own }: LeaderboardProps) {
               {entry.rank === 1 && <Trophy className="size-3.5 text-amber-400" />}
               <span className="font-medium">{entry.displayName}</span>
             </span>
-            <span className="flex items-center gap-2">
-              <span className="tabular-nums text-muted-foreground">
-                {formatLapTime(entry.timeMs / 1000)}
-              </span>
-              {isOwner && (
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label="Remove lap time"
-                  disabled={deletingId === entry.id}
-                  onClick={() => handleDelete(entry.id)}
-                >
-                  <X className="size-3.5" />
-                </Button>
-              )}
+            <span className="tabular-nums text-muted-foreground">
+              {formatLapTime(entry.timeMs / 1000)}
             </span>
           </li>
         ))}
@@ -132,21 +79,8 @@ export function Leaderboard({ slug, entries, own }: LeaderboardProps) {
             </span>
             <span className="font-medium">{own.displayName}</span>
           </span>
-          <span className="flex items-center gap-2">
-            <span className="tabular-nums text-muted-foreground">
-              {formatLapTime(own.timeMs / 1000)}
-            </span>
-            {isOwner && (
-              <Button
-                size="icon-xs"
-                variant="ghost"
-                aria-label="Remove lap time"
-                disabled={deletingId === own.id}
-                onClick={() => handleDelete(own.id)}
-              >
-                <X className="size-3.5" />
-              </Button>
-            )}
+          <span className="tabular-nums text-muted-foreground">
+            {formatLapTime(own.timeMs / 1000)}
           </span>
         </div>
       )}
