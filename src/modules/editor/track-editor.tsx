@@ -19,6 +19,7 @@ import { useCommandStack } from "@/modules/editor/core/command-stack";
 import { useAutosave } from "@/modules/track-format/use-autosave";
 import { useSaveTrack } from "@/modules/track-format/use-save-track";
 import { TOOLS } from "@/modules/editor/core/tool-registry";
+import { DAILY_CHALLENGE_SLUG } from "@/lib/daily-challenge-slug";
 import type { TrackDocument } from "@/modules/track-format/schema";
 
 const noSubscription = () => () => {};
@@ -49,6 +50,12 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
   const setActiveToolId = useEditorStore((s) => s.setActiveToolId);
   const trackName = useTrackStore((s) => s.document.meta.name);
   const cells = useTrackStore((s) => s.document.track.cells);
+  // No real owner can ever save changes to the daily challenge (its
+  // editToken is never exposed to any client), so it never gets an Edit
+  // affordance at all -- not the ModeToggle button, not the Escape-key
+  // shortcut back to edit mode either, both of which would otherwise lead
+  // to a dead end (a local-only edit session that can never be saved).
+  const isDailyChallenge = slug === DAILY_CHALLENGE_SLUG;
 
   useAutosave();
   const saveTrack = useSaveTrack();
@@ -90,11 +97,11 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && mode === "play") setMode("edit");
+      if (e.key === "Escape" && mode === "play" && !isDailyChallenge) setMode("edit");
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mode, setMode]);
+  }, [mode, setMode, isDailyChallenge]);
 
   // This is also the one place a "real play" (as opposed to the owner
   // testing their own track from inside the editor) is unambiguous, so it's
@@ -146,7 +153,7 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
               </>
             )}
           </div>
-          <ModeToggle />
+          <ModeToggle allowEdit={!isDailyChallenge} />
         </header>
 
         <AnimatePresence mode="wait">
@@ -181,7 +188,7 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
               transition={{ duration: 0.15 }}
               className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground"
             >
-              WASD / arrows to drive · Esc to return to editing
+              {isDailyChallenge ? "WASD / arrows to drive" : "WASD / arrows to drive · Esc to return to editing"}
             </motion.p>
           )}
         </AnimatePresence>

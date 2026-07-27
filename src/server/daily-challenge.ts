@@ -2,13 +2,13 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { generateRandomDailyTrack } from "@/modules/track-format/generate-daily-track";
 import { createEmptyTrackDocument } from "@/modules/track-format/schema";
+import { DAILY_CHALLENGE_SLUG } from "@/lib/daily-challenge-slug";
 
-// A fixed, reserved slug rather than a boolean/flag column -- Track.slug is
-// already unique, so this needs zero schema changes and is trivially
-// excludable from Discover/sitemap by name. No real user's random
-// generateSlug() output collides with a fixed word, and even if it somehow
-// did, DB uniqueness would just reject that one save attempt.
-export const DAILY_CHALLENGE_SLUG = "daily-challenge";
+// Re-exported so existing server-side imports (challenge/page.tsx,
+// discover/page.tsx, sitemap.ts) don't need to change -- the constant
+// itself lives in lib/daily-challenge-slug.ts so client components can
+// import it too without pulling in this file's Prisma dependency.
+export { DAILY_CHALLENGE_SLUG };
 
 // The daily rollover is anchored to India Standard Time specifically, not
 // server-local time or UTC -- a server can run in any region (Vercel's

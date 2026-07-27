@@ -72,6 +72,12 @@ export interface EngineHandle {
   sessionStats: SessionStats;
   /** Read/driven by touch-controls-overlay.tsx for the on-screen joystick. */
   controls: Controls;
+  /** Read by mini-map.tsx every frame for the live position marker -- the
+   * same mutated-in-place THREE objects the render loop itself updates,
+   * not a snapshot, so the minimap doesn't need its own physics/position
+   * tracking. */
+  vehiclePosition: THREE.Vector3;
+  vehicleQuaternion: THREE.Quaternion;
   dispose(): void;
 }
 
@@ -233,6 +239,8 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
       lapTimer: new LapTimer(null, null),
       sessionStats: new SessionStats(false),
       controls,
+      vehiclePosition: new THREE.Vector3(),
+      vehicleQuaternion: new THREE.Quaternion(),
       dispose() {},
     };
   }
@@ -466,6 +474,8 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
     lapTimer,
     sessionStats,
     controls,
+    vehiclePosition: vehicle.spherePos,
+    vehicleQuaternion: vehicle.container.quaternion,
     dispose() {
       if (disposed) return;
       disposed = true;

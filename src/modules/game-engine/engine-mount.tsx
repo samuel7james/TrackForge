@@ -7,6 +7,7 @@ import type { Cell } from "./track";
 import { HudOverlay } from "./hud-overlay";
 import { SessionStatsPanel } from "./session-stats-panel";
 import { TouchControlsOverlay } from "./touch-controls-overlay";
+import { MiniMap } from "./mini-map";
 
 export interface EngineMountProps {
   /** null/omitted plays the reference's own built-in demo grid. */
@@ -88,6 +89,11 @@ export function EngineMount({
           <HudOverlay lapTimer={handle.lapTimer} />
           <SessionStatsPanel stats={handle.sessionStats} />
           <TouchControlsOverlay controls={handle.controls} />
+          <MiniMap
+            cells={mapCells}
+            vehiclePosition={handle.vehiclePosition}
+            vehicleQuaternion={handle.vehicleQuaternion}
+          />
         </>
       )}
     </div>
