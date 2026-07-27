@@ -43,7 +43,12 @@ export default async function DailyChallengePage() {
     }
   }
 
-  const today = new Date().toLocaleDateString(undefined, {
+  // India time explicitly -- see daily-challenge.ts's own comment on why
+  // this can't be server-local/default formatting (a Server Component
+  // renders wherever the request happens to land, and Date formatting
+  // without an explicit timeZone reflects that, not India's).
+  const today = new Date().toLocaleDateString("en-US", {
+    timeZone: "Asia/Kolkata",
     weekday: "long",
     month: "long",
     day: "numeric",

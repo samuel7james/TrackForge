@@ -10,8 +10,20 @@ import { createEmptyTrackDocument } from "@/modules/track-format/schema";
 // did, DB uniqueness would just reject that one save attempt.
 export const DAILY_CHALLENGE_SLUG = "daily-challenge";
 
-function todayUTC(): string {
-  return new Date().toISOString().slice(0, 10);
+// The daily rollover is anchored to India Standard Time specifically, not
+// server-local time or UTC -- a server can run in any region (Vercel's
+// functions aren't guaranteed a fixed one), and JS Date is internally
+// timezone-agnostic regardless, so toISOString() would roll the day over
+// at UTC midnight = 5:30 AM IST, not IST midnight. en-CA's locale format
+// happens to be exactly "YYYY-MM-DD", so this needs no manual parsing.
+const CHALLENGE_TIMEZONE = "Asia/Kolkata";
+
+function todayInIndia(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: CHALLENGE_TIMEZONE });
+}
+
+function dateInIndia(date: Date): string {
+  return date.toLocaleDateString("en-CA", { timeZone: CHALLENGE_TIMEZONE });
 }
 
 function buildDailyDocument(cells: ReturnType<typeof generateRandomDailyTrack>["cells"], difficulty: string, dateLabel: string) {
@@ -37,10 +49,10 @@ function buildDailyDocument(cells: ReturnType<typeof generateRandomDailyTrack>["
 // a new day's layout is exactly that, just system-triggered instead of
 // an owner's save.
 export async function getOrCreateDailyChallenge() {
-  const today = todayUTC();
+  const today = todayInIndia();
   const existing = await prisma.track.findUnique({ where: { slug: DAILY_CHALLENGE_SLUG } });
 
-  if (existing && existing.updatedAt.toISOString().slice(0, 10) === today) {
+  if (existing && dateInIndia(existing.updatedAt) === today) {
     return existing;
   }
 
