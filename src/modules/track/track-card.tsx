@@ -23,7 +23,15 @@ export function TrackCard({ track, index = 0 }: { track: TrackCardData; index?: 
   const difficulty = DIFFICULTY_LABELS[track.difficulty];
 
   return (
-    <Link href={`/t/${track.slug}`} className="block">
+    // prefetch={false} -- Discover/creator pages show many of these at
+    // once, and Link's default prefetch populates the client Router Cache
+    // with each visible card's target page ahead of any click. That
+    // prefetched snapshot showing through instead of a fresh fetch was
+    // the actual cause of a reported "wrong track loads" bug -- staleTimes
+    // in next.config.ts wasn't enough on its own since it only governs
+    // how long an already-cached page stays fresh, not whether a
+    // never-visited prefetch gets served as-is on the first real click.
+    <Link href={`/t/${track.slug}`} prefetch={false} className="block">
       <Card
         className="h-full animate-in fade-in slide-in-from-bottom-2 fill-mode-both transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-foreground/25"
         style={{ animationDelay: `${Math.min(index, 10) * 40}ms`, animationDuration: "400ms" }}

@@ -51,7 +51,7 @@ export function PublicTrackActions({ slug, name, isPublished }: PublicTrackActio
               size="sm"
               variant="outline"
               nativeButton={false}
-              render={<Link href={`/editor/${slug}`} />}
+              render={<Link href={`/editor/${slug}`} prefetch={false} />}
             >
               Open editor
             </Button>
@@ -67,7 +67,15 @@ export function PublicTrackActions({ slug, name, isPublished }: PublicTrackActio
     <div className="flex items-center gap-2">
       <Button
         nativeButton={false}
-        render={<Link href={`/editor/${slug}?autoplay=1`} />}
+        // prefetch={false}: Next's Link prefetch populates the client
+        // Router Cache with a snapshot of the target track before it's
+        // ever clicked -- fine for stable content, but this is another
+        // person's track page, and a stale prefetched snapshot showing
+        // through was the exact cause of a "wrong track loads" bug (see
+        // next.config.ts's staleTimes -- that alone wasn't enough, since
+        // it governs revisit staleness, not a prefetch populated ahead
+        // of the click in the first place).
+        render={<Link href={`/editor/${slug}?autoplay=1`} prefetch={false} />}
         className="gap-1.5"
       >
         <Play className="size-4" />

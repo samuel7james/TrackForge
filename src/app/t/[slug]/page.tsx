@@ -119,8 +119,10 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
       <PublicTrackActions slug={slug} name={track.name} isPublished={track.isPublished} />
 
       {track.isPublished && (
+        // prefetch={false}: see track-card.tsx's identical note.
         <Link
           href={`/creator/${track.authorId}`}
+          prefetch={false}
           className="w-fit text-sm text-muted-foreground hover:text-foreground"
         >
           More tracks by this creator →
