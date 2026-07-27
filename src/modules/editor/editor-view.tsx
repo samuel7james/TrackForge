@@ -79,7 +79,14 @@ function ExistingTrackEditorView({ slug }: { slug: string }) {
   }
 
   return (
+    // key={slug} forces a full remount when navigating directly from one
+    // track's editor to another's -- TrackEditor's own mount effect (which
+    // loads `document` into the global track store) has an empty dep
+    // array, so without this React would reuse the same instance across a
+    // slug change and never re-run it, leaving the previous track's cells
+    // in the store while the URL/fetched document have already moved on.
     <TrackEditor
+      key={slug}
       slug={slug}
       document={trackDocument}
       autoplay={autoplay}
