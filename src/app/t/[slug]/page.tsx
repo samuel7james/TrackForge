@@ -94,9 +94,13 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
         </div>
       </div>
 
-      <h1 className="text-4xl font-semibold tracking-tight">{track.name}</h1>
+      <h1 className="animate-in fade-in slide-in-from-bottom-2 text-4xl font-semibold tracking-tight duration-500">
+        {track.name}
+      </h1>
       {track.description && (
-        <p className="max-w-lg text-muted-foreground">{track.description}</p>
+        <p className="max-w-lg animate-in fade-in slide-in-from-bottom-2 text-muted-foreground duration-500">
+          {track.description}
+        </p>
       )}
 
       <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm">

@@ -157,7 +157,11 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
     outputBufferType: THREE.HalfFloatType,
   });
   renderer.setSize(window.innerWidth, window.innerHeight, false);
-  renderer.setPixelRatio(window.devicePixelRatio);
+  // Uncapped devicePixelRatio means a 3x-scaled phone/laptop display
+  // renders (and runs the bloom pass on) 9x the pixels of a standard
+  // display for no visible benefit past ~2x -- the single biggest lever
+  // for "runs fine on my machine, chugs on someone else's."
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
@@ -175,7 +179,10 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   const dirLight = new THREE.DirectionalLight(0xffffff, 3);
   dirLight.position.set(11.4, 15, -5.3);
   dirLight.castShadow = true;
-  dirLight.shadow.mapSize.setScalar(4096);
+  // 4096 was 4x the shadow-render cost of 2048 for a difference only
+  // visible pixel-peeping at a standstill -- not worth it on lower-end
+  // GPUs, especially combined with the PCF-soft radius below.
+  dirLight.shadow.mapSize.setScalar(2048);
   dirLight.shadow.camera.near = 0.5;
   dirLight.shadow.camera.far = 60;
   dirLight.shadow.radius = 4;

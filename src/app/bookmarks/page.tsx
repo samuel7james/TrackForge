@@ -38,10 +38,11 @@ export default function BookmarksPage() {
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
-          {bookmarks.map((entry) => (
+          {bookmarks.map((entry, index) => (
             <li
               key={entry.slug}
-              className="flex items-center justify-between rounded-lg border border-border/50 p-4"
+              className="flex animate-in fade-in slide-in-from-bottom-2 fill-mode-both items-center justify-between rounded-lg border border-border/50 p-4 duration-300"
+              style={{ animationDelay: `${Math.min(index, 10) * 40}ms` }}
             >
               <Link href={`/t/${entry.slug}`} className="font-medium hover:underline">
                 {entry.name}

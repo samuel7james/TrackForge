@@ -77,8 +77,8 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {tracks.map((track) => (
-            <TrackCard key={track.slug} track={track} />
+          {tracks.map((track, index) => (
+            <TrackCard key={track.slug} track={track} index={index} />
           ))}
         </div>
       )}
