@@ -44,12 +44,11 @@ export default function BookmarksPage() {
               className="flex animate-in fade-in slide-in-from-bottom-2 fill-mode-both items-center justify-between rounded-lg border border-border/50 p-4 duration-300"
               style={{ animationDelay: `${Math.min(index, 10) * 40}ms` }}
             >
-              {/* prefetch={false}: see track-card.tsx's identical note -- a
-                  prefetched snapshot of another track's page is what caused
-                  the "wrong track loads" bug. */}
-              <Link href={`/t/${entry.slug}`} prefetch={false} className="font-medium hover:underline">
+              {/* Plain <a>, not next/link -- see track-card.tsx's identical
+                  note on why this had to become a real full navigation. */}
+              <a href={`/t/${entry.slug}`} className="font-medium hover:underline">
                 {entry.name}
-              </Link>
+              </a>
               <Button
                 size="icon"
                 variant="ghost"

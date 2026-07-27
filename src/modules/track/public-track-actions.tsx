@@ -1,7 +1,6 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { Bookmark, Copy, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,17 +50,10 @@ export function PublicTrackActions({ slug, name, isPublished }: PublicTrackActio
               size="sm"
               variant="outline"
               nativeButton={false}
-              // prefetch={false}: reconsidered from a previous pass -- yes
-              // the track *document* comes from a client-side fetch(), but
-              // `slug` itself is a prop threaded down from the Server
-              // Component page (app/editor/[slug]/page.tsx's `params`), so
-              // a stale cached RSC payload for this route would hand
-              // EditorView the WRONG slug outright, not just stale data --
-              // it would then correctly fetch and fully render a different
-              // track under this URL. Same risk class as /t/[slug], so
-              // prefetch stays off here too; the loading spinner in
-              // engine-mount.tsx covers the perceived-speed cost.
-              render={<Link href={`/editor/${slug}`} prefetch={false} />}
+              // Plain <a>, not next/link -- see track-card.tsx's note on
+              // why every per-track navigation had to become a real full
+              // page load rather than trusting any client-side cache.
+              render={<a href={`/editor/${slug}`} />}
             >
               Open editor
             </Button>
@@ -77,10 +69,8 @@ export function PublicTrackActions({ slug, name, isPublished }: PublicTrackActio
     <div className="flex items-center gap-2">
       <Button
         nativeButton={false}
-        // prefetch={false}: see "Open editor" above -- the slug itself
-        // flows through this route's Server Component prop, not just the
-        // document, so it's exposed to the same stale-RSC-payload risk.
-        render={<Link href={`/editor/${slug}?autoplay=1`} prefetch={false} />}
+        // Plain <a>, not next/link -- see "Open editor" above.
+        render={<a href={`/editor/${slug}?autoplay=1`} />}
         className="gap-1.5"
       >
         <Play className="size-4" />

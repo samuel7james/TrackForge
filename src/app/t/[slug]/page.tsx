@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
@@ -117,14 +116,13 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
       <PublicTrackActions slug={slug} name={track.name} isPublished={track.isPublished} />
 
       {track.isPublished && (
-        // prefetch={false}: see track-card.tsx's identical note.
-        <Link
+        // Plain <a>, not next/link -- see track-card.tsx's note.
+        <a
           href={`/creator/${track.authorId}`}
-          prefetch={false}
           className="w-fit text-sm text-muted-foreground hover:text-foreground"
         >
           More tracks by this creator →
-        </Link>
+        </a>
       )}
 
       {track.isPublished && (
