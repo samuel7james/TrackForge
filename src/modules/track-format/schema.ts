@@ -103,13 +103,20 @@ export const trackDocumentSchema = z.object({
   // two sources of truth that could drift. No deco cells either:
   // buildTrack's own procedural hash-ring (modules/game-engine/track.ts)
   // already dresses any custom track's surroundings automatically with zero
-  // data needed, and deliberate scenery placement is already covered by
-  // `objects` below (the forest/paddock prop types, free-form position
-  // rather than grid-locked) -- a separate deco-cell field would just
-  // duplicate that with no editor ever meant to populate it.
+  // data needed, and deliberate scenery placement was covered by `objects`
+  // below -- a separate deco-cell field would just duplicate that.
   track: z.object({
     cells: z.array(cellSchema),
   }),
+  // The "Object tool" (cones/barriers/trees/rocks/flags/forest/paddock --
+  // see git history for prop-registry.ts and game-engine/placed-objects.ts)
+  // was removed from the editor and Play-mode rendering to simplify the
+  // app down to just track-building for now, kept for a future
+  // reimplementation rather than deleted outright. The field stays in the
+  // schema (not made optional/dropped) so any already-saved document with
+  // real placed objects still parses correctly and that data isn't
+  // silently lost -- it just doesn't render or get added to anywhere
+  // right now.
   objects: z.array(placedObjectSchema),
   validation: validationStateSchema,
 });

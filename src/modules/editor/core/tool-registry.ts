@@ -1,4 +1,4 @@
-import { Box, Eraser, MousePointer2, Spline } from "lucide-react";
+import { Eraser, MousePointer2, Spline } from "lucide-react";
 import type { ComponentType } from "react";
 
 export interface EditorToolDefinition {
@@ -16,5 +16,4 @@ export const TOOLS: EditorToolDefinition[] = [
   { id: "select", label: "Select", icon: MousePointer2, shortcut: "v" },
   { id: "tile", label: "Road", icon: Spline, shortcut: "g" },
   { id: "erase", label: "Erase", icon: Eraser, shortcut: "e" },
-  { id: "object", label: "Object", icon: Box, shortcut: "o" },
 ];

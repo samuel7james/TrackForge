@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { Grid } from "@react-three/drei";
 import { useTrackStore } from "@/store/track-store";
-import { PlacedObjects } from "@/modules/objects/placed-objects";
 import { WEATHER_PRESETS, sunPositionAndFactor } from "@/modules/environment/weather-presets";
 import { CELL_RAW, GRID_SCALE } from "@/modules/game-engine/track";
 import { TileTrackRenderer } from "./tile-track-renderer";
@@ -18,7 +17,6 @@ const CELL_WORLD_SIZE = CELL_RAW * GRID_SCALE;
 // startLine field to visualize.
 export function SceneRoot() {
   const environment = useTrackStore((s) => s.document.environment);
-  const objects = useTrackStore((s) => s.document.objects);
 
   const preset = WEATHER_PRESETS[environment.weather];
   const { position: sunPosition, elevationFactor } = useMemo(
@@ -79,7 +77,6 @@ export function SceneRoot() {
       />
 
       <TileTrackRenderer />
-      <PlacedObjects objects={objects} />
     </>
   );
 }

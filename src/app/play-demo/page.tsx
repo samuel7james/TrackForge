@@ -12,13 +12,12 @@ interface PlayDemoPageProps {
 // page before the real editor/play routes get rewired onto it (Phase 5/6).
 // Not linked from anywhere in the app nav. With no `?slug=`, plays the
 // reference's own built-in demo grid (Phase 1); with `?slug=`, fetches a
-// real v2 track document and feeds its cells/objects into the engine
+// real v2 track document and feeds its cells into the engine
 // (Phase 4) -- the same round trip the real play route will do once wired.
 export default async function PlayDemoPage({ searchParams }: PlayDemoPageProps) {
   const { slug } = await searchParams;
 
   let mapCells = null;
-  let objects: import("@/modules/track-format/schema").PlacedObject[] = [];
   let trackId: string | null = null;
   let loadError: string | null = null;
 
@@ -34,7 +33,6 @@ export default async function PlayDemoPage({ searchParams }: PlayDemoPageProps) 
         loadError = "This track uses the old spline format -- open it in /editor instead";
       } else {
         mapCells = parsed.data.track.cells;
-        objects = parsed.data.objects;
         trackId = slug;
       }
     }
@@ -50,7 +48,7 @@ export default async function PlayDemoPage({ searchParams }: PlayDemoPageProps) 
       {loadError ? (
         <div className="flex h-full items-center justify-center text-destructive">{loadError}</div>
       ) : (
-        <EngineMount key={slug ?? "demo"} mapCells={mapCells} objects={objects} trackId={trackId} />
+        <EngineMount key={slug ?? "demo"} mapCells={mapCells} trackId={trackId} />
       )}
     </div>
   );

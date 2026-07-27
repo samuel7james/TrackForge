@@ -4,8 +4,6 @@ import { useCallback, useEffect } from "react";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useTrackStore } from "@/store/track-store";
 import { useEditorStore } from "@/store/editor-store";
-import { usePropPaletteStore } from "@/store/prop-palette-store";
-import { createPlacedObject } from "@/modules/objects/prop-registry";
 import { CELL_RAW, GRID_SCALE } from "@/modules/game-engine/track";
 import {
   cellsToGrid,
@@ -17,31 +15,14 @@ import {
 
 const CELL_WORLD_SIZE = CELL_RAW * GRID_SCALE;
 
-function isTypingIntoField(target: EventTarget | null): boolean {
-  const tag = (target as HTMLElement | null)?.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA";
-}
-
-// The tile-based editor's road/erase/object placement. A single invisible
-// ground plane click-catcher (only while one of "tile" / "erase" / "object"
-// is active) does everything: click resolves the hit point to a grid cell
-// (tile tools) or a raw world position (object tool).
-//
-// Deliberately simple for this pass: places/selects/deletes objects
-// directly against the store, with no undo/redo command wrapping yet --
-// drag-to-reposition and undo/redo for placed objects in this editor are
-// left as a follow-up, not silently dropped.
+// The tile-based editor's road/erase placement. A single invisible ground
+// plane click-catcher (only while "tile" or "erase" is active) resolves
+// the hit point to a grid cell.
 export function TileGridLayer() {
   const cells = useTrackStore((s) => s.document.track.cells);
   const setCells = useTrackStore((s) => s.setCells);
-  const objects = useTrackStore((s) => s.document.objects);
-  const insertPlacedObject = useTrackStore((s) => s.insertPlacedObject);
-  const removePlacedObjectById = useTrackStore((s) => s.removePlacedObjectById);
 
   const activeToolId = useEditorStore((s) => s.activeToolId);
-  const selectedId = useEditorStore((s) => s.selectedId);
-  const setSelectedId = useEditorStore((s) => s.setSelectedId);
-  const selectedPropType = usePropPaletteStore((s) => s.selectedType);
 
   // A brand-new track (opened with an empty grid) starts with a finish cell,
   // same as the reference editor's own bootstrap ("start with a finish cell
@@ -72,67 +53,23 @@ export function TileGridLayer() {
         const grid = cellsToGrid(cells);
         eraseRoadCell(grid, gx, gz);
         setCells(gridToCells(grid));
-        return;
-      }
-
-      if (activeToolId === "object") {
-        const object = createPlacedObject(selectedPropType, { x: e.point.x, y: 0, z: e.point.z });
-        insertPlacedObject(object);
-        setSelectedId(object.id);
       }
     },
-    [activeToolId, cells, setCells, selectedPropType, insertPlacedObject, setSelectedId]
+    [activeToolId, cells, setCells]
   );
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (isTypingIntoField(e.target)) return;
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
-        const object = objects.find((o) => o.id === selectedId);
-        if (object) {
-          removePlacedObjectById(object.id);
-          setSelectedId(null);
-        }
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedId, objects, removePlacedObjectById, setSelectedId]);
+  const showGroundCatcher = activeToolId === "tile" || activeToolId === "erase";
 
-  const showGroundCatcher = activeToolId === "tile" || activeToolId === "erase" || activeToolId === "object";
+  if (!showGroundCatcher) return null;
 
   return (
-    <>
-      {showGroundCatcher && (
-        <mesh
-          rotation={[-Math.PI / 2, 0, 0]}
-          onClick={handleGroundClick}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <planeGeometry args={[500, 500]} />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
-      )}
-
-      {objects.map((object) => (
-        <mesh
-          key={object.id}
-          position={[object.position.x, object.position.y + 0.6, object.position.z]}
-          onPointerDown={(e) => {
-            e.stopPropagation();
-            setSelectedId(object.id);
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <sphereGeometry args={[0.6, 12, 12]} />
-          <meshStandardMaterial
-            color="#f2c94c"
-            transparent
-            opacity={selectedId === object.id ? 0.35 : 0}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
-    </>
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      onClick={handleGroundClick}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <planeGeometry args={[500, 500]} />
+      <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+    </mesh>
   );
 }

@@ -7,12 +7,10 @@ import type { Cell } from "./track";
 import { HudOverlay } from "./hud-overlay";
 import { SessionStatsPanel } from "./session-stats-panel";
 import { TouchControlsOverlay } from "./touch-controls-overlay";
-import type { PlacedObject } from "@/modules/track-format/schema";
 
 export interface EngineMountProps {
   /** null/omitted plays the reference's own built-in demo grid. */
   mapCells?: Cell[] | null;
-  objects?: PlacedObject[];
   trackId?: string | null;
   /** Forwarded to createEngine -- see EngineOptions for the anti-inflation
    * reasoning behind gating this on "real play" only. */
@@ -22,7 +20,7 @@ export interface EngineMountProps {
 }
 
 // Owns a <canvas> and the vendored engine's whole imperative lifecycle --
-// construct on mount, dispose on unmount. mapCells/objects/trackId are read
+// construct on mount, dispose on unmount. mapCells/trackId are read
 // once at mount time, not reactively: a track only ever needs to change
 // when a new Play session starts, which the codebase already treats as
 // "remount the whole thing fresh" (see ModeController/Vehicle), so a parent
@@ -30,7 +28,6 @@ export interface EngineMountProps {
 // rather than expecting props to hot-swap an already-running engine.
 export function EngineMount({
   mapCells = null,
-  objects = [],
   trackId = null,
   submitLapTimes = false,
   displayName = null,
@@ -50,7 +47,6 @@ export function EngineMount({
     createEngine({
       canvas,
       mapCells,
-      objects,
       trackId,
       submitLapTimes,
       displayName,

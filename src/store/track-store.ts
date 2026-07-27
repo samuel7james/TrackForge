@@ -2,7 +2,6 @@ import { create } from "zustand";
 import {
   createEmptyTrackDocument,
   type Difficulty,
-  type PlacedObject,
   type TrackDocument,
 } from "@/modules/track-format/schema";
 import type { Cell } from "@/modules/game-engine/track";
@@ -22,9 +21,6 @@ export interface TrackMetaPatch {
 interface TrackState {
   document: TrackDocument;
   setCells: (cells: Cell[]) => void;
-  insertPlacedObject: (object: PlacedObject) => void;
-  removePlacedObjectById: (objectId: string) => void;
-  patchPlacedObject: (objectId: string, patch: Partial<PlacedObject>) => void;
   patchEnvironment: (patch: EnvironmentPatch) => void;
 
   setSlug: (slug: string) => void;
@@ -38,29 +34,6 @@ export const useTrackStore = create<TrackState>((set) => ({
   setCells: (cells) =>
     set((state) => ({
       document: { ...state.document, track: { ...state.document.track, cells } },
-    })),
-
-  insertPlacedObject: (object) =>
-    set((state) => ({
-      document: { ...state.document, objects: [...state.document.objects, object] },
-    })),
-
-  removePlacedObjectById: (objectId) =>
-    set((state) => ({
-      document: {
-        ...state.document,
-        objects: state.document.objects.filter((o) => o.id !== objectId),
-      },
-    })),
-
-  patchPlacedObject: (objectId, patch) =>
-    set((state) => ({
-      document: {
-        ...state.document,
-        objects: state.document.objects.map((o) =>
-          o.id === objectId ? { ...o, ...patch } : o
-        ),
-      },
     })),
 
   patchEnvironment: (patch) =>

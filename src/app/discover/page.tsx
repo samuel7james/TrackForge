@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { DAILY_CHALLENGE_SLUG } from "@/server/daily-challenge";
 import { DiscoverControls } from "@/modules/discover/discover-controls";
 import { TrackCard } from "@/modules/track/track-card";
 import { PublicNav } from "@/modules/track/public-nav";
@@ -30,6 +31,9 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
 
   const where: Prisma.TrackWhereInput = {
     isPublished: true,
+    // The daily challenge isn't a track anyone made -- it has its own
+    // dedicated /challenge page, not a Discover card.
+    slug: { not: DAILY_CHALLENGE_SLUG },
     ...(query && {
       OR: [
         { name: { contains: query, mode: "insensitive" } },

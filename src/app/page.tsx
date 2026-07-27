@@ -10,8 +10,7 @@ export default function Home() {
           TrackForge
         </h1>
         <p className="max-w-md text-balance text-lg text-muted-foreground">
-          Design race tracks, place scenery and obstacles, and drive
-          them instantly all in the browser.
+          Design race tracks and drive them instantly all in the browser.
         </p>
       </div>
       <div

@@ -9,7 +9,6 @@ import { DisplayNameGate } from "@/modules/game-engine/display-name-gate";
 import { getDisplayName, clearDisplayName } from "@/modules/game-engine/display-name-storage";
 import { ModeToggle } from "@/modules/editor/ui/mode-toggle";
 import { Toolbar } from "@/modules/editor/ui/toolbar";
-import { PropPalettePanel } from "@/modules/editor/ui/prop-palette-panel";
 import { SaveButton } from "@/modules/editor/ui/save-button";
 import { TrackNameEditor } from "@/modules/editor/ui/track-name-editor";
 import { PublishShareButton } from "@/modules/editor/ui/publish-share-button";
@@ -50,7 +49,6 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
   const setActiveToolId = useEditorStore((s) => s.setActiveToolId);
   const trackName = useTrackStore((s) => s.document.meta.name);
   const cells = useTrackStore((s) => s.document.track.cells);
-  const objects = useTrackStore((s) => s.document.objects);
 
   useAutosave();
   const saveTrack = useSaveTrack();
@@ -120,7 +118,6 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
         <EngineMount
           key={slug ?? "new"}
           mapCells={cells}
-          objects={objects}
           trackId={slug}
           submitLapTimes={autoplay}
           displayName={displayName}
@@ -169,17 +166,9 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
               >
                 <Toolbar tools={TOOLS} />
               </motion.div>
-              <motion.div
-                initial={{ opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="pointer-events-auto absolute right-4 top-20"
-              >
-                <PropPalettePanel />
-              </motion.div>
               <p className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground">
-                Road tool: click to place/auto-tile · Erase tool: click to remove · Object tool:
-                pick a prop, click to place, Delete to remove selected · V/G/E/O switch tools
+                Road tool: click to place/auto-tile · Erase tool: click to remove · V/G/E switch
+                tools
               </p>
             </motion.div>
           )}

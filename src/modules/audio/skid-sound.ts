@@ -1,6 +1,7 @@
-// Procedural tire-scrub loop, synthesized rather than a recorded sample
-// (props/everything else here is procedural geometry/sound too, see
-// prop-registry.ts). A short bandpass-filtered noise loop reads as a
+// Procedural tire-scrub loop, synthesized rather than a recorded sample --
+// consistent with the rest of this engine's procedurally-built geometry/
+// sound (CarModel, SkyDome, the road ribbon). A short bandpass-filtered
+// noise loop reads as a
 // scrape/hiss regardless of loop length (noise has no pitch to expose a
 // seam), so only the loop *edges* need matching -- crossfaded here so the
 // wrap doesn't click. GameAudio drives its tone/volume/pitch live per
