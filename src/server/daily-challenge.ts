@@ -26,6 +26,22 @@ function dateInIndia(date: Date): string {
   return date.toLocaleDateString("en-CA", { timeZone: CHALLENGE_TIMEZONE });
 }
 
+// Bump this whenever generate-daily-track.ts's output would meaningfully
+// change (a real bug fix, not a comment/refactor). Without this, fixing
+// the generator does nothing visible until the next actual IST midnight:
+// the "is this still today's track" check below only looks at the
+// calendar date, which stays satisfied even after a deploy ships a fixed
+// generator, so a fresh production track already generated once earlier
+// that same day would keep serving whatever the OLD code produced. Stored
+// in `tags` rather than a new column, since this is lightweight enough
+// not to need a schema migration.
+const GENERATOR_VERSION = "4";
+const GENERATOR_VERSION_TAG = `gen-v${GENERATOR_VERSION}`;
+
+function hasCurrentGeneratorVersion(tags: string[]): boolean {
+  return tags.includes(GENERATOR_VERSION_TAG);
+}
+
 function buildDailyDocument(cells: ReturnType<typeof generateRandomDailyTrack>["cells"], difficulty: string, dateLabel: string) {
   const base = createEmptyTrackDocument(`Daily Challenge — ${dateLabel}`);
   return {
@@ -52,13 +68,14 @@ export async function getOrCreateDailyChallenge() {
   const today = todayInIndia();
   const existing = await prisma.track.findUnique({ where: { slug: DAILY_CHALLENGE_SLUG } });
 
-  if (existing && dateInIndia(existing.updatedAt) === today) {
+  if (existing && dateInIndia(existing.updatedAt) === today && hasCurrentGeneratorVersion(existing.tags)) {
     return existing;
   }
 
   const { cells, difficulty } = generateRandomDailyTrack();
   const document = buildDailyDocument(cells, difficulty, today);
   const name = `Daily Challenge — ${today}`;
+  const tags = ["daily-challenge", GENERATOR_VERSION_TAG];
 
   if (!existing) {
     return prisma.track.create({
@@ -74,7 +91,7 @@ export async function getOrCreateDailyChallenge() {
         document,
         isPublished: true,
         difficulty,
-        tags: ["daily-challenge"],
+        tags,
       },
     });
   }
@@ -82,7 +99,7 @@ export async function getOrCreateDailyChallenge() {
   const [updated] = await prisma.$transaction([
     prisma.track.update({
       where: { slug: DAILY_CHALLENGE_SLUG },
-      data: { name, description: document.meta.description, document, difficulty },
+      data: { name, description: document.meta.description, document, difficulty, tags },
     }),
     prisma.lapRecord.deleteMany({ where: { trackId: existing.id } }),
   ]);
