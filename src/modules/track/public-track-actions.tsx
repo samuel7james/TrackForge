@@ -51,13 +51,17 @@ export function PublicTrackActions({ slug, name, isPublished }: PublicTrackActio
               size="sm"
               variant="outline"
               nativeButton={false}
-              // No prefetch={false} here: unlike /t/[slug]'s server-rendered
-              // content, /editor/[slug]'s track document comes from a plain
-              // client-side fetch() in editor-view.tsx (never RSC/Router-Cache
-              // material), so prefetching this route's shell/JS chunks ahead
-              // of the click is safe and meaningfully cuts the black-screen
-              // gap before the 3D scene appears.
-              render={<Link href={`/editor/${slug}`} />}
+              // prefetch={false}: reconsidered from a previous pass -- yes
+              // the track *document* comes from a client-side fetch(), but
+              // `slug` itself is a prop threaded down from the Server
+              // Component page (app/editor/[slug]/page.tsx's `params`), so
+              // a stale cached RSC payload for this route would hand
+              // EditorView the WRONG slug outright, not just stale data --
+              // it would then correctly fetch and fully render a different
+              // track under this URL. Same risk class as /t/[slug], so
+              // prefetch stays off here too; the loading spinner in
+              // engine-mount.tsx covers the perceived-speed cost.
+              render={<Link href={`/editor/${slug}`} prefetch={false} />}
             >
               Open editor
             </Button>
@@ -73,12 +77,10 @@ export function PublicTrackActions({ slug, name, isPublished }: PublicTrackActio
     <div className="flex items-center gap-2">
       <Button
         nativeButton={false}
-        // Prefetch left enabled here (see "Open editor" above) -- this
-        // route's data isn't RSC-cached, so warming its JS chunk ahead of
-        // the click only helps perceived load time, it can't reintroduce
-        // the stale-content bug that /t/[slug] and /creator/[id] links
-        // have prefetch explicitly disabled for.
-        render={<Link href={`/editor/${slug}?autoplay=1`} />}
+        // prefetch={false}: see "Open editor" above -- the slug itself
+        // flows through this route's Server Component prop, not just the
+        // document, so it's exposed to the same stale-RSC-payload risk.
+        render={<Link href={`/editor/${slug}?autoplay=1`} prefetch={false} />}
         className="gap-1.5"
       >
         <Play className="size-4" />
