@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Compass, Sparkles } from "lucide-react";
+import { Compass, Sparkles, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -35,6 +35,20 @@ export default function Home() {
         >
           <Compass className="size-4" />
           Discover tracks
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          className="gap-2 transition-transform hover:scale-105"
+          nativeButton={false}
+          // Plain <a>, not next/link -- /challenge's content changes day to
+          // day at this same fixed URL, same reasoning as track-card.tsx's
+          // links (a prefetched snapshot from before the day rolled over
+          // is the exact bug that fix was for).
+          render={<a href="/challenge" />}
+        >
+          <Trophy className="size-4" />
+          Drive today&apos;s challenge
         </Button>
       </div>
     </div>
