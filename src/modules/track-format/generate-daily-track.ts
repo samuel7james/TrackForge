@@ -21,7 +21,7 @@ interface DifficultyParams {
 // same honest framing as that file's own scoring weights.
 const DIFFICULTY_PARAMS: Record<Difficulty, DifficultyParams> = {
   beginner: { size: { min: 7, max: 11 }, notches: { min: 0, max: 1 } },
-  intermediate: { size: { min: 6, max: 9 }, notches: { min: 2, max: 3 } },
+  intermediate: { size: { min: 7, max: 11 }, notches: { min: 1, max: 2 } },
   advanced: { size: { min: 5, max: 8 }, notches: { min: 3, max: 5 } },
   // A tiny rectangle actually leaves LESS room for notches (they need
   // spacing to avoid colliding), capping how technical it can get --
@@ -39,12 +39,13 @@ function pickRandomTier(): Difficulty {
 }
 
 // Non-overlapping notch positions along an edge of the given length,
-// staying away from the two corners at each end and at least 2 cells
-// apart from each other -- each notch occupies (k, k+1), so a 2-cell gap
-// is the closest two can sit without their cells colliding.
+// staying away from the two corners at each end. A notch's two legs sit
+// at k and k+2 (not k and k+1 -- see buildWaypoints' own comment on why
+// that gap matters), so the next notch needs to start at k+3 or later to
+// avoid sharing a leg column with this one.
 function pickNotchPositions(edgeLength: number, count: number): number[] {
   const candidates: number[] = [];
-  for (let k = 1; k <= edgeLength - 2; k++) candidates.push(k);
+  for (let k = 1; k <= edgeLength - 4; k++) candidates.push(k);
 
   for (let i = candidates.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -54,30 +55,35 @@ function pickNotchPositions(edgeLength: number, count: number): number[] {
   const chosen: number[] = [];
   for (const k of candidates) {
     if (chosen.length >= count) break;
-    if (chosen.every((c) => Math.abs(c - k) >= 2)) chosen.push(k);
+    if (chosen.every((c) => Math.abs(c - k) >= 3)) chosen.push(k);
   }
   return chosen.sort((a, b) => a - b);
 }
 
 // A closed rectilinear loop -- a width x height rectangle's perimeter with
-// small outward 1-cell detours ("notches") spliced into the top and
-// bottom edges. Self-avoiding and closed by construction: a plain
-// rectangle perimeter never crosses itself, and a notch only ever pushes
-// outward (away from the rectangle interior, never across it), so with
-// minimum spacing between notches there's no way for the path to
-// intersect itself. Returns waypoints, not individual cells -- every
-// consecutive pair is an axis-aligned straight run, interpolated below.
+// small outward detours ("notches") spliced into the top and bottom
+// edges. Self-avoiding and closed by construction: a plain rectangle
+// perimeter never crosses itself, and a notch only ever pushes outward
+// (away from the rectangle interior, never across it). Each notch's two
+// "legs" sit 2 columns apart (k and k+2, with k+1 excluded from the base
+// row entirely) rather than adjacent columns -- a 1-column-wide notch's
+// two legs would themselves be grid-adjacent even though they're not
+// consecutive in the path, silently creating a branch (some cell with 3
+// neighbors instead of 2) that isn't a clean loop at all, just because
+// two unrelated parts of the perimeter happen to touch. Returns
+// waypoints, not individual cells -- every consecutive pair is an axis-
+// aligned straight run, interpolated below.
 function buildWaypoints(width: number, height: number, topNotches: number[], bottomNotches: number[]): [number, number][] {
   const waypoints: [number, number][] = [[0, 0]];
 
   for (const k of topNotches) {
-    waypoints.push([k, 0], [k, -1], [k + 1, -1], [k + 1, 0]);
+    waypoints.push([k, 0], [k, -1], [k + 2, -1], [k + 2, 0]);
   }
   waypoints.push([width - 1, 0]);
   waypoints.push([width - 1, height - 1]);
 
   for (const k of [...bottomNotches].reverse()) {
-    waypoints.push([k + 1, height - 1], [k + 1, height], [k, height], [k, height - 1]);
+    waypoints.push([k + 2, height - 1], [k + 2, height], [k, height], [k, height - 1]);
   }
   waypoints.push([0, height - 1]);
   waypoints.push([0, 0]);
@@ -117,26 +123,35 @@ function turnSign(a: [number, number], b: [number, number], c: [number, number])
   return 0;
 }
 
-// Verifies the generated path is a single, clean closed loop -- every
-// cell distinct, every cell orthogonally adjacent to exactly the previous
-// and next path entries. Defensive: the construction above should always
-// produce this, but a generator this new gets a real check rather than
-// blind trust before its output ever reaches a real track.
+// Verifies the generated path is a single, clean closed loop by the same
+// standard the rest of the app actually requires (see auto-difficulty.ts's
+// walkLoop): every cell distinct, and every cell orthogonally adjacent to
+// EXACTLY two others in the full cell set -- not just its immediate
+// predecessor/successor in path order. That distinction matters: two
+// unrelated parts of the path can end up next to each other on the grid
+// without being consecutive steps, which reads as a clean loop by a
+// weaker "just check consecutive path entries" test while actually being
+// a branch (some cell with 3 neighbors) that isn't a real single loop at
+// all -- which is exactly the bug a too-narrow notch produced here.
 function isValidLoop(points: [number, number][]): boolean {
   if (points.length < 4) return false;
+
   const seen = new Set<string>();
   for (const [x, z] of points) {
     const key = `${x},${z}`;
     if (seen.has(key)) return false;
     seen.add(key);
   }
-  for (let i = 0; i < points.length; i++) {
-    const prev = points[(i - 1 + points.length) % points.length];
-    const cur = points[i];
-    const dx = Math.abs(cur[0] - prev[0]);
-    const dz = Math.abs(cur[1] - prev[1]);
-    if (dx + dz !== 1) return false;
+
+  for (const [gx, gz] of points) {
+    const offsets: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    let degree = 0;
+    for (const [ox, oz] of offsets) {
+      if (seen.has(`${gx + ox},${gz + oz}`)) degree++;
+    }
+    if (degree !== 2) return false;
   }
+
   return true;
 }
 
