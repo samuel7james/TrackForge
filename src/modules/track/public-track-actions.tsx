@@ -51,7 +51,13 @@ export function PublicTrackActions({ slug, name, isPublished }: PublicTrackActio
               size="sm"
               variant="outline"
               nativeButton={false}
-              render={<Link href={`/editor/${slug}`} prefetch={false} />}
+              // No prefetch={false} here: unlike /t/[slug]'s server-rendered
+              // content, /editor/[slug]'s track document comes from a plain
+              // client-side fetch() in editor-view.tsx (never RSC/Router-Cache
+              // material), so prefetching this route's shell/JS chunks ahead
+              // of the click is safe and meaningfully cuts the black-screen
+              // gap before the 3D scene appears.
+              render={<Link href={`/editor/${slug}`} />}
             >
               Open editor
             </Button>
@@ -67,15 +73,12 @@ export function PublicTrackActions({ slug, name, isPublished }: PublicTrackActio
     <div className="flex items-center gap-2">
       <Button
         nativeButton={false}
-        // prefetch={false}: Next's Link prefetch populates the client
-        // Router Cache with a snapshot of the target track before it's
-        // ever clicked -- fine for stable content, but this is another
-        // person's track page, and a stale prefetched snapshot showing
-        // through was the exact cause of a "wrong track loads" bug (see
-        // next.config.ts's staleTimes -- that alone wasn't enough, since
-        // it governs revisit staleness, not a prefetch populated ahead
-        // of the click in the first place).
-        render={<Link href={`/editor/${slug}?autoplay=1`} prefetch={false} />}
+        // Prefetch left enabled here (see "Open editor" above) -- this
+        // route's data isn't RSC-cached, so warming its JS chunk ahead of
+        // the click only helps perceived load time, it can't reintroduce
+        // the stale-content bug that /t/[slug] and /creator/[id] links
+        // have prefetch explicitly disabled for.
+        render={<Link href={`/editor/${slug}?autoplay=1`} />}
         className="gap-1.5"
       >
         <Play className="size-4" />

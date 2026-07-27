@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
+import { estimateLapTimeMs } from "@/modules/track-format/estimate-lap-time";
 import { PublicTrackActions } from "@/modules/track/public-track-actions";
 import { TrackEngagement } from "@/modules/track/track-engagement";
 import { Leaderboard, type LeaderboardOwnEntry } from "@/modules/track/leaderboard";
@@ -30,10 +31,7 @@ export default async function PublicTrackPage({ params }: PublicTrackPageProps) 
   if (!track) notFound();
 
   const parsed = safeParseTrackDocument(track.document);
-  // No lap-time estimator for the tile-based format yet -- shows "—" until
-  // one exists (estimating from a cell-grid loop is a different algorithm
-  // than the old spline-length one, not yet written).
-  const estimatedLapTimeMs: number | null = null;
+  const estimatedLapTimeMs = parsed.success ? estimateLapTimeMs(parsed.data.track.cells) : null;
   const difficulty = parsed.success ? parsed.data.meta.difficulty : "beginner";
 
   // Reads the cookie middleware.ts already guaranteed exists -- deliberately

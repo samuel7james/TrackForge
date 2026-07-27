@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { createEngine, type EngineHandle } from "./engine-core";
 import type { Cell } from "./track";
 import { HudOverlay } from "./hud-overlay";
@@ -76,6 +77,16 @@ export function EngineMount({
   return (
     <div style={{ position: "fixed", inset: 0 }}>
       <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
+      {!handle && (
+        // createEngine's model-loading Promise.all (vehicle/track/scenery
+        // GLBs) can take a real, visible moment on a cold cache/slow
+        // connection -- without this the canvas just sits there black
+        // with zero feedback, which reads as broken rather than loading.
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background text-sm text-muted-foreground">
+          <Loader2 className="size-6 animate-spin" />
+          Loading track…
+        </div>
+      )}
       {handle && (
         <>
           <HudOverlay lapTimer={handle.lapTimer} />
