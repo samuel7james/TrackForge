@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { NavigationTracker } from "@/components/navigation-tracker";
 import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
@@ -33,6 +34,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <TooltipProvider delay={200}>
+          <NavigationTracker />
           {children}
           <Toaster richColors position="bottom-right" />
         </TooltipProvider>
