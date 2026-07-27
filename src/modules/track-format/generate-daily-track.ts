@@ -1,4 +1,5 @@
-import type { Cell, PieceType } from "@/modules/game-engine/track";
+import type { Cell } from "@/modules/game-engine/track";
+import { gridToCells, placeRoadCell, placeFinishCell, type Grid } from "@/modules/game-engine/autotile";
 import { computeTrackDifficulty } from "./auto-difficulty";
 import type { Difficulty } from "./schema";
 
@@ -112,17 +113,6 @@ function interpolateWaypoints(waypoints: [number, number][]): [number, number][]
   return points;
 }
 
-function turnSign(a: [number, number], b: [number, number], c: [number, number]): 0 | 1 | -1 {
-  const inX = Math.sign(b[0] - a[0]);
-  const inZ = Math.sign(b[1] - a[1]);
-  const outX = Math.sign(c[0] - b[0]);
-  const outZ = Math.sign(c[1] - b[1]);
-  const cross = inX * outZ - inZ * outX;
-  if (cross > 0) return 1;
-  if (cross < 0) return -1;
-  return 0;
-}
-
 // Verifies the generated path is a single, clean closed loop by the same
 // standard the rest of the app actually requires (see auto-difficulty.ts's
 // walkLoop): every cell distinct, and every cell orthogonally adjacent to
@@ -155,15 +145,38 @@ function isValidLoop(points: [number, number][]): boolean {
   return true;
 }
 
+// The path always starts at (0,0), one of the rectangle's own corners --
+// but the finish cell has to land on a straight-through point, not a
+// corner: placeFinishCell marks a cell finish, but resolveCell (autotile.ts)
+// only *keeps* that marking if the auto-tiled shape it resolves to is a
+// straight (a corner-shaped finish silently reverts to a plain corner,
+// dropping the finish line -- and with it, LapTimer.enabled -- entirely).
+// The left edge never gets notches (only top/bottom do, see buildWaypoints),
+// so its midpoint is always a safe straight run to rotate the cycle onto
+// before designating a starting point as finish.
+function rotateToSafeFinishStart(points: [number, number][], height: number): [number, number][] {
+  const targetZ = Math.floor(height / 2);
+  const index = points.findIndex(([x, z]) => x === 0 && z === targetZ);
+  if (index <= 0) return points;
+  return [...points.slice(index), ...points.slice(0, index)];
+}
+
+// Builds the actual Cell[] by feeding the computed path through the exact
+// same auto-tiling system tile-grid-layer.tsx calls when a person clicks
+// to place a tile (placeRoadCell/placeFinishCell from autotile.ts) --
+// rather than re-deriving piece-type/rotation logic here, which is how a
+// previous version of this generator ended up subtly wrong (a hand-rolled
+// orient lookup that didn't match this codebase's actual N/S/E/W
+// convention). This guarantees every generated track resolves its pieces
+// exactly as if a person had traced this same path in the real editor.
 function pointsToCells(points: [number, number][]): Cell[] {
-  const n = points.length;
-  return points.map(([gx, gz], i) => {
-    const prev = points[(i - 1 + n) % n];
-    const next = points[(i + 1) % n];
-    const sign = turnSign(prev, [gx, gz], next);
-    const type: PieceType = i === 0 ? "track-finish" : sign === 0 ? "track-straight" : "track-corner";
-    return [gx, gz, type, 0] as Cell;
-  });
+  const grid: Grid = new Map();
+  const [startX, startZ] = points[0];
+  placeFinishCell(grid, startX, startZ);
+  for (let i = 1; i < points.length; i++) {
+    placeRoadCell(grid, points[i][0], points[i][1]);
+  }
+  return gridToCells(grid);
 }
 
 function generateOneAttempt(params: DifficultyParams): Cell[] {
@@ -179,7 +192,7 @@ function generateOneAttempt(params: DifficultyParams): Cell[] {
   const points = interpolateWaypoints(waypoints);
 
   if (!isValidLoop(points)) return [];
-  return pointsToCells(points);
+  return pointsToCells(rotateToSafeFinishStart(points, height));
 }
 
 const MAX_ATTEMPTS = 40;
