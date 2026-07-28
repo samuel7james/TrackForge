@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
 import { DEFAULT_TRACK_NAME } from "@/modules/track-format/schema";
+import { isAdminSessionValid } from "@/lib/admin-auth";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
@@ -20,8 +21,9 @@ interface RouteContext {
 // reasonable follow-up, not attempted here.
 export async function POST(request: Request, { params }: RouteContext) {
   const { slug } = await params;
+  const isAdmin = await isAdminSessionValid();
   const editToken = request.headers.get("x-edit-token");
-  if (!editToken) {
+  if (!isAdmin && !editToken) {
     return NextResponse.json({ error: "Missing edit token" }, { status: 401 });
   }
 
@@ -29,7 +31,7 @@ export async function POST(request: Request, { params }: RouteContext) {
   if (!track) {
     return NextResponse.json({ error: "Track not found" }, { status: 404 });
   }
-  if (track.editToken !== editToken) {
+  if (!isAdmin && track.editToken !== editToken) {
     return NextResponse.json({ error: "Invalid edit token" }, { status: 403 });
   }
 

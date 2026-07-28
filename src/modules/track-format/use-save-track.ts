@@ -6,7 +6,7 @@ import { editTokenStorageKey } from "./edit-token-storage";
 
 let inFlightSave: Promise<void> | null = null;
 
-async function performSave(): Promise<void> {
+async function performSave(isAdmin: boolean): Promise<void> {
   const { document } = useTrackStore.getState();
   const slug = document.meta.slug || null;
 
@@ -27,13 +27,19 @@ async function performSave(): Promise<void> {
     return;
   }
 
+  // A missing local token only blocks the save for a non-admin -- the admin
+  // session cookie (checked server-side, see route.ts) authorizes the
+  // request instead, so an admin editing someone else's track (no editToken
+  // in their own browser) can still save.
   const editToken = localStorage.getItem(editTokenStorageKey(slug));
-  if (!editToken) {
+  if (!editToken && !isAdmin) {
     throw new Error("This browser doesn't have edit permissions for this track");
   }
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (editToken) headers["X-Edit-Token"] = editToken;
   const res = await fetch(`/api/tracks/${slug}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json", "X-Edit-Token": editToken },
+    headers,
     body: JSON.stringify({ document: useTrackStore.getState().document }),
   });
   if (!res.ok) {
@@ -42,17 +48,17 @@ async function performSave(): Promise<void> {
   }
 }
 
-export function useSaveTrack() {
+export function useSaveTrack(isAdmin = false) {
   return useCallback(async () => {
     if (inFlightSave) {
       await inFlightSave.catch(() => {});
     }
-    const promise = performSave();
+    const promise = performSave(isAdmin);
     inFlightSave = promise;
     try {
       await promise;
     } finally {
       if (inFlightSave === promise) inFlightSave = null;
     }
-  }, []);
+  }, [isAdmin]);
 }

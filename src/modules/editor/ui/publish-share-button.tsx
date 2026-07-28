@@ -30,9 +30,11 @@ interface PublishIssue {
 export function PublishShareButton({
   initiallyPublished,
   saveTrack,
+  isAdmin = false,
 }: {
   initiallyPublished: boolean;
   saveTrack: () => Promise<void>;
+  isAdmin?: boolean;
 }) {
   const slug = useTrackStore((s) => s.document.meta.slug);
   const name = useTrackStore((s) => s.document.meta.name);
@@ -53,8 +55,11 @@ export function PublishShareButton({
   const shareUrl = `${window.location.origin}/t/${slug}`;
 
   const handlePublish = async () => {
+    // Same admin bypass as use-save-track.ts -- a missing local token only
+    // blocks a non-admin; the admin session cookie authorizes the request
+    // server-side instead.
     const editToken = localStorage.getItem(editTokenStorageKey(slug));
-    if (!editToken) {
+    if (!editToken && !isAdmin) {
       toast.error("This browser doesn't have edit permissions for this track");
       return;
     }
@@ -65,9 +70,11 @@ export function PublishShareButton({
       // what was just typed here rather than the last autosave.
       await saveTrack();
 
+      const headers: Record<string, string> = {};
+      if (editToken) headers["X-Edit-Token"] = editToken;
       const res = await fetch(`/api/tracks/${slug}/publish`, {
         method: "POST",
-        headers: { "X-Edit-Token": editToken },
+        headers,
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {

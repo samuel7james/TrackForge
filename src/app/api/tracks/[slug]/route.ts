@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { safeParseTrackDocument } from "@/modules/track-format/validate";
 import { computeTrackDifficulty } from "@/modules/track-format/auto-difficulty";
+import { isAdminSessionValid } from "@/lib/admin-auth";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
@@ -42,10 +43,13 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
 // Edit-token guarded — the token is a bearer secret returned once at
 // creation and kept client-side (localStorage), never derived from slug/id.
+// A valid admin session bypasses the token entirely, so the admin can fix up
+// any track (not just their own) without ever holding its editToken.
 export async function PATCH(request: Request, { params }: RouteContext) {
   const { slug } = await params;
+  const isAdmin = await isAdminSessionValid();
   const editToken = request.headers.get("x-edit-token");
-  if (!editToken) {
+  if (!isAdmin && !editToken) {
     return NextResponse.json({ error: "Missing edit token" }, { status: 401 });
   }
 
@@ -64,7 +68,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (!existing) {
     return NextResponse.json({ error: "Track not found" }, { status: 404 });
   }
-  if (existing.editToken !== editToken) {
+  if (!isAdmin && existing.editToken !== editToken) {
     return NextResponse.json({ error: "Invalid edit token" }, { status: 403 });
   }
 

@@ -9,20 +9,24 @@ import type { TrackDocument } from "@/modules/track-format/schema";
 
 interface EditorViewProps {
   slug: string | null;
+  /** Server-checked (the admin cookie can't be read client-side) -- see
+   * app/editor/[slug]/page.tsx. Irrelevant for a brand-new track (no slug
+   * yet), where the creator becomes the owner the normal way. */
+  isAdmin?: boolean;
 }
 
 // New tracks (no slug yet) always use the tile-based editor. For an
 // existing slug, the document is fetched once here rather than inside
 // TrackEditor itself, so a track saved in an unsupported format can show a
 // clear message instead of a runtime crash.
-export function EditorView({ slug }: EditorViewProps) {
+export function EditorView({ slug, isAdmin = false }: EditorViewProps) {
   if (!slug) {
     return <TrackEditor slug={null} />;
   }
-  return <ExistingTrackEditorView slug={slug} />;
+  return <ExistingTrackEditorView slug={slug} isAdmin={isAdmin} />;
 }
 
-function ExistingTrackEditorView({ slug }: { slug: string }) {
+function ExistingTrackEditorView({ slug, isAdmin }: { slug: string; isAdmin: boolean }) {
   const [trackDocument, setTrackDocument] = useState<TrackDocument | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +95,7 @@ function ExistingTrackEditorView({ slug }: { slug: string }) {
       document={trackDocument}
       autoplay={autoplay}
       initiallyPublished={isPublished}
+      isAdmin={isAdmin}
     />
   );
 }

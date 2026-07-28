@@ -6,8 +6,8 @@ import { useSaveTrack } from "./use-save-track";
 
 const AUTOSAVE_DEBOUNCE_MS = 4000;
 
-export function useAutosave() {
-  const saveTrack = useSaveTrack();
+export function useAutosave(isAdmin = false) {
+  const saveTrack = useSaveTrack(isAdmin);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {

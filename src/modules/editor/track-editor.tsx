@@ -37,6 +37,10 @@ interface TrackEditorProps {
   /** Whether the fetched track was already published -- ignored for a
    * brand-new track (always starts unpublished). */
   initiallyPublished?: boolean;
+  /** Server-checked (see app/editor/[slug]/page.tsx) -- true if this browser
+   * holds a valid admin session, letting Save/Publish succeed on this track
+   * even without its editToken. Irrelevant for a brand-new track. */
+  isAdmin?: boolean;
 }
 
 // TrackForge's editor UI. Deliberately scoped down in a few ways that are
@@ -45,7 +49,7 @@ interface TrackEditorProps {
 // UndoRedoControls/CommandPalette (TileGridLayer mutates the store directly
 // rather than through useCommandStack, so there's nothing for them to act
 // on yet).
-export function TrackEditor({ slug, document, autoplay, initiallyPublished }: TrackEditorProps) {
+export function TrackEditor({ slug, document, autoplay, initiallyPublished, isAdmin = false }: TrackEditorProps) {
   const mode = useEditorStore((s) => s.mode);
   const setMode = useEditorStore((s) => s.setMode);
   const setActiveToolId = useEditorStore((s) => s.setActiveToolId);
@@ -62,8 +66,8 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
   // brake button (touch-controls-overlay.tsx is also bottom-center).
   const isTouchDevice = useIsTouchDevice();
 
-  useAutosave();
-  const saveTrack = useSaveTrack();
+  useAutosave(isAdmin);
+  const saveTrack = useSaveTrack(isAdmin);
 
   // The leaderboard needs a human-readable name per lap-time submission.
   // useSyncExternalStore reads localStorage safely across SSR (same pattern
@@ -152,8 +156,25 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
             )}
             {mode === "edit" && (
               <>
+                {isAdmin && (
+                  // This browser may not hold this track's own editToken at
+                  // all (that's the whole point -- admin bypasses it) --
+                  // shown so it's obvious Save/Publish are working via the
+                  // admin session, not silently acting on someone else's
+                  // track without any indication.
+                  <span
+                    className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary"
+                    title="Editing with admin privileges"
+                  >
+                    Admin
+                  </span>
+                )}
                 <SaveButton saveTrack={saveTrack} />
-                <PublishShareButton initiallyPublished={initiallyPublished ?? false} saveTrack={saveTrack} />
+                <PublishShareButton
+                  initiallyPublished={initiallyPublished ?? false}
+                  saveTrack={saveTrack}
+                  isAdmin={isAdmin}
+                />
                 <ResetTrackButton />
               </>
             )}
