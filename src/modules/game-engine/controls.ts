@@ -31,11 +31,19 @@ export class Controls {
   touchBrake = false;
   autoThrottle: boolean;
 
-  // Set true for the few seconds of the pre-race countdown (see
-  // start-countdown.tsx) so a player can't jump-start by holding a
-  // direction/brake before "GO" -- forces neutral input regardless of what's
-  // actually being pressed, rather than each caller remembering to check.
-  frozen = false;
+  // Starts true (not false) -- the engine's render loop can tick several
+  // frames before React ever gets around to mounting start-countdown.tsx
+  // and calling setFrozen(true) itself (createEngine's rAF loop starts
+  // before its promise even resolves back to EngineMount, then there's a
+  // state update + re-render + effect on top of that). On a touch session
+  // autoThrottle is live from construction, so any of those early frames
+  // would otherwise report real input, permanently latching LapTimer's
+  // `running` flag true -- which is exactly why the timer (and the ghost,
+  // which just samples the timer's elapsed time) were visibly running
+  // before "GO" ever appeared. Defaulting to frozen here means there's no
+  // window at all where an un-frozen frame can slip through before
+  // start-countdown.tsx's effect explicitly un-freezes it.
+  frozen = true;
 
   private handleKeyDown: (e: KeyboardEvent) => void;
   private handleKeyUp: (e: KeyboardEvent) => void;

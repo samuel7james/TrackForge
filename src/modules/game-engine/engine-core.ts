@@ -52,14 +52,15 @@ export interface EngineOptions {
    * submitLapTimes is true, since track-editor.tsx gates entering Play
    * mode at all behind DisplayNameGate. */
   displayName?: string | null;
-  /** Switches to a close, heading-relative third-person chase camera (see
-   * Camera.updateChase) instead of the default fixed-azimuth view, and
-   * trims several GPU-heavy render settings (shadows, bloom, MSAA, HDR
+  /** Trims several GPU-heavy render settings (shadows, bloom, MSAA, HDR
    * framebuffer, light-probe bake resolution, pixel ratio cap) that cost
-   * much more on typical phone GPUs than they're worth there -- passed in
+   * much more on typical phone GPUs than they're worth there, and switches
+   * Controls over to auto-throttle (see Controls.autoThrottle) -- passed in
    * by engine-mount.tsx based on touch-device detection, not screen size,
    * since it's about input mode/hardware class rather than viewport width.
-   * Desktop's render path (this flag false) is completely unaffected. */
+   * Desktop's render path (this flag false) is completely unaffected. The
+   * camera itself (Camera.update vs. the unused Camera.updateChase) is the
+   * same on every device regardless of this flag. */
   mobileMode?: boolean;
   /** Called if a lap-time submission comes back rejected for having no
    * active display-name claim (see laptimes/route.ts's NEEDS_DISPLAY_NAME) --
@@ -475,16 +476,16 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
 
     dirLight.position.set(vehicle.spherePos.x + 11.4, 15, vehicle.spherePos.z - 5.3);
 
-    if (mobileMode) {
-      cam.updateChase(dt, vehicle.spherePos, vehicle.container.quaternion);
-    } else {
-      const mv = vehicle.modelVelocity;
-      _camLead
-        .set(0, 0, 1)
-        .applyQuaternion(vehicle.container.quaternion)
-        .multiplyScalar(Math.sqrt(mv.x * mv.x + mv.z * mv.z));
-      cam.update(dt, vehicle.spherePos, _camLead);
-    }
+    // Same fixed-azimuth camera on every device now -- mobile briefly had
+    // its own close, heading-relative chase cam (Camera.updateChase, still
+    // there but unused), reverted per explicit request to match desktop's
+    // angle instead.
+    const mv = vehicle.modelVelocity;
+    _camLead
+      .set(0, 0, 1)
+      .applyQuaternion(vehicle.container.quaternion)
+      .multiplyScalar(Math.sqrt(mv.x * mv.x + mv.z * mv.z));
+    cam.update(dt, vehicle.spherePos, _camLead);
     particles.update(dt, vehicle);
     driftMarks.update(dt, vehicle);
     // TOP_SPEED_REFERENCE, not the nominal MAX_SPEED -- sustained full
