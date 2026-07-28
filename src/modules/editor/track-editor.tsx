@@ -20,6 +20,7 @@ import { useAutosave } from "@/modules/track-format/use-autosave";
 import { useSaveTrack } from "@/modules/track-format/use-save-track";
 import { TOOLS } from "@/modules/editor/core/tool-registry";
 import { DAILY_CHALLENGE_SLUG } from "@/lib/daily-challenge-slug";
+import { useIsTouchDevice } from "@/hooks/use-is-touch-device";
 import type { TrackDocument } from "@/modules/track-format/schema";
 
 const noSubscription = () => () => {};
@@ -56,6 +57,10 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
   // shortcut back to edit mode either, both of which would otherwise lead
   // to a dead end (a local-only edit session that can never be saved).
   const isDailyChallenge = slug === DAILY_CHALLENGE_SLUG;
+  // The play-mode footer hint is pure keyboard instructions (WASD, Esc) --
+  // meaningless on a touch device, and would otherwise sit right behind the
+  // brake button (touch-controls-overlay.tsx is also bottom-center).
+  const isTouchDevice = useIsTouchDevice();
 
   useAutosave();
   const saveTrack = useSaveTrack();
@@ -179,7 +184,7 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished }: Tr
               </p>
             </motion.div>
           )}
-          {mode === "play" && (
+          {mode === "play" && !isTouchDevice && (
             <motion.p
               key="play-mode"
               initial={{ opacity: 0 }}
