@@ -25,11 +25,13 @@ export class Camera {
   smoothedDesired = new THREE.Vector3();
   initialized = false;
 
-  // Mobile-only alternate mode (see updateChase below) -- a conventional
+  // Alternate mode (see updateChase below) -- a conventional
   // heading-relative third-person chase, closer and lower than the fixed
-  // 45°-azimuth "Godot View" the desktop/default `update()` uses. Kept as
-  // separate state/method rather than branching inside `update()` so the
-  // desktop camera path is entirely untouched.
+  // 45°-azimuth "Godot View" the default `update()` uses. Kept as separate
+  // state/method rather than branching inside `update()` so the default
+  // camera path is entirely untouched. Toggled at runtime with the C key
+  // (see engine-core.ts); starts off, and isn't persisted between sessions.
+  chaseMode = false;
   chaseDistance = 7.5;
   chaseHeight = 3.6;
   chaseLookAhead = 5;
@@ -130,10 +132,22 @@ export class Camera {
     this.debug.scale.set(radius, 1, radius);
   }
 
+  // Each mode smooths toward its own independently-stored position, and the
+  // inactive one's keeps drifting out of date while the other is driving --
+  // so entering a mode re-arms its "first frame" flag, making that frame
+  // snap straight to the correct framing. Without this the view glides in
+  // from wherever that camera was last left pointing, several corners ago.
+  setChaseMode(enabled: boolean) {
+    if (enabled === this.chaseMode) return;
+    this.chaseMode = enabled;
+    if (enabled) this.chaseInitialized = false;
+    else this.initialized = false;
+  }
+
   // Follows behind the vehicle's actual heading (rotates as the car turns),
   // unlike the fixed-compass-direction `update()` above -- closer and lower
   // too, matching the over-the-shoulder framing of a typical AAA racer
-  // rather than the desktop's pulled-back isometric-style view. Both the
+  // rather than the default's pulled-back isometric-style view. Both the
   // heading used to place/aim the camera and the camera's position are
   // smoothed independently (different rates) -- smoothing position alone
   // wasn't enough, since the *look direction* still snapped to the car's

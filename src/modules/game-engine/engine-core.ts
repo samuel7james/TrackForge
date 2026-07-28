@@ -59,8 +59,9 @@ export interface EngineOptions {
    * by engine-mount.tsx based on touch-device detection, not screen size,
    * since it's about input mode/hardware class rather than viewport width.
    * Desktop's render path (this flag false) is completely unaffected. The
-   * camera itself (Camera.update vs. the unused Camera.updateChase) is the
-   * same on every device regardless of this flag. */
+   * camera is unaffected too -- every device starts on Camera.update and
+   * can switch to Camera.updateChase with the C key, regardless of this
+   * flag. */
   mobileMode?: boolean;
   /** Called if a lap-time submission comes back rejected for having no
    * active display-name claim (see laptimes/route.ts's NEEDS_DISPLAY_NAME) --
@@ -359,6 +360,21 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   const cam = new Camera();
   scene.add(cam.debug);
 
+  // C toggles the heading-relative chase camera (Camera.updateChase) on and
+  // off. Its own listener rather than a key in Controls, which is strictly
+  // vehicle input (a steer/throttle pair per frame) -- a camera preference
+  // isn't that, and unlike driving input it acts on the keydown edge, not on
+  // whether the key is held this frame. Deliberately not gated on
+  // !mobileMode: a phone has no keyboard to press it with anyway, and a
+  // tablet that does have one may as well get the toggle too.
+  const handleCameraKey = (e: KeyboardEvent) => {
+    // Holding the key down otherwise repeats at the OS key-repeat rate,
+    // flipping modes over and over for as long as it's held.
+    if (e.code !== "KeyC" || e.repeat) return;
+    cam.setChaseMode(!cam.chaseMode);
+  };
+  window.addEventListener("keydown", handleCameraKey);
+
   // autoThrottle: touch has no gas button (see touch-controls-overlay.tsx)
   // -- once true, Controls.update() drives the car forward on its own
   // unless the brake button is held.
@@ -476,16 +492,20 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
 
     dirLight.position.set(vehicle.spherePos.x + 11.4, 15, vehicle.spherePos.z - 5.3);
 
-    // Same fixed-azimuth camera on every device now -- mobile briefly had
-    // its own close, heading-relative chase cam (Camera.updateChase, still
-    // there but unused), reverted per explicit request to match desktop's
-    // angle instead.
-    const mv = vehicle.modelVelocity;
-    _camLead
-      .set(0, 0, 1)
-      .applyQuaternion(vehicle.container.quaternion)
-      .multiplyScalar(Math.sqrt(mv.x * mv.x + mv.z * mv.z));
-    cam.update(dt, vehicle.spherePos, _camLead);
+    // Same fixed-azimuth camera on every device by default -- mobile briefly
+    // had the chase cam below forced on instead, reverted per explicit
+    // request to match desktop's angle. It's now opt-in on any device, per
+    // session, via the C key above.
+    if (cam.chaseMode) {
+      cam.updateChase(dt, vehicle.spherePos, vehicle.container.quaternion);
+    } else {
+      const mv = vehicle.modelVelocity;
+      _camLead
+        .set(0, 0, 1)
+        .applyQuaternion(vehicle.container.quaternion)
+        .multiplyScalar(Math.sqrt(mv.x * mv.x + mv.z * mv.z));
+      cam.update(dt, vehicle.spherePos, _camLead);
+    }
     particles.update(dt, vehicle);
     driftMarks.update(dt, vehicle);
     // TOP_SPEED_REFERENCE, not the nominal MAX_SPEED -- sustained full
@@ -536,6 +556,7 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
 
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("keydown", handleCameraKey);
 
       cam.dispose();
       controls.dispose();
