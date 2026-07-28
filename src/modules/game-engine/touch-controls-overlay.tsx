@@ -1,23 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useIsTouchDevice } from "@/hooks/use-is-touch-device";
 import type { Controls } from "./controls";
-
-// Touch capability never changes over a page's lifetime, so there's nothing
-// to subscribe to -- this only exists to give useSyncExternalStore the
-// browser-vs-server snapshot split it needs to read `window` without a
-// hydration mismatch (the standard React 19 idiom for a browser-only
-// capability check, cleaner than a state+effect pair here since there's no
-// actual external store to subscribe to).
-function subscribeNever() {
-  return () => {};
-}
-function getTouchSnapshot() {
-  return "ontouchstart" in window;
-}
-function getTouchServerSnapshot() {
-  return false;
-}
 
 // Themed replacement for Controls' own setupTouchUI() (raw injected <style>/
 // <div>s, see controls.ts) -- the pointer-math itself still lives on
@@ -26,7 +11,7 @@ function getTouchServerSnapshot() {
 // touchActive back out each frame the same rAF-tick-mutates-a-ref pattern
 // hud-overlay.tsx uses.
 export function TouchControlsOverlay({ controls }: { controls: Controls }) {
-  const isTouchDevice = useSyncExternalStore(subscribeNever, getTouchSnapshot, getTouchServerSnapshot);
+  const isTouchDevice = useIsTouchDevice();
   const baseRef = useRef<HTMLDivElement>(null);
   const knobRef = useRef<HTMLDivElement>(null);
 
@@ -72,7 +57,12 @@ export function TouchControlsOverlay({ controls }: { controls: Controls }) {
 
   return (
     <div
-      className="absolute inset-0 z-10"
+      // No z-index: stacks above the plain canvas (paints later in DOM,
+      // same implicit z-index) but below the HUD/stats/minimap panels'
+      // explicit z-10 -- otherwise this full-screen capture surface (needed
+      // so a steering touch can start anywhere) swallows every tap meant for
+      // the session-stats toggle button before it ever reaches it.
+      className="absolute inset-0"
       style={{ touchAction: "none" }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

@@ -1,5 +1,6 @@
 "use client";
 
+import { TOUCH } from "three";
 import { MapControls, OrthographicCamera } from "@react-three/drei";
 import { useEditorStore } from "@/store/editor-store";
 
@@ -33,6 +34,10 @@ export function TopViewCameraRig() {
         minZoom={2}
         maxZoom={40}
         screenSpacePanning
+        // Same reasoning as the orbit rig's touches prop: ONE deliberately
+        // omitted so one-finger touch is reserved for tap-to-place,
+        // two-finger pinch/drag pans and zooms this flat view instead.
+        touches={{ TWO: TOUCH.DOLLY_PAN }}
       />
     </>
   );

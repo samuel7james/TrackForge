@@ -9,6 +9,7 @@ import * as THREE from "three";
 const _desired = new THREE.Vector3();
 const _delta = new THREE.Vector3();
 const _lookPoint = new THREE.Vector3();
+const _chaseForward = new THREE.Vector3();
 
 export class Camera {
   camera: THREE.PerspectiveCamera;
@@ -23,6 +24,19 @@ export class Camera {
 
   smoothedDesired = new THREE.Vector3();
   initialized = false;
+
+  // Mobile-only alternate mode (see updateChase below) -- a conventional
+  // heading-relative third-person chase, closer and lower than the fixed
+  // 45°-azimuth "Godot View" the desktop/default `update()` uses. Kept as
+  // separate state/method rather than branching inside `update()` so the
+  // desktop camera path is entirely untouched.
+  chaseDistance = 6.5;
+  chaseHeight = 2.6;
+  chaseLookAhead = 5;
+  chaseLookHeight = 1.2;
+  chaseSmoothing = 6.0;
+  smoothedChasePos = new THREE.Vector3();
+  chaseInitialized = false;
 
   debug: THREE.Line;
 
@@ -107,6 +121,30 @@ export class Camera {
     this.debug.position.copy(this.smoothedDesired);
     this.debug.position.y += 0.05;
     this.debug.scale.set(radius, 1, radius);
+  }
+
+  // Follows behind the vehicle's actual heading (rotates as the car turns),
+  // unlike the fixed-compass-direction `update()` above -- closer and lower
+  // too, matching the over-the-shoulder framing of a typical AAA racer
+  // rather than the desktop's pulled-back isometric-style view. Only the
+  // camera position/look-at is smoothed (simple exponential lerp); there's
+  // no deadzone/lead system here since following the car's own forward
+  // vector directly already keeps it centered and reads naturally.
+  updateChase(dt: number, target: THREE.Vector3, quaternion: THREE.Quaternion) {
+    _chaseForward.set(0, 0, 1).applyQuaternion(quaternion);
+
+    _desired.copy(target).addScaledVector(_chaseForward, -this.chaseDistance);
+    _desired.y += this.chaseHeight;
+
+    const alpha = this.chaseInitialized ? 1 - Math.exp(-dt * this.chaseSmoothing) : 1;
+    this.smoothedChasePos.lerp(_desired, alpha);
+    this.chaseInitialized = true;
+
+    this.camera.position.copy(this.smoothedChasePos);
+
+    _lookPoint.copy(target).addScaledVector(_chaseForward, this.chaseLookAhead);
+    _lookPoint.y += this.chaseLookHeight;
+    this.camera.lookAt(_lookPoint);
   }
 
   dispose() {

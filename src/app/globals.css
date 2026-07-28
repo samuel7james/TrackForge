@@ -126,6 +126,14 @@
   --sidebar-ring: oklch(0.72 0.19 45);
 }
 
+/* rotate-device-hint.tsx: a brief, non-blocking nudge shown to touch users
+   driving in portrait -- visible for a few seconds, then fades and stays
+   hidden rather than nagging for the whole session. */
+@keyframes rotate-hint-fade {
+  0%, 65% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

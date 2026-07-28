@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -20,6 +20,18 @@ export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: "TrackForge",
   description: "Design, publish, and race tracks you build yourself — entirely in the browser.",
+};
+
+// viewportFit: "cover" lets the fixed-inset game canvas/HUD extend under a
+// phone's notch/home-indicator rather than leaving a hard-edged letterbox
+// bar there; pinch-zoom is left enabled (no maximumScale/userScalable
+// override) since most of the app is ordinary readable content, not just
+// the drive view.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#131620",
 };
 
 export default function RootLayout({

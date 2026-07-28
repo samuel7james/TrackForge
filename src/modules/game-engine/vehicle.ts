@@ -18,7 +18,18 @@ const _quat = new THREE.Quaternion();
 const _up = new THREE.Vector3(0, 1, 0);
 
 const LINEAR_DAMP = 0.1;
-export const MAX_SPEED = 1.5;
+// The throttle lerp below (dt * THROTTLE_ACCEL_RATE, pulling linearSpeed
+// toward MAX_SPEED) and LINEAR_DAMP (a persistent per-frame drag, applied
+// regardless of input) are two opposing forces that never fully cancel --
+// sustained full throttle settles into an equilibrium speed strictly below
+// MAX_SPEED, not at it. TOP_SPEED_REFERENCE is that actual reachable
+// ceiling, solved from the two rates below; UI that wants "100% = pedal to
+// the floor, held" (session-stats-panel's Top/Avg speed, the engine audio's
+// pitch scaling) should divide by this, not by MAX_SPEED, or the percentage
+// mathematically can't ever reach 100 no matter how the player drives.
+const THROTTLE_ACCEL_RATE = 1.8;
+export const MAX_SPEED = 1.65;
+export const TOP_SPEED_REFERENCE = (MAX_SPEED * THROTTLE_ACCEL_RATE) / (THROTTLE_ACCEL_RATE + LINEAR_DAMP);
 
 function lerpAngle(a: number, b: number, t: number) {
   let diff = b - a;
@@ -105,7 +116,7 @@ export class Vehicle {
       const cross = _forward.x * this.inputZ - _forward.z * this.inputX;
       this.inputX = THREE.MathUtils.clamp(-cross * 2, -1, 1);
 
-      this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, MAX_SPEED, dt * 1.5);
+      this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, MAX_SPEED, dt * THROTTLE_ACCEL_RATE);
     } else {
       // Keyboard / gamepad: standard steering + throttle
       let direction = Math.sign(this.linearSpeed);
@@ -125,7 +136,7 @@ export class Vehicle {
       } else if (targetSpeed < 0) {
         this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, targetSpeed / 2, dt * 2);
       } else {
-        this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, targetSpeed * MAX_SPEED, dt * 1.5);
+        this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, targetSpeed * MAX_SPEED, dt * THROTTLE_ACCEL_RATE);
       }
     }
 

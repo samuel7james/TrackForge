@@ -23,7 +23,7 @@ import {
   type World,
   type Listener,
 } from "crashcat";
-import { Vehicle, MAX_SPEED } from "./vehicle";
+import { Vehicle, TOP_SPEED_REFERENCE } from "./vehicle";
 import { Camera } from "./camera";
 import { Controls } from "./controls";
 import { buildTrack, computeSpawnPosition, computeTrackBounds, encodeCells, TRACK_CELLS, type Cell, type ModelMap } from "./track";
@@ -52,6 +52,15 @@ export interface EngineOptions {
    * submitLapTimes is true, since track-editor.tsx gates entering Play
    * mode at all behind DisplayNameGate. */
   displayName?: string | null;
+  /** Switches to a close, heading-relative third-person chase camera (see
+   * Camera.updateChase) instead of the default fixed-azimuth view, and
+   * trims several GPU-heavy render settings (shadows, bloom, MSAA, HDR
+   * framebuffer, light-probe bake resolution, pixel ratio cap) that cost
+   * much more on typical phone GPUs than they're worth there -- passed in
+   * by engine-mount.tsx based on touch-device detection, not screen size,
+   * since it's about input mode/hardware class rather than viewport width.
+   * Desktop's render path (this flag false) is completely unaffected. */
+  mobileMode?: boolean;
   /** Called if a lap-time submission comes back rejected for having no
    * active display-name claim (see laptimes/route.ts's NEEDS_DISPLAY_NAME) --
    * the stored name is stale (an admin removed the claim, or it predates
@@ -141,30 +150,50 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
     submitLapTimes = false,
     displayName = null,
     onDisplayNameInvalid,
+    mobileMode = false,
     signal,
   } = options;
   let disposed = false;
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
-    outputBufferType: THREE.HalfFloatType,
+    // MSAA roughly doubles fragment-shader work on top of an already
+    // HDR-framebuffer'd, bloom-passed, shadow-mapped scene -- a real cost on
+    // typical phone GPUs for an effect that's hard to even notice next to a
+    // moving car. Desktop keeps it since that's not where the budget is
+    // tight.
+    antialias: !mobileMode,
+    // HalfFloatType roughly doubles the color-framebuffer's memory
+    // bandwidth requirement over the default 8-bit target -- skip it on
+    // mobile, where that bandwidth is the first thing to run out.
+    outputBufferType: mobileMode ? undefined : THREE.HalfFloatType,
   });
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   // Uncapped devicePixelRatio means a 3x-scaled phone/laptop display
   // renders (and runs the bloom pass on) 9x the pixels of a standard
   // display for no visible benefit past ~2x -- the single biggest lever
-  // for "runs fine on my machine, chugs on someone else's."
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
+  // for "runs fine on my machine, chugs on someone else's." Capped further
+  // still on mobile, where the GPU behind those extra pixels is usually
+  // the weaker one, not the stronger one.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobileMode ? 1.5 : 2));
+  // Real-time shadow mapping means an extra full-scene depth pass every
+  // frame (plus PCF-soft filtering) on top of everything else -- one of the
+  // single most expensive toggles on an old/integrated mobile GPU, for a
+  // detail most players moving at speed never consciously notice.
+  renderer.shadowMap.enabled = !mobileMode;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
 
-  const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0, 0, 0);
-  bloomPass.strength = 0.02;
-  bloomPass.radius = 0.02;
-  bloomPass.threshold = 0.5;
-  renderer.setEffects([bloomPass]);
+  if (!mobileMode) {
+    // Bloom's own bright-pass extraction + multi-mip blur passes are a full
+    // extra render pipeline stage, run every frame, for a strength (0.02)
+    // subtle enough to barely register -- not a reasonable trade on mobile.
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0, 0, 0);
+    bloomPass.strength = 0.02;
+    bloomPass.radius = 0.02;
+    bloomPass.threshold = 0.5;
+    renderer.setEffects([bloomPass]);
+  }
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xadb2ba);
@@ -172,7 +201,7 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
 
   const dirLight = new THREE.DirectionalLight(0xffffff, 3);
   dirLight.position.set(11.4, 15, -5.3);
-  dirLight.castShadow = true;
+  dirLight.castShadow = !mobileMode;
   // 4096 was 4x the shadow-render cost of 2048 for a difference only
   // visible pixel-peeping at a standstill -- not worth it on lower-end
   // GPUs, especially combined with the PCF-soft radius below.
@@ -265,16 +294,21 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   buildTrack(scene, models, mapCells);
 
   const probeHeight = 6;
+  // Baking is a one-time load-time cost (one cubemap render per probe cell),
+  // not a per-frame one, but it's still real work to sit through on a slow
+  // mobile GPU before the very first frame -- a coarser grid at a smaller
+  // cubemap resolution cuts that load-time cost substantially for a lighting
+  // difference that's subtle even on desktop.
   const probes = new LightProbeGrid(
     hw * 2,
     probeHeight,
     hd * 2,
-    Math.max(4, Math.round(hw / 4)),
+    Math.max(mobileMode ? 2 : 4, Math.round(hw / (mobileMode ? 6 : 4))),
     2,
-    Math.max(4, Math.round(hd / 4))
+    Math.max(mobileMode ? 2 : 4, Math.round(hd / (mobileMode ? 6 : 4)))
   );
   probes.position.set(bounds.centerX, probeHeight / 2, bounds.centerZ);
-  probes.bake(renderer, scene, { cubemapSize: 32, near: 0.1, far: groundSize });
+  probes.bake(renderer, scene, { cubemapSize: mobileMode ? 16 : 32, near: 0.1, far: groundSize });
   scene.add(probes);
 
   const worldSettings = createWorldSettings();
@@ -431,19 +465,28 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
 
     dirLight.position.set(vehicle.spherePos.x + 11.4, 15, vehicle.spherePos.z - 5.3);
 
-    const mv = vehicle.modelVelocity;
-    _camLead
-      .set(0, 0, 1)
-      .applyQuaternion(vehicle.container.quaternion)
-      .multiplyScalar(Math.sqrt(mv.x * mv.x + mv.z * mv.z));
-    cam.update(dt, vehicle.spherePos, _camLead);
+    if (mobileMode) {
+      cam.updateChase(dt, vehicle.spherePos, vehicle.container.quaternion);
+    } else {
+      const mv = vehicle.modelVelocity;
+      _camLead
+        .set(0, 0, 1)
+        .applyQuaternion(vehicle.container.quaternion)
+        .multiplyScalar(Math.sqrt(mv.x * mv.x + mv.z * mv.z));
+      cam.update(dt, vehicle.spherePos, _camLead);
+    }
     particles.update(dt, vehicle);
     driftMarks.update(dt, vehicle);
-    audio.update(dt, vehicle.linearSpeed / MAX_SPEED, input.z, vehicle.driftIntensity);
+    // TOP_SPEED_REFERENCE, not the nominal MAX_SPEED -- sustained full
+    // throttle physically settles just below MAX_SPEED (see its comment in
+    // vehicle.ts), so dividing by MAX_SPEED here would mean neither the
+    // engine's pitch nor the session-stats percentages could ever actually
+    // reach their max/100%.
+    audio.update(dt, vehicle.linearSpeed / TOP_SPEED_REFERENCE, input.z, vehicle.driftIntensity);
 
     const hasInput = input.touchActive || Math.abs(input.x) > 0.05 || Math.abs(input.z) > 0.05;
     lapTimer.update(dt, vehicle.spherePos, hasInput);
-    sessionStats.update(dt, vehicle.linearSpeed / MAX_SPEED);
+    sessionStats.update(dt, vehicle.linearSpeed / TOP_SPEED_REFERENCE);
 
     if (lapTimer.lap !== prevLap) {
       prevLap = lapTimer.lap;

@@ -1,5 +1,6 @@
 "use client";
 
+import { TOUCH } from "three";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { useEditorStore } from "@/store/editor-store";
 import { FreeFlyCameraRig } from "./camera-modes/free-fly-camera-rig";
@@ -32,6 +33,13 @@ export function EditorCameraRig() {
         minDistance={4}
         maxDistance={120}
         maxPolarAngle={Math.PI / 2 - 0.02}
+        // ONE deliberately omitted (left unbound, not TOUCH.ROTATE) so
+        // one-finger touch is reserved for TileGridLayer's tap-to-place (its
+        // ground-catcher mesh sits on the same canvas) -- without this,
+        // OrbitControls' default one-finger-rotate binding fights that same
+        // gesture. Two-finger pinch/drag still orbits+zooms. Mouse behavior
+        // (mouseButtons, unset here) is untouched by this prop entirely.
+        touches={{ TWO: TOUCH.DOLLY_ROTATE }}
       />
     </>
   );

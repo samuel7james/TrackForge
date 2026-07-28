@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useIsTouchDevice } from "@/hooks/use-is-touch-device";
 import { createEngine, type EngineHandle } from "./engine-core";
 import type { Cell } from "./track";
 import { HudOverlay } from "./hud-overlay";
 import { SessionStatsPanel } from "./session-stats-panel";
 import { TouchControlsOverlay } from "./touch-controls-overlay";
 import { MiniMap } from "./mini-map";
+import { RotateDeviceHint } from "./rotate-device-hint";
 
 export interface EngineMountProps {
   /** null/omitted plays the reference's own built-in demo grid. */
@@ -37,6 +39,7 @@ export function EngineMount({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handleRef = useRef<EngineHandle | null>(null);
   const [handle, setHandle] = useState<EngineHandle | null>(null);
+  const isTouchDevice = useIsTouchDevice();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -52,6 +55,7 @@ export function EngineMount({
       submitLapTimes,
       displayName,
       onDisplayNameInvalid,
+      mobileMode: isTouchDevice,
       signal: abortController.signal,
     }).then((createdHandle) => {
       if (cancelled) {
@@ -89,11 +93,19 @@ export function EngineMount({
           <HudOverlay lapTimer={handle.lapTimer} />
           <SessionStatsPanel stats={handle.sessionStats} />
           <TouchControlsOverlay controls={handle.controls} />
-          <MiniMap
-            cells={mapCells}
-            vehiclePosition={handle.vehiclePosition}
-            vehicleQuaternion={handle.vehicleQuaternion}
-          />
+          {!isTouchDevice && (
+            // Touch devices get the close, heading-relative chase camera
+            // instead (see mobileCamera above) -- that framing already
+            // shows more of the track ahead than the desktop's pulled-back
+            // angle did, so the minimap's screen space goes back to the
+            // player instead of duplicating that job.
+            <MiniMap
+              cells={mapCells}
+              vehiclePosition={handle.vehiclePosition}
+              vehicleQuaternion={handle.vehicleQuaternion}
+            />
+          )}
+          <RotateDeviceHint />
         </>
       )}
     </div>
