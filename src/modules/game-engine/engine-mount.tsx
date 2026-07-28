@@ -78,7 +78,30 @@ export function EngineMount({
 
   return (
     <div style={{ position: "fixed", inset: 0 }}>
-      <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
+      <canvas
+        ref={canvasRef}
+        // Without these, a long-press anywhere on the canvas (most of the
+        // screen, now that touch input is a few small buttons rather than
+        // one full-screen capture div) is fair game for the browser's own
+        // touch gestures -- e.g. Android/Chrome's "Download/Share/Print"
+        // image callout, or iOS Safari's own long-press menu/selection --
+        // same as long-pressing any other image, since a <canvas> is one
+        // as far as the browser's concerned. contextmenu is also blocked
+        // outright since a right-click during play is never meant to open
+        // a menu either.
+        onContextMenu={(e) => e.preventDefault()}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          display: "block",
+          touchAction: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
+        }}
+      />
       {!handle && (
         // createEngine's model-loading Promise.all (vehicle/track/scenery
         // GLBs) can take a real, visible moment on a cold cache/slow
