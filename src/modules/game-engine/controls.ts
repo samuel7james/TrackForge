@@ -1,34 +1,48 @@
 // Keyboard/gamepad/touch input, unified into one steer/throttle pair per
-// frame. Pure input state, no DOM: the touch joystick's pointer-math lives
-// here as public methods (handleSteerStart/Move/End), but drawing the
-// joystick itself is touch-controls-overlay.tsx's job -- it forwards
-// pointer events into these methods and reads touchDirX/touchDirY/
-// touchActive back out to position the knob, the same split lap-timer.ts
-// uses (this class owns the state, a React component owns the pixels).
+// frame. Pure input state, no DOM: touch-controls-overlay.tsx just calls
+// setTouchLeft/Right/Brake in response to its own button press/release
+// events, the same split lap-timer.ts uses (this class owns the state, a
+// React component owns the pixels).
 export interface ControlsState {
   x: number;
   z: number;
   touchActive: boolean;
 }
 
-const STEER_RANGE = 40;
-
 export class Controls {
   private keys: Record<string, boolean> = {};
   x = 0;
   z = 0;
 
+  // Touch: left/right buttons steer (mapped straight to the car's own
+  // relative left/right, same as keyboard -- unlike the old joystick, which
+  // mapped a drag direction onto world-space axes assuming a fixed camera
+  // angle. That assumption broke once mobile got its own heading-relative
+  // chase camera, and reportedly felt inverted even before that -- routing
+  // touch through the exact same x/z the keyboard branch already uses
+  // sidesteps needing a second, separately-tuned steering model entirely).
+  // Throttle is automatic for the whole session once autoThrottle is set
+  // (there's no "gas" button); holding the brake button is the only manual
+  // speed input, same lerp-toward-target-speed(-1) the keyboard's S/Down
+  // already uses for braking-then-reverse.
   touchActive = false;
-  touchDirX = 0;
-  touchDirY = 0;
-  private steerPointerId: number | null = null;
-  private steerStartX = 0;
-  private steerStartY = 0;
+  touchLeft = false;
+  touchRight = false;
+  touchBrake = false;
+  autoThrottle: boolean;
+
+  // Set true for the few seconds of the pre-race countdown (see
+  // start-countdown.tsx) so a player can't jump-start by holding a
+  // direction/brake before "GO" -- forces neutral input regardless of what's
+  // actually being pressed, rather than each caller remembering to check.
+  frozen = false;
 
   private handleKeyDown: (e: KeyboardEvent) => void;
   private handleKeyUp: (e: KeyboardEvent) => void;
 
-  constructor() {
+  constructor(autoThrottle = false) {
+    this.autoThrottle = autoThrottle;
+
     this.handleKeyDown = (e: KeyboardEvent) => (this.keys[e.code] = true);
     this.handleKeyUp = (e: KeyboardEvent) => (this.keys[e.code] = false);
 
@@ -36,40 +50,29 @@ export class Controls {
     window.addEventListener("keyup", this.handleKeyUp);
   }
 
-  handleSteerStart(pointerId: number, clientX: number, clientY: number) {
-    if (this.steerPointerId !== null) return;
-    this.steerPointerId = pointerId;
-    this.steerStartX = clientX;
-    this.steerStartY = clientY;
-    this.touchActive = true;
-    this.touchDirX = 0;
-    this.touchDirY = 0;
+  setTouchLeft(active: boolean) {
+    this.touchLeft = active;
   }
 
-  handleSteerMove(pointerId: number, clientX: number, clientY: number) {
-    if (pointerId !== this.steerPointerId) return;
-    let dx = (clientX - this.steerStartX) / STEER_RANGE;
-    let dy = (clientY - this.steerStartY) / STEER_RANGE;
-    const mag = Math.sqrt(dx * dx + dy * dy);
-
-    if (mag > 1) {
-      dx /= mag;
-      dy /= mag;
-    }
-
-    this.touchDirX = dx;
-    this.touchDirY = dy;
+  setTouchRight(active: boolean) {
+    this.touchRight = active;
   }
 
-  handleSteerEnd(pointerId: number) {
-    if (pointerId !== this.steerPointerId) return;
-    this.steerPointerId = null;
-    this.touchActive = false;
-    this.touchDirX = 0;
-    this.touchDirY = 0;
+  setTouchBrake(active: boolean) {
+    this.touchBrake = active;
+  }
+
+  setFrozen(frozen: boolean) {
+    this.frozen = frozen;
   }
 
   update(): ControlsState {
+    if (this.frozen) {
+      this.x = 0;
+      this.z = 0;
+      return { x: 0, z: 0, touchActive: false };
+    }
+
     let x = 0,
       z = 0;
 
@@ -98,23 +101,17 @@ export class Controls {
       break;
     }
 
-    // Touch — joystick mapped to world space (camera is 45° azimuth)
-
-    if (this.touchActive) {
-      const jx = this.touchDirX;
-      const jy = this.touchDirY;
-      const mag = Math.sqrt(jx * jx + jy * jy);
-
-      if (mag > 0.15) {
-        x = ((jx + jy) * Math.SQRT1_2) / mag;
-        z = ((-jx + jy) * Math.SQRT1_2) / mag;
-      }
+    // Touch: left/right steer, throttle automatic, brake on hold.
+    if (this.autoThrottle) {
+      if (this.touchLeft) x -= 1;
+      if (this.touchRight) x += 1;
+      z = this.touchBrake ? -1 : 1;
     }
 
     this.x = x;
     this.z = z;
 
-    return { x, z, touchActive: this.touchActive };
+    return { x, z, touchActive: this.autoThrottle };
   }
 
   dispose() {

@@ -106,38 +106,32 @@ export class Vehicle {
     this.inputX = controlsInput.x;
     this.inputZ = controlsInput.z;
 
-    if (controlsInput.touchActive && (this.inputX !== 0 || this.inputZ !== 0)) {
-      // Touch: joystick defines world-space direction, auto-gas
-      const targetAngle = Math.atan2(this.inputX, this.inputZ);
-      _quat.setFromAxisAngle(_up, targetAngle);
-      this.container.quaternion.slerp(_quat, 1 - Math.exp(-3 * dt));
+    // Steering + throttle -- keyboard, gamepad, and touch (left/right steer
+    // buttons + auto-throttle + hold-to-brake) all feed the same x/z pair
+    // by the time it reaches here, so they all drive the exact same
+    // relative-to-the-car steering/speed model. Touch used to have its own
+    // separate branch that reinterpreted x/z as a world-space direction to
+    // face (tuned for the desktop's fixed-angle camera) -- removed because
+    // it no longer matched mobile's own heading-relative chase camera, and
+    // reportedly felt inverted even before that.
+    let direction = Math.sign(this.linearSpeed);
+    if (direction === 0) direction = Math.abs(this.inputZ) > 0.1 ? Math.sign(this.inputZ) : 1;
 
-      _forward.set(0, 0, 1).applyQuaternion(this.container.quaternion);
-      const cross = _forward.x * this.inputZ - _forward.z * this.inputX;
-      this.inputX = THREE.MathUtils.clamp(-cross * 2, -1, 1);
+    const steeringGrip = THREE.MathUtils.clamp(Math.abs(this.linearSpeed), 0.2, 1.0);
 
-      this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, MAX_SPEED, dt * THROTTLE_ACCEL_RATE);
+    const targetAngular = -this.inputX * steeringGrip * 4 * direction;
+    this.angularSpeed = THREE.MathUtils.lerp(this.angularSpeed, targetAngular, dt * 4);
+
+    this.container.rotateY(this.angularSpeed * dt);
+
+    const targetSpeed = this.inputZ;
+
+    if (targetSpeed < 0 && this.linearSpeed > 0.01) {
+      this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, 0.0, dt * 8);
+    } else if (targetSpeed < 0) {
+      this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, targetSpeed / 2, dt * 2);
     } else {
-      // Keyboard / gamepad: standard steering + throttle
-      let direction = Math.sign(this.linearSpeed);
-      if (direction === 0) direction = Math.abs(this.inputZ) > 0.1 ? Math.sign(this.inputZ) : 1;
-
-      const steeringGrip = THREE.MathUtils.clamp(Math.abs(this.linearSpeed), 0.2, 1.0);
-
-      const targetAngular = -this.inputX * steeringGrip * 4 * direction;
-      this.angularSpeed = THREE.MathUtils.lerp(this.angularSpeed, targetAngular, dt * 4);
-
-      this.container.rotateY(this.angularSpeed * dt);
-
-      const targetSpeed = this.inputZ;
-
-      if (targetSpeed < 0 && this.linearSpeed > 0.01) {
-        this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, 0.0, dt * 8);
-      } else if (targetSpeed < 0) {
-        this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, targetSpeed / 2, dt * 2);
-      } else {
-        this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, targetSpeed * MAX_SPEED, dt * THROTTLE_ACCEL_RATE);
-      }
+      this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, targetSpeed * MAX_SPEED, dt * THROTTLE_ACCEL_RATE);
     }
 
     _tmpVec.set(0, 1, 0).applyQuaternion(this.container.quaternion);

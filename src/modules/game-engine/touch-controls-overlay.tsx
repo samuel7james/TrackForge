@@ -1,84 +1,82 @@
 "use client";
 
-import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { ChevronLeft, ChevronRight, Octagon } from "lucide-react";
 import { useIsTouchDevice } from "@/hooks/use-is-touch-device";
 import type { Controls } from "./controls";
 
-// Themed replacement for Controls' own setupTouchUI() (raw injected <style>/
-// <div>s, see controls.ts) -- the pointer-math itself still lives on
-// Controls (handleSteerStart/Move/End); this only draws the joystick and
-// forwards pointer events into those methods, reading touchDirX/touchDirY/
-// touchActive back out each frame the same rAF-tick-mutates-a-ref pattern
-// hud-overlay.tsx uses.
+// Steer left/right, hold to brake -- throttle itself is automatic (see
+// Controls.update's autoThrottle), so there's no accelerate button at all.
+// Replaced an earlier single free-drag joystick that mapped its direction
+// onto world-space axes (tuned for the old fixed-angle camera, and
+// reportedly felt inverted even before that) -- these buttons instead
+// drive plain relative left/right steering, the same x/z keyboard already
+// used, so there's only one steering model to tune rather than two.
+function TouchButton({
+  label,
+  className,
+  icon: Icon,
+  onDown,
+  onUp,
+}: {
+  label: string;
+  className: string;
+  icon: typeof ChevronLeft;
+  onDown: () => void;
+  onUp: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      // Size is part of the per-button className (not a fixed base class
+      // here) -- two conflicting Tailwind size-* utilities in one class
+      // string race on generated-CSS order, not class-attribute order, so
+      // whichever one "wins" isn't reliably the one passed in last.
+      className={`absolute flex items-center justify-center rounded-full border border-white/15 bg-white/10 text-white active:bg-white/25 ${className}`}
+      style={{ touchAction: "none" }}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        onDown();
+      }}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+      onPointerLeave={onUp}
+    >
+      <Icon className="size-9" />
+    </button>
+  );
+}
+
 export function TouchControlsOverlay({ controls }: { controls: Controls }) {
   const isTouchDevice = useIsTouchDevice();
-  const baseRef = useRef<HTMLDivElement>(null);
-  const knobRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isTouchDevice) return;
-
-    let frameId: number;
-
-    function tick() {
-      const base = baseRef.current;
-      const knob = knobRef.current;
-
-      if (base) base.style.display = controls.touchActive ? "block" : "none";
-      if (knob) {
-        knob.style.transform = `translate(${controls.touchDirX * 60}px, ${controls.touchDirY * 60}px)`;
-      }
-
-      frameId = requestAnimationFrame(tick);
-    }
-
-    tick();
-    return () => cancelAnimationFrame(frameId);
-  }, [isTouchDevice, controls]);
-
   if (!isTouchDevice) return null;
-
-  function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    controls.handleSteerStart(e.pointerId, e.clientX, e.clientY);
-    if (baseRef.current) {
-      baseRef.current.style.left = `${e.clientX}px`;
-      baseRef.current.style.top = `${e.clientY}px`;
-    }
-  }
-
-  function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
-    controls.handleSteerMove(e.pointerId, e.clientX, e.clientY);
-  }
-
-  function handlePointerEnd(e: ReactPointerEvent<HTMLDivElement>) {
-    controls.handleSteerEnd(e.pointerId);
-  }
 
   return (
     <div
-      // No z-index: stacks above the plain canvas (paints later in DOM,
-      // same implicit z-index) but below the HUD/stats/minimap panels'
-      // explicit z-10 -- otherwise this full-screen capture surface (needed
-      // so a steering touch can start anywhere) swallows every tap meant for
-      // the session-stats toggle button before it ever reaches it.
-      className="absolute inset-0"
-      style={{ touchAction: "none" }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerEnd}
-      onPointerCancel={handlePointerEnd}
+      className="pointer-events-auto absolute inset-x-0 bottom-0 z-10"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div
-        ref={baseRef}
-        style={{ display: "none" }}
-        className="absolute h-[140px] w-[140px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/20 bg-white/10"
-      >
-        <div
-          ref={knobRef}
-          className="absolute left-1/2 top-1/2 h-[60px] w-[60px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/35"
-        />
-      </div>
+      <TouchButton
+        label="Steer left"
+        className="bottom-6 left-6 size-20"
+        icon={ChevronLeft}
+        onDown={() => controls.setTouchLeft(true)}
+        onUp={() => controls.setTouchLeft(false)}
+      />
+      <TouchButton
+        label="Steer right"
+        className="bottom-6 right-6 size-20"
+        icon={ChevronRight}
+        onDown={() => controls.setTouchRight(true)}
+        onUp={() => controls.setTouchRight(false)}
+      />
+      <TouchButton
+        label="Brake"
+        className="bottom-8 left-1/2 -translate-x-1/2 size-16"
+        icon={Octagon}
+        onDown={() => controls.setTouchBrake(true)}
+        onUp={() => controls.setTouchBrake(false)}
+      />
     </div>
   );
 }

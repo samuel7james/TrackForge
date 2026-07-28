@@ -10,6 +10,7 @@ import { SessionStatsPanel } from "./session-stats-panel";
 import { TouchControlsOverlay } from "./touch-controls-overlay";
 import { MiniMap } from "./mini-map";
 import { RotateDeviceHint } from "./rotate-device-hint";
+import { StartCountdown } from "./start-countdown";
 
 export interface EngineMountProps {
   /** null/omitted plays the reference's own built-in demo grid. */
@@ -106,6 +107,7 @@ export function EngineMount({
             />
           )}
           <RotateDeviceHint />
+          <StartCountdown controls={handle.controls} />
         </>
       )}
     </div>

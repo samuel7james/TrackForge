@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ChartNoAxesColumn } from "lucide-react";
+import { useIsTouchDevice } from "@/hooks/use-is-touch-device";
+import { cn } from "@/lib/utils";
 import type { SessionStats } from "./session-stats";
 import { formatLapTime } from "./lap-timer";
 
@@ -9,9 +11,13 @@ import { formatLapTime } from "./lap-timer";
 // plain public fields every frame via refs, not React state, to avoid a
 // re-render per frame). Collapsed by default behind a toggle, opposite
 // corner from HudOverlay, so it doesn't compete with the always-visible
-// lap timer.
+// lap timer. On touch, bottom-right is claimed by the steer-right button
+// (touch-controls-overlay.tsx) instead -- moved up to the top-right corner,
+// which the minimap would otherwise occupy on desktop but is left empty on
+// touch (see engine-mount.tsx).
 export function SessionStatsPanel({ stats }: { stats: SessionStats }) {
   const [open, setOpen] = useState(false);
+  const isTouchDevice = useIsTouchDevice();
   const topSpeedRef = useRef<HTMLSpanElement>(null);
   const avgSpeedRef = useRef<HTMLSpanElement>(null);
   const lapListRef = useRef<HTMLUListElement>(null);
@@ -53,7 +59,12 @@ export function SessionStatsPanel({ stats }: { stats: SessionStats }) {
   if (!stats.enabled) return null;
 
   return (
-    <div className="pointer-events-auto absolute bottom-3 right-3 z-10 flex flex-col items-end gap-2">
+    <div
+      className={cn(
+        "pointer-events-auto absolute z-10 flex items-end gap-2",
+        isTouchDevice ? "top-20 right-3 flex-col-reverse" : "bottom-3 right-3 flex-col"
+      )}
+    >
       {open && (
         <div className="w-56 rounded-2xl border border-border/50 bg-card/80 p-4 text-foreground shadow-lg backdrop-blur-xl">
           <div className="mb-3 flex items-center justify-between gap-3 text-xs tabular-nums">

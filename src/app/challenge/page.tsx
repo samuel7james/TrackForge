@@ -56,7 +56,7 @@ export default async function DailyChallengePage() {
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-6 py-16">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <BackButton />
           <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">

@@ -30,12 +30,19 @@ export class Camera {
   // 45°-azimuth "Godot View" the desktop/default `update()` uses. Kept as
   // separate state/method rather than branching inside `update()` so the
   // desktop camera path is entirely untouched.
-  chaseDistance = 6.5;
-  chaseHeight = 2.6;
+  chaseDistance = 7.5;
+  chaseHeight = 3.6;
   chaseLookAhead = 5;
   chaseLookHeight = 1.2;
   chaseSmoothing = 6.0;
+  // Slower than chaseSmoothing on purpose: the vehicle's heading itself
+  // (container.quaternion) can swing fast through a sharp corner or a
+  // drift, and following that instantaneous heading directly whipped the
+  // view around every time -- smoothing the heading (not just the
+  // position) the camera looks from/at is what actually calms that down.
+  chaseRotSmoothing = 3.5;
   smoothedChasePos = new THREE.Vector3();
+  smoothedChaseQuat = new THREE.Quaternion();
   chaseInitialized = false;
 
   debug: THREE.Line;
@@ -126,12 +133,20 @@ export class Camera {
   // Follows behind the vehicle's actual heading (rotates as the car turns),
   // unlike the fixed-compass-direction `update()` above -- closer and lower
   // too, matching the over-the-shoulder framing of a typical AAA racer
-  // rather than the desktop's pulled-back isometric-style view. Only the
-  // camera position/look-at is smoothed (simple exponential lerp); there's
-  // no deadzone/lead system here since following the car's own forward
-  // vector directly already keeps it centered and reads naturally.
+  // rather than the desktop's pulled-back isometric-style view. Both the
+  // heading used to place/aim the camera and the camera's position are
+  // smoothed independently (different rates) -- smoothing position alone
+  // wasn't enough, since the *look direction* still snapped to the car's
+  // instantaneous heading and whipped around on sharp corners/drifts.
   updateChase(dt: number, target: THREE.Vector3, quaternion: THREE.Quaternion) {
-    _chaseForward.set(0, 0, 1).applyQuaternion(quaternion);
+    if (!this.chaseInitialized) {
+      this.smoothedChaseQuat.copy(quaternion);
+    } else {
+      const rotAlpha = 1 - Math.exp(-dt * this.chaseRotSmoothing);
+      this.smoothedChaseQuat.slerp(quaternion, rotAlpha);
+    }
+
+    _chaseForward.set(0, 0, 1).applyQuaternion(this.smoothedChaseQuat);
 
     _desired.copy(target).addScaledVector(_chaseForward, -this.chaseDistance);
     _desired.y += this.chaseHeight;

@@ -15,7 +15,7 @@ export default function BookmarksPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-16">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <BackButton />
           <div className="flex flex-col gap-1">

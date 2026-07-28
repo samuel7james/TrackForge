@@ -358,7 +358,10 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   const cam = new Camera();
   scene.add(cam.debug);
 
-  const controls = new Controls();
+  // autoThrottle: touch has no gas button (see touch-controls-overlay.tsx)
+  // -- once true, Controls.update() drives the car forward on its own
+  // unless the brake button is held.
+  const controls = new Controls(mobileMode);
 
   const particles = new SmokeTrails(scene);
   const driftMarks = new DriftMarks(scene, trackId);
