@@ -437,10 +437,17 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
               if (data?.code === "NEEDS_DISPLAY_NAME") onDisplayNameInvalid?.();
               return;
             }
+            // Default toast position is bottom-right (see layout.tsx's
+            // <Toaster>) -- exactly where the steer-right button lives on
+            // touch (touch-controls-overlay.tsx), so a toast popping up
+            // mid-corner silently ate the touches meant for that button.
+            // Overridden per-call rather than changing the site-wide
+            // default, which every other (non-driving) toast still wants.
+            const toastOptions = mobileMode ? { position: "top-center" as const } : undefined;
             if (data.isNewPersonalBest && data.worldRecordMs === timeMs) {
-              toast.success("New world record!");
+              toast.success("New world record!", toastOptions);
             } else if (data.isNewPersonalBest) {
-              toast.success("New personal best — leaderboard updated");
+              toast.success("New personal best — leaderboard updated", toastOptions);
             }
           })
           .catch(() => {
