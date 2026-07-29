@@ -23,7 +23,7 @@ import {
   type World,
   type Listener,
 } from "crashcat";
-import { Vehicle, TOP_SPEED_REFERENCE } from "./vehicle";
+import { Vehicle, topSpeedReference } from "./vehicle";
 import { Camera } from "./camera";
 import { Controls } from "./controls";
 import { buildTrack, computeSpawnPosition, computeTrackBounds, encodeCells, TRACK_CELLS, type Cell, type ModelMap } from "./track";
@@ -508,16 +508,18 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
     }
     particles.update(dt, vehicle);
     driftMarks.update(dt, vehicle);
-    // TOP_SPEED_REFERENCE, not the nominal MAX_SPEED -- sustained full
+    // topSpeedReference(), not the nominal MAX_SPEED -- sustained full
     // throttle physically settles just below MAX_SPEED (see its comment in
     // vehicle.ts), so dividing by MAX_SPEED here would mean neither the
     // engine's pitch nor the session-stats percentages could ever actually
-    // reach their max/100%.
-    audio.update(dt, vehicle.linearSpeed / TOP_SPEED_REFERENCE, input.z, vehicle.driftIntensity);
+    // reach their max/100%. Called per-frame since it tracks the runtime
+    // tuning multipliers, which keeps both scales honest at any setting.
+    const topSpeed = topSpeedReference();
+    audio.update(dt, vehicle.linearSpeed / topSpeed, input.z, vehicle.driftIntensity);
 
     const hasInput = input.touchActive || Math.abs(input.x) > 0.05 || Math.abs(input.z) > 0.05;
     lapTimer.update(dt, vehicle.spherePos, hasInput);
-    sessionStats.update(dt, vehicle.linearSpeed / TOP_SPEED_REFERENCE);
+    sessionStats.update(dt, vehicle.linearSpeed / topSpeed);
 
     if (lapTimer.lap !== prevLap) {
       prevLap = lapTimer.lap;

@@ -7,6 +7,7 @@
 // uses), not a stand-in for a "real" car physics model.
 import * as THREE from "three";
 import { rigidBody, type RigidBody, type World } from "crashcat";
+import { tuning } from "./tuning";
 
 const _tmpVec = new THREE.Vector3();
 const _forward = new THREE.Vector3();
@@ -22,14 +23,34 @@ const LINEAR_DAMP = 0.1;
 // toward MAX_SPEED) and LINEAR_DAMP (a persistent per-frame drag, applied
 // regardless of input) are two opposing forces that never fully cancel --
 // sustained full throttle settles into an equilibrium speed strictly below
-// MAX_SPEED, not at it. TOP_SPEED_REFERENCE is that actual reachable
+// MAX_SPEED, not at it. topSpeedReference() is that actual reachable
 // ceiling, solved from the two rates below; UI that wants "100% = pedal to
 // the floor, held" (session-stats-panel's Top/Avg speed, the engine audio's
-// pitch scaling) should divide by this, not by MAX_SPEED, or the percentage
+// pitch scaling) should divide by that, not by MAX_SPEED, or the percentage
 // mathematically can't ever reach 100 no matter how the player drives.
 const THROTTLE_ACCEL_RATE = 1.8;
 export const MAX_SPEED = 1.65;
-export const TOP_SPEED_REFERENCE = (MAX_SPEED * THROTTLE_ACCEL_RATE) / (THROTTLE_ACCEL_RATE + LINEAR_DAMP);
+
+// Both scaled by the runtime multipliers in tuning.ts (both 1 by default,
+// i.e. exactly these constants) -- read per-frame rather than captured once,
+// so a change applies on the very next frame.
+function maxSpeed() {
+  return MAX_SPEED * tuning.speedScale;
+}
+
+function throttleAccelRate() {
+  return THROTTLE_ACCEL_RATE * tuning.accelScale;
+}
+
+// A function, not the constant it used to be: both terms it's solved from
+// are now adjustable at runtime, so a value captured at module-load would
+// silently stop matching the physics the moment either changed -- and since
+// callers divide by it to get "percent of top speed," that would read as
+// >100% (or a mistuned engine pitch) rather than as anything obviously wrong.
+export function topSpeedReference() {
+  const accel = throttleAccelRate();
+  return (maxSpeed() * accel) / (accel + LINEAR_DAMP);
+}
 
 function lerpAngle(a: number, b: number, t: number) {
   let diff = b - a;
@@ -131,7 +152,7 @@ export class Vehicle {
     } else if (targetSpeed < 0) {
       this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, targetSpeed / 2, dt * 2);
     } else {
-      this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, targetSpeed * MAX_SPEED, dt * THROTTLE_ACCEL_RATE);
+      this.linearSpeed = THREE.MathUtils.lerp(this.linearSpeed, targetSpeed * maxSpeed(), dt * throttleAccelRate());
     }
 
     _tmpVec.set(0, 1, 0).applyQuaternion(this.container.quaternion);
