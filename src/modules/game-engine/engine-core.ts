@@ -164,12 +164,15 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    // MSAA roughly doubles fragment-shader work on top of an already
-    // HDR-framebuffer'd, bloom-passed, shadow-mapped scene -- a real cost on
-    // typical phone GPUs for an effect that's hard to even notice next to a
-    // moving car. Desktop keeps it since that's not where the budget is
-    // tight.
-    antialias: !mobileMode,
+    // On now for phones too, where it was previously off. Mobile GPUs are
+    // tile-based: they resolve multisampling inside on-chip tile memory,
+    // which makes MSAA dramatically cheaper there than the same setting on
+    // a desktop immediate-mode GPU, and cheaper than buying equivalent edge
+    // quality by pushing the resolution up instead. Jagged edges on
+    // long, near-horizontal track boundaries are the single most visible
+    // artefact on a phone, and are most of what reads as "pixelated" in
+    // landscape, where those edges run the full width of the screen.
+    antialias: true,
     // HalfFloatType roughly doubles the color-framebuffer's memory
     // bandwidth requirement over the default 8-bit target -- skip it on
     // mobile, where that bandwidth is the first thing to run out.
@@ -218,8 +221,12 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   hemiLight.position.copy(dirLight.position);
   scene.add(hemiLight);
 
+  // Assigned once the QualityManager exists (it needs the scene, which
+  // isn't built yet here) -- a rotation before then is just a resize.
+  let onViewportChange: (() => void) | null = null;
   const handleResize = () => {
     renderer.setSize(window.innerWidth, window.innerHeight, false);
+    onViewportChange?.();
   };
   window.addEventListener("resize", handleResize);
 
@@ -369,6 +376,7 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
     startLow: mobileMode,
     maxDpr: Math.min(window.devicePixelRatio, 2),
   });
+  onViewportChange = () => quality.handleViewportChange();
 
   const cam = new Camera();
   scene.add(cam.debug);
@@ -563,7 +571,22 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
     renderer.render(scene, cam.camera);
   }
 
-  frameId = requestAnimationFrame(animate);
+  // Shaders are otherwise compiled lazily, the first frame each material
+  // becomes visible -- so the opening seconds of a drive hitch repeatedly
+  // as the track, scenery, car and ghost each come into view and stall the
+  // main thread to build their program. Doing it up front moves all of
+  // that into the load, where there's already a spinner, and leaves the
+  // first laps smooth. It also means the QualityManager's early samples
+  // measure rendering rather than compilation, so it stops mistaking
+  // compile stalls for a slow GPU and demoting on the strength of them.
+  await renderer.compileAsync(scene, cam.camera);
+
+  // Compiling is awaited, so the component can have unmounted meanwhile.
+  // Only the loop is withheld -- the fully-formed handle is still returned,
+  // and engine-mount.tsx disposes it on arrival (see its `cancelled`
+  // branch), which is the one path that already frees everything built
+  // above.
+  if (!signal?.aborted) frameId = requestAnimationFrame(animate);
 
   return {
     lapTimer,
