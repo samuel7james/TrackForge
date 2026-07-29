@@ -9,6 +9,15 @@ interface RouteContext {
 
 const TOP_N = 20;
 
+// Vercel's default for a route handler is `public, max-age=0,
+// must-revalidate`, which is wrong for this response twice over. It's
+// personalised -- `own` and `isViewer` are derived from the caller's own
+// viewerId cookie -- so `public` would let a shared cache hand one
+// visitor's standings to another. And it's moderated data: an admin
+// deleting a lap time has to be visible on the very next read, not after
+// a revalidation some intermediary may or may not perform.
+const NO_STORE = { "Cache-Control": "private, no-store" } as const;
+
 // Public read, no auth (mirrors GET /api/tracks/[slug]) -- ranks aren't a
 // secret. Returns the top N entries plus, if this request's own viewerId
 // cookie has a row, that viewer's own rank/entry even when it falls outside
@@ -17,7 +26,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
   const { slug } = await params;
   const track = await prisma.track.findUnique({ where: { slug }, select: { id: true } });
   if (!track) {
-    return NextResponse.json({ error: "Track not found" }, { status: 404 });
+    return NextResponse.json({ error: "Track not found" }, { status: 404, headers: NO_STORE });
   }
 
   const topEntries = await prisma.lapRecord.findMany({
@@ -44,13 +53,16 @@ export async function GET(_request: Request, { params }: RouteContext) {
     }
   }
 
-  return NextResponse.json({
-    entries: topEntries.map(({ displayName, timeMs }, i) => ({
-      rank: i + 1,
-      displayName,
-      timeMs,
-      isViewer: topEntries[i].viewerId === viewerId,
-    })),
-    own,
-  });
+  return NextResponse.json(
+    {
+      entries: topEntries.map(({ displayName, timeMs }, i) => ({
+        rank: i + 1,
+        displayName,
+        timeMs,
+        isViewer: topEntries[i].viewerId === viewerId,
+      })),
+      own,
+    },
+    { headers: NO_STORE }
+  );
 }

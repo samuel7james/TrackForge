@@ -1,4 +1,10 @@
-import Link from "next/link";
+// Plain <a> for every /t/[slug] link below rather than next/link, the same
+// choice track-card.tsx documents: next/link prefetches the target and
+// serves that snapshot on click. This page's whole purpose is deleting
+// things, and the prefetch happens when the table renders -- before the
+// delete -- so a moderated lap time or comment would still be sitting there
+// on the track page the moment an admin clicked through to check their own
+// work. A full navigation always reads current data.
 import { prisma } from "@/lib/prisma";
 import { formatLapTime } from "@/modules/game-engine/lap-timer";
 import { DIFFICULTY_LABELS } from "@/modules/track/difficulty-labels";
@@ -164,9 +170,9 @@ export default async function AdminDashboardPage() {
               {tracks.map((track) => (
                 <tr key={track.slug} className="border-b border-border/30 last:border-0 align-top">
                   <td className="p-3">
-                    <Link href={`/t/${track.slug}`} className="font-medium hover:underline">
+                    <a href={`/t/${track.slug}`} className="font-medium hover:underline">
                       {track.name}
-                    </Link>
+                    </a>
                     {track.description && (
                       <p className="mt-0.5 max-w-xs text-xs text-muted-foreground">
                         {track.description}
@@ -269,9 +275,9 @@ export default async function AdminDashboardPage() {
                 <tr key={lap.id} className="border-b border-border/30 last:border-0">
                   <td className="p-3 font-medium">{lap.displayName}</td>
                   <td className="p-3">
-                    <Link href={`/t/${lap.track.slug}`} className="hover:underline">
+                    <a href={`/t/${lap.track.slug}`} className="hover:underline">
                       {lap.track.name}
-                    </Link>
+                    </a>
                   </td>
                   <td className="p-3 tabular-nums text-muted-foreground">
                     {formatLapTime(lap.timeMs / 1000)}
@@ -305,9 +311,9 @@ export default async function AdminDashboardPage() {
                     {like.viewerId.slice(0, 8)}
                   </td>
                   <td className="p-3">
-                    <Link href={`/t/${like.track.slug}`} className="hover:underline">
+                    <a href={`/t/${like.track.slug}`} className="hover:underline">
                       {like.track.name}
-                    </Link>
+                    </a>
                   </td>
                   <td className="p-3 text-muted-foreground">{formatDate(like.createdAt)}</td>
                 </tr>
@@ -329,9 +335,9 @@ export default async function AdminDashboardPage() {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="font-medium text-foreground">{comment.displayName}</span>
                   <span>on</span>
-                  <Link href={`/t/${comment.track.slug}`} className="hover:underline">
+                  <a href={`/t/${comment.track.slug}`} className="hover:underline">
                     {comment.track.name}
-                  </Link>
+                  </a>
                   <span>{formatDate(comment.createdAt)}</span>
                 </div>
                 <p className="whitespace-pre-wrap text-muted-foreground">{comment.body}</p>
