@@ -66,7 +66,11 @@ export function TrackEditor({ slug, document, autoplay, initiallyPublished, isAd
   // brake button (touch-controls-overlay.tsx is also bottom-center).
   const isTouchDevice = useIsTouchDevice();
 
-  useAutosave(isAdmin);
+  // Never autosave the daily challenge: it's generated server-side and the
+  // PATCH route refuses it outright, because writing to it would clear the
+  // tags that record which IST day it belongs to and cause a fresh random
+  // layout mid-day.
+  useAutosave(isAdmin, !isDailyChallenge);
   const saveTrack = useSaveTrack(isAdmin);
 
   // The leaderboard needs a human-readable name per lap-time submission.

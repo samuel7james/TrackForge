@@ -5,6 +5,7 @@ import { computeTrackDifficulty } from "@/modules/track-format/auto-difficulty";
 import { isAdminSessionValid } from "@/lib/admin-auth";
 import { timingSafeStringEqual } from "@/lib/timing-safe-compare";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { DAILY_CHALLENGE_SLUG } from "@/lib/daily-challenge-slug";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
@@ -82,6 +83,24 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const { slug } = await params;
   if (!checkRateLimit(`track-update:${slug}`, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX)) {
     return NextResponse.json({ error: "Too many saves — slow down." }, { status: 429 });
+  }
+
+  // The daily challenge is system-generated and system-owned: nobody, admin
+  // included, edits it through here. Blocked because this route writes
+  // `tags` from document.meta.tags -- which is empty on a generated
+  // document -- so a single successful PATCH would erase the day and
+  // generator tags that mark which IST day the track belongs to (see
+  // server/daily-challenge.ts), and the very next visit would decide it was
+  // stale and roll a brand new random layout mid-day.
+  //
+  // Only an admin could ever reach that, since no client is given this
+  // track's editToken, but "only the operator can accidentally destroy it"
+  // isn't a guarantee worth relying on.
+  if (slug === DAILY_CHALLENGE_SLUG) {
+    return NextResponse.json(
+      { error: "The daily challenge is generated automatically and can't be edited" },
+      { status: 403 }
+    );
   }
 
   const isAdmin = await isAdminSessionValid();
