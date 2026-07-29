@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useIsTouchDevice } from "@/hooks/use-is-touch-device";
+import { useIsTouchDevice, detectTouchDevice } from "@/hooks/use-is-touch-device";
 import { createEngine, type EngineHandle } from "./engine-core";
 import type { Cell } from "./track";
 import { HudOverlay } from "./hud-overlay";
@@ -57,7 +57,13 @@ export function EngineMount({
       submitLapTimes,
       displayName,
       onDisplayNameInvalid,
-      mobileMode: isTouchDevice,
+      // Read here, not from the isTouchDevice hook above: this effect runs
+      // once, and the hook's first value is the hydration-safe `false`, so
+      // capturing it raced the update that corrects it -- measurably, the
+      // engine started in desktop mode on a real touch device roughly half
+      // the time, silently turning off auto-throttle and the entire mobile
+      // render path. See detectTouchDevice's own comment.
+      mobileMode: detectTouchDevice(),
       signal: abortController.signal,
     }).then((createdHandle) => {
       if (cancelled) {

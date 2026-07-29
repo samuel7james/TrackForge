@@ -40,7 +40,24 @@ function cellsChanged(oldCells: unknown[], newCells: unknown[]): boolean {
 // Milestone 3's published track pages will use).
 export async function GET(_request: Request, { params }: RouteContext) {
   const { slug } = await params;
-  const track = await prisma.track.findUnique({ where: { slug } });
+  // Selected explicitly rather than fetching the whole row: this is the
+  // public read, and the row carries the editToken that authorizes writing
+  // to it. The response below already picks fields by hand, but keeping the
+  // secret out of the query means a future edit here can't leak it by
+  // spreading the object.
+  const track = await prisma.track.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      description: true,
+      document: true,
+      isPublished: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
   if (!track) {
     return NextResponse.json({ error: "Track not found" }, { status: 404 });
   }

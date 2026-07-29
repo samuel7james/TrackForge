@@ -26,7 +26,24 @@ function formatEstimatedTime(ms: number | null): string {
 
 export default async function PublicTrackPage({ params }: PublicTrackPageProps) {
   const { slug } = await params;
-  const track = await prisma.track.findUnique({ where: { slug } });
+  // Explicit select: an unqualified findUnique pulls every column, which on
+  // this public page means loading the track's editToken -- the bearer
+  // secret that authorizes editing it -- into the render path of a page
+  // anyone can open. It was never sent to the client, but the safe shape is
+  // to not have it in hand at all rather than to rely on every future edit
+  // of this file remembering not to pass it down.
+  const track = await prisma.track.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      authorId: true,
+      isPublished: true,
+      likeCount: true,
+      document: true,
+    },
+  });
   if (!track) notFound();
 
   const parsed = safeParseTrackDocument(track.document);

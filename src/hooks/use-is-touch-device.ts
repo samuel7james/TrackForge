@@ -22,3 +22,22 @@ function getTouchServerSnapshot() {
 export function useIsTouchDevice() {
   return useSyncExternalStore(subscribeNever, getTouchSnapshot, getTouchServerSnapshot);
 }
+
+// The same check, read directly rather than through React.
+//
+// The hook above necessarily reports false on its first render -- that's
+// the server snapshot, and rendering anything else would be a hydration
+// mismatch -- then flips to the real value immediately after. That's
+// correct for rendering, but it makes the hook's value unsafe to capture
+// inside a mount effect: whether the effect runs before or after that flip
+// is a timing race, so an effect with an empty dependency list can hold
+// onto `false` on a real phone forever, and does so unpredictably.
+//
+// That is exactly how the engine is started (see engine-mount.tsx), and it
+// decides auto-throttle and the whole render-quality path -- too important
+// to leave to a race. Anything reading touch capability at effect time
+// should call this instead; anything deciding what to *render* should keep
+// using the hook, which is what hydration-safe means here.
+export function detectTouchDevice(): boolean {
+  return typeof window !== "undefined" && "ontouchstart" in window;
+}

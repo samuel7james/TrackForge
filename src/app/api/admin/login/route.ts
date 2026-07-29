@@ -2,15 +2,26 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyAdminCredentials, createAdminSessionToken, ADMIN_SESSION_COOKIE } from "@/lib/admin-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { rateLimitKey } from "@/lib/client-ip";
 
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT_MAX = 5; // brute-force deterrent -- there's only one real login attempt pattern to protect
+const PER_ORIGIN_MAX = 5; // brute-force deterrent against one attacker
+// Deliberately looser than the per-origin budget: it exists only to bound a
+// distributed attempt, not to be the limit a real person meets.
+const GLOBAL_MAX = 30;
 
-// One fixed rate-limit key (not per-IP/viewerId) -- there's exactly one
-// admin identity to attack, so every login attempt against this endpoint
-// shares the same budget regardless of source.
 export async function POST(request: Request) {
-  if (!checkRateLimit("admin-login", RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX)) {
+  // Two budgets, not one. A single global key was enough to brute-force
+  // against, but it also meant anyone could spend all 5 attempts a minute
+  // from anywhere and lock the real admin out of their own dashboard
+  // indefinitely -- a trivial denial of service. The per-origin budget is
+  // what an attacker actually runs into; the global one is a much higher
+  // ceiling that only a distributed attempt would reach.
+  const perOrigin = rateLimitKey(request, "admin-login", "shared");
+  if (
+    !checkRateLimit(perOrigin, RATE_LIMIT_WINDOW_MS, PER_ORIGIN_MAX) ||
+    !checkRateLimit("admin-login:global", RATE_LIMIT_WINDOW_MS, GLOBAL_MAX)
+  ) {
     return NextResponse.json({ error: "Too many attempts — try again in a minute." }, { status: 429 });
   }
 

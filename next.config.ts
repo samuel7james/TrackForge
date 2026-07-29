@@ -23,6 +23,27 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // The 11 GLB models (~864KB together) are served straight out of
+        // public/, which Next sends as `max-age=0` -- so every single play
+        // session re-validated all of them, 11 round trips before the track
+        // could even start building, on exactly the phone connections least
+        // able to absorb it.
+        //
+        // Not `immutable`: these filenames aren't content-hashed, so a
+        // future edit to a model has to be able to reach players. A day of
+        // freshness plus a week of serve-stale-while-revalidating gets the
+        // repeat-visit win without making a model change unpublishable --
+        // worst case it lands a day late, or immediately if the file is
+        // renamed.
+        source: "/models/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      {
         source: "/:path*",
         headers: [
           // The editor and play canvas are the whole product -- framing

@@ -25,6 +25,7 @@ import {
 } from "crashcat";
 import { Vehicle, topSpeedReference } from "./vehicle";
 import { Camera } from "./camera";
+import { QualityManager } from "./quality-manager";
 import { Controls } from "./controls";
 import { buildTrack, computeSpawnPosition, computeTrackBounds, encodeCells, TRACK_CELLS, type Cell, type ModelMap } from "./track";
 import { buildWallColliders, createSphereBody } from "./physics";
@@ -94,10 +95,14 @@ export interface EngineHandle {
 
 const PLAYER_MODEL = "vehicle-truck-red";
 
+// Only what actually gets rendered. vehicle-truck-green and
+// vehicle-truck-purple used to be fetched here too, but nothing ever drew
+// them -- the player is PLAYER_MODEL and the ghost is a clone of that same
+// model -- so they cost every visitor ~182KB of download and GLTF parsing,
+// on every platform, to be thrown away. The .glb files are still in
+// public/ for whenever car selection wants them.
 const MODEL_NAMES = [
   "vehicle-truck-red",
-  "vehicle-truck-green",
-  "vehicle-truck-purple",
   "track-straight",
   "track-corner",
   "track-bump",
@@ -171,17 +176,13 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
     outputBufferType: mobileMode ? undefined : THREE.HalfFloatType,
   });
   renderer.setSize(window.innerWidth, window.innerHeight, false);
-  // Uncapped devicePixelRatio means a 3x-scaled phone/laptop display
-  // renders (and runs the bloom pass on) 9x the pixels of a standard
-  // display for no visible benefit past ~2x -- the single biggest lever
-  // for "runs fine on my machine, chugs on someone else's." Capped further
-  // still on mobile, where the GPU behind those extra pixels is usually
-  // the weaker one, not the stronger one.
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobileMode ? 1.5 : 2));
-  // Real-time shadow mapping means an extra full-scene depth pass every
-  // frame (plus PCF-soft filtering) on top of everything else -- one of the
-  // single most expensive toggles on an old/integrated mobile GPU, for a
-  // detail most players moving at speed never consciously notice.
+  // Pixel ratio and shadows are both handed to QualityManager below, which
+  // sets them from measured frame rate instead of from device class --
+  // uncapped devicePixelRatio still means a 3x display renders 9x the
+  // pixels of a standard one, but which devices can afford that is a
+  // question worth measuring rather than assuming. These are just the
+  // opening values it starts from.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobileMode ? 1.25 : 2));
   renderer.shadowMap.enabled = !mobileMode;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
@@ -357,6 +358,18 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
 
   dirLight.target = vehicleGroup;
 
+  // Takes over pixel ratio and shadows from here on, moving between levels
+  // to hold the frame rate. A capable phone climbs to full resolution with
+  // shadows within a few seconds of the countdown; a struggling machine of
+  // any kind steps down instead of stuttering.
+  const quality = new QualityManager({
+    renderer,
+    dirLight,
+    scene,
+    startLow: mobileMode,
+    maxDpr: Math.min(window.devicePixelRatio, 2),
+  });
+
   const cam = new Camera();
   scene.add(cam.debug);
 
@@ -483,6 +496,12 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
 
     timer.update();
     const dt = Math.min(timer.getDelta(), 1 / 30);
+
+    // Deliberately fed the raw frame delta, not the clamped `dt` above:
+    // that clamp exists to keep physics stable across a stall, but it also
+    // caps how slow a frame can *look*, which would hide the exact
+    // stuttering this needs to see.
+    quality.update(timer.getDelta());
 
     const input = controls.update();
 
