@@ -230,6 +230,19 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   };
   window.addEventListener("resize", handleResize);
 
+  // Opened now, in parallel with model loading, so the token is in hand
+  // long before any lap could finish and costs no extra wait. It carries
+  // the server's timestamp for the elapsed-time check on submission (see
+  // lib/lap-session.ts); without it the server has no evidence a race was
+  // ever started, so a failure here simply means times don't post.
+  const lapSessionRequest: Promise<string | null> =
+    submitLapTimes && trackId
+      ? fetch(`/api/tracks/${trackId}/session`, { method: "POST" })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => data?.token ?? null)
+          .catch(() => null)
+      : Promise.resolve(null);
+
   const loader = new ColorMapGLTFLoader();
   const models: ModelMap = {};
 
@@ -269,6 +282,8 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
         })
     )
   );
+
+  const lapSessionToken = await lapSessionRequest;
 
   if (signal?.aborted) {
     renderer.dispose();
@@ -467,7 +482,7 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
         fetch(`/api/tracks/${trackId}/laptimes`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ timeMs, displayName }),
+          body: JSON.stringify({ timeMs, displayName, sessionToken: lapSessionToken }),
         })
           .then(async (res) => {
             const data = await res.json();
