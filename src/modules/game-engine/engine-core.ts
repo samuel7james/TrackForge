@@ -32,10 +32,11 @@ import { buildWallColliders, createSphereBody } from "./physics";
 import { SmokeTrails } from "./particles";
 import { DriftMarks } from "./drift-marks";
 import { GameAudio } from "./audio";
-import { LapTimer } from "./lap-timer";
+import { LapTimer, clearStoredBestLap } from "./lap-timer";
 import { SessionStats } from "./session-stats";
 import { GhostRecorder } from "./ghost-recorder";
-import { loadGhost, saveGhost, GhostPlayer } from "./ghost-playback";
+import { loadGhost, saveGhost, clearGhost, GhostPlayer } from "./ghost-playback";
+import { markLapSubmitted, hasSubmittedLap, clearSubmittedLapMark } from "./submitted-lap-marker";
 import { ColorMapGLTFLoader } from "./loader";
 
 export interface EngineOptions {
@@ -235,11 +236,13 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   // the server's timestamp for the elapsed-time check on submission (see
   // lib/lap-session.ts); without it the server has no evidence a race was
   // ever started, so a failure here simply means times don't post.
-  const lapSessionRequest: Promise<string | null> =
+  const lapSessionRequest: Promise<{ token: string | null; hasRecord: boolean } | null> =
     submitLapTimes && trackId
       ? fetch(`/api/tracks/${trackId}/session`, { method: "POST" })
           .then((res) => (res.ok ? res.json() : null))
-          .then((data) => data?.token ?? null)
+          .then((data) =>
+            data ? { token: data.token ?? null, hasRecord: data.hasRecord === true } : null
+          )
           .catch(() => null)
       : Promise.resolve(null);
 
@@ -283,7 +286,8 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
     )
   );
 
-  const lapSessionToken = await lapSessionRequest;
+  const lapSession = await lapSessionRequest;
+  const lapSessionToken = lapSession?.token ?? null;
 
   if (signal?.aborted) {
     renderer.dispose();
@@ -429,6 +433,30 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
   // resurfacing a stale time/ghost that no longer matches what's on track.
   const cellsFingerprint = encodeCells(mapCells || TRACK_CELLS);
 
+  // A lap time removed from the leaderboard leaves its ghost behind, since
+  // ghosts and best laps are only ever stored in the racer's own browser --
+  // there is no server-side copy for an admin's delete to reach. So the
+  // deletion is detected here instead: this browser recorded that the
+  // leaderboard accepted a time for this exact layout, and the server now
+  // says it holds none, which only happens if it was deleted.
+  //
+  // Both halves of the pairing matter. "No record on the server" alone is
+  // also true of someone who only ever tested the track in the editor, and
+  // of anyone whose submission failed on the network -- neither of whom
+  // should lose a ghost over it. Cleared before LapTimer and GhostPlayer
+  // are built below, since both read this storage as they construct.
+  if (
+    submitLapTimes &&
+    trackId &&
+    lapSession &&
+    !lapSession.hasRecord &&
+    hasSubmittedLap(trackId, cellsFingerprint)
+  ) {
+    clearGhost(trackId, cellsFingerprint);
+    clearStoredBestLap(trackId, cellsFingerprint);
+    clearSubmittedLapMark(trackId, cellsFingerprint);
+  }
+
   const lapTimer = new LapTimer(mapCells, trackId, cellsFingerprint);
   const sessionStats = new SessionStats(lapTimer.enabled);
 
@@ -490,6 +518,10 @@ export async function createEngine(options: EngineOptions): Promise<EngineHandle
               if (data?.code === "NEEDS_DISPLAY_NAME") onDisplayNameInvalid?.();
               return;
             }
+            // Only on a response the server actually accepted -- this is
+            // what later distinguishes "my time was deleted" from "I never
+            // had one" (see the invalidation above and its own comment).
+            markLapSubmitted(trackId, cellsFingerprint);
             // Default toast position is bottom-right (see layout.tsx's
             // <Toaster>) -- exactly where the steer-right button lives on
             // touch (touch-controls-overlay.tsx), so a toast popping up

@@ -35,6 +35,18 @@ export function saveGhost(trackId: string | null, cellsFingerprint: string, samp
   }
 }
 
+// Used when the server reports this viewer no longer holds a lap record
+// for the track (see engine-core.ts) -- the ghost is a replay of a time
+// that has been taken off the leaderboard, so it shouldn't keep racing
+// alongside as though it still stood.
+export function clearGhost(trackId: string | null, cellsFingerprint: string) {
+  try {
+    localStorage.removeItem(storageKey(trackId, cellsFingerprint));
+  } catch {
+    // storage unavailable -- nothing to clear
+  }
+}
+
 export interface GhostFrame {
   position: THREE.Vector3;
   quaternion: THREE.Quaternion;

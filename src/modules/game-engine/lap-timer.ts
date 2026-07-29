@@ -29,6 +29,18 @@ function saveBest(key: string, value: number) {
   }
 }
 
+// Companion to clearGhost (ghost-playback.ts) -- a best lap that's been
+// removed from the leaderboard shouldn't survive as this browser's local
+// record either, or the HUD would keep showing a time to beat that no
+// longer exists anywhere else.
+export function clearStoredBestLap(trackId: string | null, cellsFingerprint: string) {
+  try {
+    localStorage.removeItem(STORAGE_PREFIX + (trackId || "default") + "." + cellsFingerprint);
+  } catch {
+    // storage unavailable -- nothing to clear
+  }
+}
+
 export function formatLapTime(t: number | null | undefined): string {
   if (t === null || t === undefined) return "0:00.00";
 
