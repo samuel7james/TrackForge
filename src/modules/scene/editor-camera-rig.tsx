@@ -5,6 +5,7 @@ import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { useEditorStore } from "@/store/editor-store";
 import { FreeFlyCameraRig } from "./camera-modes/free-fly-camera-rig";
 import { TopViewCameraRig } from "./camera-modes/top-view-camera-rig";
+import { KeyboardPan } from "./camera-modes/keyboard-pan";
 
 // Orbit is the original/default rig; Free Fly and Top View are separate
 // self-contained rigs swapped in based on cameraMode -- each owns its own
@@ -41,6 +42,9 @@ export function EditorCameraRig() {
         // (mouseButtons, unset here) is untouched by this prop entirely.
         touches={{ TWO: TOUCH.DOLLY_ROTATE }}
       />
+      {/* Mounted after OrbitControls so `makeDefault` has registered by the
+          time it reads the default controls off R3F state. */}
+      <KeyboardPan />
     </>
   );
 }
