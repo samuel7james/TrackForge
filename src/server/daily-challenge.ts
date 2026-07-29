@@ -22,8 +22,27 @@ function todayInIndia(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: CHALLENGE_TIMEZONE });
 }
 
-function dateInIndia(date: Date): string {
-  return date.toLocaleDateString("en-CA", { timeZone: CHALLENGE_TIMEZONE });
+// Which IST day a stored challenge was generated for, recorded on the row
+// itself.
+//
+// This used to be inferred from `updatedAt`, which was wrong in both
+// directions, because Prisma's @updatedAt tracks the last write of any kind
+// -- and the playCount increment writes to this very row on every single
+// play (see api/tracks/[slug]/play). So the anchor for "is this still
+// today's track" moved whenever anyone raced: a play just after IST
+// midnight re-stamped the row into the new day, satisfying the check and
+// serving yesterday's layout for another 24 hours, while a day with no
+// plays at all left it stale enough to regenerate at some arbitrary hour.
+// Either way the rollover drifted off midnight.
+//
+// A tag can only change when this function changes it, so the date it
+// encodes means exactly what it says. Kept in `tags` for the same reason
+// GENERATOR_VERSION_TAG is -- no migration needed -- and the challenge is
+// excluded from Discover (see discover/page.tsx), so it's only ever visible
+// in the admin dashboard, where knowing which day a track was cut for is
+// useful rather than noise.
+function dayTagFor(dateLabel: string): string {
+  return `day-${dateLabel}`;
 }
 
 // Bump this whenever generate-daily-track.ts's output would meaningfully
@@ -35,7 +54,11 @@ function dateInIndia(date: Date): string {
 // that same day would keep serving whatever the OLD code produced. Stored
 // in `tags` rather than a new column, since this is lightweight enough
 // not to need a schema migration.
-const GENERATOR_VERSION = "4";
+// Bumped to 5: the generator now only draws from advanced/expert (see
+// DAILY_CHALLENGE_TIERS). Without the bump, a beginner or intermediate
+// track already generated earlier today would keep serving until the next
+// IST midnight, since the day tag alone would still be satisfied.
+const GENERATOR_VERSION = "5";
 const GENERATOR_VERSION_TAG = `gen-v${GENERATOR_VERSION}`;
 
 function hasCurrentGeneratorVersion(tags: string[]): boolean {
@@ -66,16 +89,17 @@ function buildDailyDocument(cells: ReturnType<typeof generateRandomDailyTrack>["
 // an owner's save.
 export async function getOrCreateDailyChallenge() {
   const today = todayInIndia();
+  const dayTag = dayTagFor(today);
   const existing = await prisma.track.findUnique({ where: { slug: DAILY_CHALLENGE_SLUG } });
 
-  if (existing && dateInIndia(existing.updatedAt) === today && hasCurrentGeneratorVersion(existing.tags)) {
+  if (existing && existing.tags.includes(dayTag) && hasCurrentGeneratorVersion(existing.tags)) {
     return existing;
   }
 
   const { cells, difficulty } = generateRandomDailyTrack();
   const document = buildDailyDocument(cells, difficulty, today);
   const name = `Daily Challenge — ${today}`;
-  const tags = ["daily-challenge", GENERATOR_VERSION_TAG];
+  const tags = ["daily-challenge", GENERATOR_VERSION_TAG, dayTag];
 
   if (!existing) {
     return prisma.track.create({
@@ -96,12 +120,33 @@ export async function getOrCreateDailyChallenge() {
     });
   }
 
-  const [updated] = await prisma.$transaction([
-    prisma.track.update({
-      where: { slug: DAILY_CHALLENGE_SLUG },
+  // Conditional on the day tag still being absent, so the write itself is
+  // what claims the new day. Two visitors arriving together just after IST
+  // midnight would otherwise both regenerate: the second would overwrite
+  // the first's layout and wipe the lap records already set on it, so
+  // whoever raced first would silently lose their time. Here the second
+  // update matches zero rows and leaves the first alone.
+  //
+  // Interactive rather than an array transaction because the lap-record
+  // wipe has to be conditional on that match -- issued unconditionally it
+  // would clear the *new* day's times on the request that lost the race.
+  const updated = await prisma.$transaction(async (tx) => {
+    const claim = await tx.track.updateMany({
+      where: {
+        slug: DAILY_CHALLENGE_SLUG,
+        OR: [{ NOT: { tags: { has: dayTag } } }, { NOT: { tags: { has: GENERATOR_VERSION_TAG } } }],
+      },
       data: { name, description: document.meta.description, document, difficulty, tags },
-    }),
-    prisma.lapRecord.deleteMany({ where: { trackId: existing.id } }),
-  ]);
-  return updated;
+    });
+    if (claim.count === 0) return null;
+
+    // Yesterday's leaderboard belongs to yesterday's layout -- same
+    // reasoning as the PATCH route's owner-edit case.
+    await tx.lapRecord.deleteMany({ where: { trackId: existing.id } });
+    return tx.track.findUnique({ where: { slug: DAILY_CHALLENGE_SLUG } });
+  });
+
+  // Null means another request generated today's track first; read back what
+  // it wrote rather than returning the stale row this one had loaded.
+  return updated ?? (await prisma.track.findUnique({ where: { slug: DAILY_CHALLENGE_SLUG } })) ?? existing;
 }

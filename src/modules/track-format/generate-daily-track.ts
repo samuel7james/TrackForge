@@ -5,6 +5,18 @@ import type { Difficulty } from "./schema";
 
 export const DIFFICULTY_TIERS: Difficulty[] = ["beginner", "intermediate", "advanced", "expert"];
 
+// The daily challenge only ever draws from the top two tiers. It's the one
+// track everybody races on the same day, so it's meant to be a test --
+// beginner and intermediate layouts (long straights, a couple of gentle
+// corners) make for a dull thing to compete over, and there are plenty of
+// player-built tracks at those levels already. The full four tiers still
+// exist for everything else that generates a layout.
+export const DAILY_CHALLENGE_TIERS: Difficulty[] = ["advanced", "expert"];
+
+function tierRank(difficulty: Difficulty): number {
+  return DIFFICULTY_TIERS.indexOf(difficulty);
+}
+
 interface SizeRange {
   min: number;
   max: number;
@@ -35,8 +47,13 @@ function randInt(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
-function pickRandomTier(): Difficulty {
-  return DIFFICULTY_TIERS[randInt(0, DIFFICULTY_TIERS.length - 1)];
+function shuffled<T>(items: T[]): T[] {
+  const out = items.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
 }
 
 // Non-overlapping notch positions along an edge of the given length,
@@ -219,13 +236,32 @@ export function generateDailyTrackLayout(targetDifficulty: Difficulty): {
     }
   }
 
-  const fallback = lastValid ?? generateOneAttempt(DIFFICULTY_PARAMS.beginner);
+  // Falls back on the target tier's own parameters, not beginner's -- a
+  // caller that asked for expert and hit the retry ceiling should still get
+  // an expert-shaped layout, rather than the easiest one in the file.
+  const fallback = lastValid ?? generateOneAttempt(params);
   return { cells: fallback, difficulty: computeTrackDifficulty(fallback) };
 }
 
-// Picks a difficulty tier uniformly at random, then generates a layout
-// tuned toward it -- "random layout, random difficulty" for the daily
-// challenge, per the explicit request that generated this feature.
+// Generates the daily challenge: a random layout at a random difficulty,
+// drawn only from DAILY_CHALLENGE_TIERS.
+//
+// The tier is a *target*, not a guarantee -- generateDailyTrackLayout
+// retries until computeTrackDifficulty agrees, but gives up after
+// MAX_ATTEMPTS and returns whatever it last managed, which can score below
+// what was asked for. So the result is checked rather than trusted: if the
+// first tier lands outside the allowed set, the other one is tried, and
+// only if both miss does this settle for the hardest layout either produced.
+// Without that check "advanced or expert" would be the intent while a
+// beginner track could still occasionally ship.
 export function generateRandomDailyTrack(): { cells: Cell[]; difficulty: Difficulty } {
-  return generateDailyTrackLayout(pickRandomTier());
+  let best: { cells: Cell[]; difficulty: Difficulty } | null = null;
+
+  for (const tier of shuffled(DAILY_CHALLENGE_TIERS)) {
+    const result = generateDailyTrackLayout(tier);
+    if (DAILY_CHALLENGE_TIERS.includes(result.difficulty)) return result;
+    if (!best || tierRank(result.difficulty) > tierRank(best.difficulty)) best = result;
+  }
+
+  return best as { cells: Cell[]; difficulty: Difficulty };
 }
