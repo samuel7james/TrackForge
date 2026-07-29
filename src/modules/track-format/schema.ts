@@ -3,6 +3,26 @@ import { TYPE_NAMES, GODOT_ORIENTS, type PieceType } from "@/modules/game-engine
 
 // The Track Document -- tile-based (see modules/game-engine/track.ts).
 
+// Nothing here was bounded before, which made every field an open-ended
+// write into Postgres: a hand-rolled POST to /api/tracks could store a
+// document with millions of cells or a megabyte-long description, and the
+// GET route would then serve it back to every visitor. These caps are the
+// real limit on what a track can cost the database.
+//
+// All of them are set far above anything the editor can actually produce
+// (the largest track on record is 26 cells / 2.4KB), so they reject abuse
+// without rejecting a single real document -- which matters because this
+// same schema parses on *read* too, so a cap set below existing data would
+// make those tracks unopenable rather than merely unsavable.
+const MAX_CELLS = 5000;
+const MAX_OBJECTS = 2000;
+const MAX_NAME = 100;
+const MAX_DESCRIPTION = 2000;
+const MAX_TAGS = 20;
+const MAX_TAG_LENGTH = 40;
+const MAX_ID = 100;
+const MAX_ISSUE_TEXT = 500;
+
 export const vec3Schema = z.object({ x: z.number(), y: z.number(), z: z.number() });
 export type Vec3 = z.infer<typeof vec3Schema>;
 
@@ -34,30 +54,30 @@ export const weatherSchema = z.enum([
 export type Weather = z.infer<typeof weatherSchema>;
 
 export const placedObjectSchema = z.object({
-  id: z.string(),
-  type: z.string(),
+  id: z.string().max(MAX_ID),
+  type: z.string().max(MAX_ID),
   position: vec3Schema,
   rotation: quatSchema,
   scale: vec3Schema,
-  groupId: z.string().nullable(),
+  groupId: z.string().max(MAX_ID).nullable(),
 });
 export type PlacedObject = z.infer<typeof placedObjectSchema>;
 
 export const validationIssueSchema = z.object({
-  code: z.string(),
-  message: z.string(),
+  code: z.string().max(MAX_ID),
+  message: z.string().max(MAX_ISSUE_TEXT),
 });
 export type ValidationIssue = z.infer<typeof validationIssueSchema>;
 
 export const metaSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  name: z.string(),
-  description: z.string(),
-  authorId: z.string(),
+  id: z.string().max(MAX_ID),
+  slug: z.string().max(MAX_ID),
+  name: z.string().max(MAX_NAME),
+  description: z.string().max(MAX_DESCRIPTION),
+  authorId: z.string().max(MAX_ID),
   // Discovery (Phase 17). Defaults to [] so documents saved before this
   // field existed still parse -- no separate migration step needed.
-  tags: z.array(z.string()).default([]),
+  tags: z.array(z.string().max(MAX_TAG_LENGTH)).max(MAX_TAGS).default([]),
   difficulty: difficultySchema,
   estimatedLapTimeMs: z.number().nullable(),
   createdAt: z.string(),
@@ -74,7 +94,7 @@ export type Environment = z.infer<typeof environmentSchema>;
 
 export const validationStateSchema = z.object({
   isValid: z.boolean(),
-  issues: z.array(validationIssueSchema),
+  issues: z.array(validationIssueSchema).max(MAX_TAGS),
   validatedAt: z.string().nullable(),
 });
 export type ValidationState = z.infer<typeof validationStateSchema>;
@@ -106,7 +126,7 @@ export const trackDocumentSchema = z.object({
   // data needed, and deliberate scenery placement was covered by `objects`
   // below -- a separate deco-cell field would just duplicate that.
   track: z.object({
-    cells: z.array(cellSchema),
+    cells: z.array(cellSchema).max(MAX_CELLS),
   }),
   // The "Object tool" (cones/barriers/trees/rocks/flags/forest/paddock --
   // see git history for prop-registry.ts and game-engine/placed-objects.ts)
@@ -117,7 +137,7 @@ export const trackDocumentSchema = z.object({
   // real placed objects still parses correctly and that data isn't
   // silently lost -- it just doesn't render or get added to anywhere
   // right now.
-  objects: z.array(placedObjectSchema),
+  objects: z.array(placedObjectSchema).max(MAX_OBJECTS),
   validation: validationStateSchema,
 });
 export type TrackDocument = z.infer<typeof trackDocumentSchema>;

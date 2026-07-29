@@ -6,8 +6,12 @@ import { safeParseTrackDocument } from "@/modules/track-format/validate";
 import { computeTrackDifficulty } from "@/modules/track-format/auto-difficulty";
 import { generateSlug } from "@/server/slug";
 import { getOrCreateAnonymousId, AUTHOR_ID_COOKIE } from "@/lib/anonymous-id";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { rateLimitKey } from "@/lib/client-ip";
 
 const MAX_SLUG_ATTEMPTS = 5;
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const RATE_LIMIT_MAX = 20; // 20 new tracks per origin per 10 minutes
 
 function isUniqueSlugConflict(error: unknown): boolean {
   return (
@@ -22,6 +26,31 @@ function isUniqueSlugConflict(error: unknown): boolean {
 // time a user hits Save for the first time they may already have built part
 // of a track, so creation captures whatever exists rather than starting blank.
 export async function POST(request: Request) {
+  // Stable per-browser id (PROJECT_PLAN.md §8) -- the same value across every
+  // track this browser creates, not a fresh one per save, so a Phase 19
+  // creator page can actually group tracks by it.
+  const authorId = await getOrCreateAnonymousId(AUTHOR_ID_COOKIE);
+  // This was the one unlimited write in the app: every other mutation route
+  // (comments, likes, lap times, name claims) already rate-limits, but track
+  // creation -- by far the most expensive row to store -- did not, so a
+  // script could fill the database with tracks as fast as it could POST.
+  // The cap is far above real use: creating even two tracks in a session is
+  // unusual, since the editor reuses one via PATCH after the first save.
+  //
+  // Keyed by origin address, not by authorId: a caller that simply omits
+  // the cookie is handed a brand-new authorId on every single request, so
+  // an id-keyed budget here would have been bypassed by the exact scripted
+  // traffic it exists to stop (measured -- it never triggered at all). The
+  // other mutation routes stay viewerId-keyed on purpose: their rows are
+  // cheap, their limits are tighter, and an address-keyed budget there
+  // would make a household or campus behind one NAT share a comment quota.
+  if (!checkRateLimit(rateLimitKey(request, "track-create", authorId), RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX)) {
+    return NextResponse.json(
+      { error: "Too many tracks created — try again in a few minutes." },
+      { status: 429 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = safeParseTrackDocument(body?.document);
   if (!parsed.success) {
@@ -30,10 +59,6 @@ export async function POST(request: Request) {
   const difficulty = computeTrackDifficulty(parsed.data.track.cells);
   const document = { ...parsed.data, meta: { ...parsed.data.meta, difficulty } };
   const editToken = randomBytes(32).toString("hex");
-  // Stable per-browser id (PROJECT_PLAN.md §8) -- the same value across every
-  // track this browser creates, not a fresh one per save, so a Phase 19
-  // creator page can actually group tracks by it.
-  const authorId = await getOrCreateAnonymousId(AUTHOR_ID_COOKIE);
 
   for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
     const slug = generateSlug();

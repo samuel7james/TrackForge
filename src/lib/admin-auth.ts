@@ -1,5 +1,6 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { cookies } from "next/headers";
+import { timingSafeStringEqual } from "./timing-safe-compare";
 
 // A single hardcoded operator identity (env vars only, never a database
 // row) -- deliberately separate from the anonymous no-accounts model the
@@ -8,16 +9,6 @@ import { cookies } from "next/headers";
 // ADMIN_PASSWORD; never hardcoded here.
 export const ADMIN_SESSION_COOKIE = "trackforge-admin-session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 1 week
-
-function timingSafeStringEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  // timingSafeEqual throws on mismatched lengths rather than returning
-  // false, so the length check has to happen first -- it leaks length,
-  // not content, an accepted trade-off for this standard pattern.
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
-}
 
 export function verifyAdminCredentials(username: string, password: string): boolean {
   const expectedUsername = process.env.ADMIN_USERNAME ?? "";

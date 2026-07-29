@@ -88,6 +88,10 @@ model Like {
   createdAt DateTime @default(now())
 
   @@unique([trackId, viewerId])
+  // The unique above leads with trackId, so it can't serve a viewerId-only
+  // lookup -- which is exactly what deleting a player does (see
+  // api/admin/players/[id]), leaving it a full table scan without this.
+  @@index([viewerId])
 }
 
 // Freeform display name instead of an account (§8) -- no login to gate abuse,
@@ -102,6 +106,10 @@ model Comment {
   createdAt   DateTime @default(now())
 
   @@index([trackId, createdAt])
+  // Comment has no viewerId column, so a player's name is the only link
+  // back to them -- deleting a player matches on it (see
+  // api/admin/players/[id]).
+  @@index([displayName])
 }
 
 // Milestone 4 (Competition). One row per (track, viewer) = that viewer's
@@ -125,6 +133,9 @@ model LapRecord {
 
   @@unique([trackId, viewerId])
   @@index([trackId, timeMs])
+  // Same trackId-leading problem as Like's: needed both by the player
+  // cascade delete and by the admin dashboard's per-viewer groupBy.
+  @@index([viewerId])
 }
 
 // A racer's chosen name, claimed globally -- one row per viewer, `name`
