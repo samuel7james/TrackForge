@@ -1,7 +1,7 @@
 import { randomBytes, createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { generateRandomDailyTrack } from "@/modules/track-format/generate-daily-track";
-import { createEmptyTrackDocument } from "@/modules/track-format/schema";
+import { createEmptyTrackDocument, type Difficulty } from "@/modules/track-format/schema";
 import { DAILY_CHALLENGE_SLUG } from "@/lib/daily-challenge-slug";
 
 // Re-exported so existing server-side imports (challenge/page.tsx,
@@ -50,15 +50,17 @@ function dayTagFor(dateLabel: string): string {
 // the generator does nothing visible until the next actual IST midnight:
 // the "is this still today's track" check below only looks at the
 // calendar date, which stays satisfied even after a deploy ships a fixed
-// generator, so a fresh production track already generated once earlier
-// that same day would keep serving whatever the OLD code produced. Stored
-// in `tags` rather than a new column, since this is lightweight enough
-// not to need a schema migration.
-// Bumped to 5: the generator now only draws from advanced/expert (see
-// DAILY_CHALLENGE_TIERS). Without the bump, a beginner or intermediate
-// track already generated earlier today would keep serving until the next
-// IST midnight, since the day tag alone would still be satisfied.
-const GENERATOR_VERSION = "5";
+// generator, so a track already generated earlier that same day would keep
+// serving whatever the OLD code produced. Stored in `tags` rather than a
+// new column, since this is lightweight enough not to need a migration.
+//
+//   v5 -- restricted the draw to advanced/expert only.
+//   v6 -- widened the generator so layouts can stop repeating: notches on
+//         the right edge, split unevenly across three edges, wider size
+//         ranges. A v5 track is one of only ~171 possible layouts and
+//         predates the layout history table, so it has to be replaced on
+//         deploy rather than left to run out the day.
+const GENERATOR_VERSION = "6";
 const GENERATOR_VERSION_TAG = `gen-v${GENERATOR_VERSION}`;
 
 function hasCurrentGeneratorVersion(tags: string[]): boolean {
@@ -92,7 +94,7 @@ const MAX_UNIQUE_ATTEMPTS = 40;
 // duplicate.
 async function generateUnusedDailyTrack(): Promise<{
   cells: DailyCells;
-  difficulty: string;
+  difficulty: Difficulty;
   fingerprint: string;
   isFresh: boolean;
 }> {
@@ -105,7 +107,7 @@ async function generateUnusedDailyTrack(): Promise<{
     )
   );
 
-  let last: { cells: DailyCells; difficulty: string; fingerprint: string } | null = null;
+  let last: { cells: DailyCells; difficulty: Difficulty; fingerprint: string } | null = null;
   for (let attempt = 0; attempt < MAX_UNIQUE_ATTEMPTS; attempt++) {
     const { cells, difficulty } = generateRandomDailyTrack();
     const fingerprint = layoutFingerprint(cells);
@@ -116,7 +118,7 @@ async function generateUnusedDailyTrack(): Promise<{
   return { ...last!, isFresh: false };
 }
 
-function buildDailyDocument(cells: DailyCells, difficulty: string, dateLabel: string) {
+function buildDailyDocument(cells: DailyCells, difficulty: Difficulty, dateLabel: string) {
   const base = createEmptyTrackDocument(`Daily Challenge — ${dateLabel}`);
   return {
     ...base,
@@ -124,7 +126,7 @@ function buildDailyDocument(cells: DailyCells, difficulty: string, dateLabel: st
       ...base.meta,
       slug: DAILY_CHALLENGE_SLUG,
       description: "A new random layout and difficulty, every day.",
-      difficulty: difficulty as (typeof base.meta)["difficulty"],
+      difficulty,
     },
     track: { cells },
   };
