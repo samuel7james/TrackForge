@@ -6,6 +6,7 @@ import { isAdminSessionValid } from "@/lib/admin-auth";
 import { timingSafeStringEqual } from "@/lib/timing-safe-compare";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { DAILY_CHALLENGE_SLUG } from "@/lib/daily-challenge-slug";
+import { getOrCreateDailyChallenge } from "@/server/daily-challenge";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
@@ -41,6 +42,18 @@ function cellsChanged(oldCells: unknown[], newCells: unknown[]): boolean {
 // Milestone 3's published track pages will use).
 export async function GET(_request: Request, { params }: RouteContext) {
   const { slug } = await params;
+
+  // The daily rollover is lazy, and /challenge used to be the only thing
+  // that triggered it -- but the Play button leads to /editor/daily-challenge,
+  // which loads its document straight through this route. So anyone opening
+  // that link (a bookmark, a stale tab) before the day's first visit to
+  // /challenge would be handed *yesterday's* layout, race it, and then have
+  // the time deleted out from under them the moment the rollover finally
+  // fired and wiped the previous day's leaderboard. Rolling over here means
+  // every entry point sees the same current track.
+  if (slug === DAILY_CHALLENGE_SLUG) {
+    await getOrCreateDailyChallenge();
+  }
   // Selected explicitly rather than fetching the whole row: this is the
   // public read, and the row carries the editToken that authorizes writing
   // to it. The response below already picks fields by hand, but keeping the

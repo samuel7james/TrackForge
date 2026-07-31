@@ -1,4 +1,5 @@
 import { randomBytes, createHash } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateRandomDailyTrack } from "@/modules/track-format/generate-daily-track";
 import { createEmptyTrackDocument, type Difficulty } from "@/modules/track-format/schema";
@@ -118,6 +119,15 @@ async function generateUnusedDailyTrack(): Promise<{
   return { ...last!, isFresh: false };
 }
 
+/** Deliberately narrow: the only caller (challenge/page.tsx) needs the id
+ * to look up lap records and the difficulty to label the page, and nothing
+ * needs the document. Returning the whole row would mean fetching that JSON
+ * on every visit just to throw it away. */
+export interface DailyChallengeSummary {
+  id: string;
+  difficulty: string;
+}
+
 function buildDailyDocument(cells: DailyCells, difficulty: Difficulty, dateLabel: string) {
   const base = createEmptyTrackDocument(`Daily Challenge — ${dateLabel}`);
   return {
@@ -140,13 +150,20 @@ function buildDailyDocument(cells: DailyCells, difficulty: Difficulty, dateLabel
 // changes" transaction shape as the PATCH route's own owner-edit case --
 // a new day's layout is exactly that, just system-triggered instead of
 // an owner's save.
-export async function getOrCreateDailyChallenge() {
+export async function getOrCreateDailyChallenge(): Promise<DailyChallengeSummary> {
   const today = todayInIndia();
   const dayTag = dayTagFor(today);
-  const existing = await prisma.track.findUnique({ where: { slug: DAILY_CHALLENGE_SLUG } });
+  // Only the three columns this actually needs. An unqualified findUnique
+  // drags the whole `document` JSON along on every single visit -- several
+  // KB, on by far the most-visited dynamic page, to answer a question that
+  // only reads `tags`.
+  const existing = await prisma.track.findUnique({
+    where: { slug: DAILY_CHALLENGE_SLUG },
+    select: { id: true, difficulty: true, tags: true },
+  });
 
   if (existing && existing.tags.includes(dayTag) && hasCurrentGeneratorVersion(existing.tags)) {
-    return existing;
+    return { id: existing.id, difficulty: existing.difficulty };
   }
 
   const { cells, difficulty, fingerprint, isFresh } = await generateUnusedDailyTrack();
@@ -158,7 +175,7 @@ export async function getOrCreateDailyChallenge() {
   // back exhausted, since the row already exists -- and `upsert` rather than
   // `create` because two requests racing the day claim below would otherwise
   // collide on the unique fingerprint.
-  const rememberLayout = async (tx: Pick<typeof prisma, "dailyChallengeLayout">) => {
+  const rememberLayout = async (tx: Prisma.TransactionClient) => {
     if (!isFresh) return;
     await tx.dailyChallengeLayout.upsert({
       where: { fingerprint },
@@ -167,26 +184,51 @@ export async function getOrCreateDailyChallenge() {
     });
   };
 
-  if (!existing) {
-    return prisma.$transaction(async (tx) => {
-      await rememberLayout(tx);
-      return tx.track.create({
-        data: {
-          slug: DAILY_CHALLENGE_SLUG,
-          name,
-          description: document.meta.description,
-          authorId: "system",
-          // Random and never handed to any client -- there's no owner UI for
-          // this track, so nothing needs to ever PATCH/DELETE it through the
-          // normal editToken-gated routes.
-          editToken: randomBytes(32).toString("hex"),
-          document,
-          isPublished: true,
-          difficulty,
-          tags,
-        },
-      });
+  // Whichever branch runs below, the row is current by the time this reads
+  // it -- either because this request wrote it or because the request that
+  // beat us did.
+  const readBack = async (): Promise<DailyChallengeSummary> => {
+    const row = await prisma.track.findUnique({
+      where: { slug: DAILY_CHALLENGE_SLUG },
+      select: { id: true, difficulty: true },
     });
+    if (!row) throw new Error("Daily challenge row disappeared while generating it");
+    return row;
+  };
+
+  if (!existing) {
+    // createMany + skipDuplicates rather than create: two visitors arriving
+    // together on a database with no challenge row yet (a fresh deploy, or
+    // just after an admin deleted it) would both see `existing` as null and
+    // both insert the same slug, and the loser's unique-constraint violation
+    // would surface as a 500 on the page. Here the loser simply matches zero
+    // rows and reads back what the winner wrote.
+    await prisma.$transaction(async (tx) => {
+      const insert = await tx.track.createMany({
+        data: [
+          {
+            slug: DAILY_CHALLENGE_SLUG,
+            name,
+            description: document.meta.description,
+            authorId: "system",
+            // Random and never handed to any client -- there's no owner UI
+            // for this track, so nothing needs to ever PATCH/DELETE it
+            // through the normal editToken-gated routes.
+            editToken: randomBytes(32).toString("hex"),
+            document,
+            isPublished: true,
+            difficulty,
+            tags,
+          },
+        ],
+        skipDuplicates: true,
+      });
+      // Same rule as the regeneration path: only the request that actually
+      // wrote the track burns the layout out of the pool.
+      if (insert.count > 0) await rememberLayout(tx);
+    });
+
+    return readBack();
   }
 
   // Conditional on the day tag still being absent, so the write itself is
