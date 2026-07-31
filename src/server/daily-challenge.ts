@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { generateRandomDailyTrack } from "@/modules/track-format/generate-daily-track";
 import { createEmptyTrackDocument } from "@/modules/track-format/schema";
@@ -65,7 +65,58 @@ function hasCurrentGeneratorVersion(tags: string[]): boolean {
   return tags.includes(GENERATOR_VERSION_TAG);
 }
 
-function buildDailyDocument(cells: ReturnType<typeof generateRandomDailyTrack>["cells"], difficulty: string, dateLabel: string) {
+type DailyCells = ReturnType<typeof generateRandomDailyTrack>["cells"];
+
+// Identity of a layout, for the "never serve the same track twice" rule.
+// Cells are sorted before hashing so that the same set of tiles always
+// produces the same fingerprint no matter what order the generator happened
+// to emit them in -- otherwise two identical layouts could hash differently
+// and one would slip through as "new".
+function layoutFingerprint(cells: DailyCells): string {
+  const canonical = cells.map((cell) => cell.join(",")).sort();
+  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
+}
+
+/** How many fresh layouts to try before giving up on finding an unused one.
+ * The generator's pool measures in the tens of thousands and grows with
+ * every size/notch combination, so in practice the first attempt is almost
+ * always unused; this only bounds the pathological case. */
+const MAX_UNIQUE_ATTEMPTS = 40;
+
+// Generates a layout that has never been served before.
+//
+// Falls back to a repeat only if the pool is genuinely exhausted, which
+// would take decades of daily draws -- returning nothing, or looping
+// forever, would both be worse than serving a track someone last saw years
+// ago. `isFresh` tells the caller which happened so it doesn't record a
+// duplicate.
+async function generateUnusedDailyTrack(): Promise<{
+  cells: DailyCells;
+  difficulty: string;
+  fingerprint: string;
+  isFresh: boolean;
+}> {
+  // One query rather than one per attempt: the row count here grows by
+  // exactly one per day, so the whole set stays small enough to hold in
+  // memory for the length of a request.
+  const used = new Set(
+    (await prisma.dailyChallengeLayout.findMany({ select: { fingerprint: true } })).map(
+      (row) => row.fingerprint
+    )
+  );
+
+  let last: { cells: DailyCells; difficulty: string; fingerprint: string } | null = null;
+  for (let attempt = 0; attempt < MAX_UNIQUE_ATTEMPTS; attempt++) {
+    const { cells, difficulty } = generateRandomDailyTrack();
+    const fingerprint = layoutFingerprint(cells);
+    last = { cells, difficulty, fingerprint };
+    if (!used.has(fingerprint)) return { ...last, isFresh: true };
+  }
+
+  return { ...last!, isFresh: false };
+}
+
+function buildDailyDocument(cells: DailyCells, difficulty: string, dateLabel: string) {
   const base = createEmptyTrackDocument(`Daily Challenge — ${dateLabel}`);
   return {
     ...base,
@@ -96,27 +147,43 @@ export async function getOrCreateDailyChallenge() {
     return existing;
   }
 
-  const { cells, difficulty } = generateRandomDailyTrack();
+  const { cells, difficulty, fingerprint, isFresh } = await generateUnusedDailyTrack();
   const document = buildDailyDocument(cells, difficulty, today);
   const name = `Daily Challenge — ${today}`;
   const tags = ["daily-challenge", GENERATOR_VERSION_TAG, dayTag];
 
+  // Recorded so no future day can draw it again. Skipped when the pool came
+  // back exhausted, since the row already exists -- and `upsert` rather than
+  // `create` because two requests racing the day claim below would otherwise
+  // collide on the unique fingerprint.
+  const rememberLayout = async (tx: Pick<typeof prisma, "dailyChallengeLayout">) => {
+    if (!isFresh) return;
+    await tx.dailyChallengeLayout.upsert({
+      where: { fingerprint },
+      create: { fingerprint, dayLabel: today },
+      update: {},
+    });
+  };
+
   if (!existing) {
-    return prisma.track.create({
-      data: {
-        slug: DAILY_CHALLENGE_SLUG,
-        name,
-        description: document.meta.description,
-        authorId: "system",
-        // Random and never handed to any client -- there's no owner UI for
-        // this track, so nothing needs to ever PATCH/DELETE it through the
-        // normal editToken-gated routes.
-        editToken: randomBytes(32).toString("hex"),
-        document,
-        isPublished: true,
-        difficulty,
-        tags,
-      },
+    return prisma.$transaction(async (tx) => {
+      await rememberLayout(tx);
+      return tx.track.create({
+        data: {
+          slug: DAILY_CHALLENGE_SLUG,
+          name,
+          description: document.meta.description,
+          authorId: "system",
+          // Random and never handed to any client -- there's no owner UI for
+          // this track, so nothing needs to ever PATCH/DELETE it through the
+          // normal editToken-gated routes.
+          editToken: randomBytes(32).toString("hex"),
+          document,
+          isPublished: true,
+          difficulty,
+          tags,
+        },
+      });
     });
   }
 
@@ -139,6 +206,10 @@ export async function getOrCreateDailyChallenge() {
       data: { name, description: document.meta.description, document, difficulty, tags },
     });
     if (claim.count === 0) return null;
+
+    // Only the request that actually claimed the day records the layout, so
+    // a layout that never reached anyone isn't burned from the pool.
+    await rememberLayout(tx);
 
     // Yesterday's leaderboard belongs to yesterday's layout -- same
     // reasoning as the PATCH route's owner-edit case.

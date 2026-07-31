@@ -138,6 +138,31 @@ model LapRecord {
   @@index([viewerId])
 }
 
+// Every layout the daily challenge has ever used, so it can never hand out
+// the same one twice (see server/daily-challenge.ts). The generated track
+// itself lives in a single Track row that each new day overwrites, so
+// without this there would be no record at all of what yesterday looked
+// like -- and no way to avoid repeating it.
+//
+// Only the fingerprint is kept, not the layout: this exists to answer "have
+// we used this before", and storing thousands of full documents to answer a
+// yes/no question would cost far more than it's worth.
+model DailyChallengeLayout {
+  id String @id @default(cuid())
+
+  // Hash of the track's cells, sorted first so the same set of tiles always
+  // hashes identically regardless of the order the generator emitted them.
+  fingerprint String @unique
+
+  // The IST day this layout was served on ("YYYY-MM-DD"), for readability
+  // when inspecting the table -- uniqueness is enforced on fingerprint.
+  dayLabel String
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 // A racer's chosen name, claimed globally -- one row per viewer, `name`
 // itself unique so no two browsers can hold the same racer name at once.
 // Renaming updates this same row (frees the old name for someone else to

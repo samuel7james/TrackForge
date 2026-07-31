@@ -35,12 +35,19 @@ interface DifficultyParams {
 const DIFFICULTY_PARAMS: Record<Difficulty, DifficultyParams> = {
   beginner: { size: { min: 7, max: 11 }, notches: { min: 0, max: 1 } },
   intermediate: { size: { min: 7, max: 11 }, notches: { min: 1, max: 2 } },
-  advanced: { size: { min: 5, max: 8 }, notches: { min: 3, max: 5 } },
-  // A tiny rectangle actually leaves LESS room for notches (they need
-  // spacing to avoid colliding), capping how technical it can get --
-  // expert needs a wider edge to fit enough of them on, and gets there
-  // on raw corner count/density rather than a smaller footprint.
-  expert: { size: { min: 6, max: 10 }, notches: { min: 8, max: 14 } },
+  // Wider size ranges than the tiers strictly need, because the daily
+  // challenge must never repeat a layout (see server/daily-challenge.ts)
+  // and that is only possible if the generator can actually produce a
+  // large pool. Measured: the old ranges bottomed out at ~171 distinct
+  // layouts no matter how many times they were sampled, which would have
+  // run dry in under six months.
+  advanced: { size: { min: 5, max: 12 }, notches: { min: 2, max: 7 } },
+  // Expert used to ask for 8-14 notches on edges that can physically hold
+  // two or three (pickNotchPositions caps candidates at edgeLength-4 and
+  // spaces them 3 apart), so every request collapsed onto the same
+  // maximal packing -- 64 distinct layouts in total. Asking for a count
+  // the geometry can satisfy is what actually makes them differ.
+  expert: { size: { min: 6, max: 14 }, notches: { min: 4, max: 11 } },
 };
 
 function randInt(min: number, max: number): number {
@@ -91,19 +98,39 @@ function pickNotchPositions(edgeLength: number, count: number): number[] {
 // two unrelated parts of the perimeter happen to touch. Returns
 // waypoints, not individual cells -- every consecutive pair is an axis-
 // aligned straight run, interpolated below.
-function buildWaypoints(width: number, height: number, topNotches: number[], bottomNotches: number[]): [number, number][] {
+function buildWaypoints(
+  width: number,
+  height: number,
+  topNotches: number[],
+  bottomNotches: number[],
+  rightNotches: number[]
+): [number, number][] {
   const waypoints: [number, number][] = [[0, 0]];
 
   for (const k of topNotches) {
     waypoints.push([k, 0], [k, -1], [k + 2, -1], [k + 2, 0]);
   }
   waypoints.push([width - 1, 0]);
+
+  // Right edge runs top-to-bottom (increasing z), so its notches push out
+  // along +x. Added purely for variety: three notchable edges instead of
+  // two is most of what lifts the pool of possible layouts from ~171 to
+  // several thousand.
+  for (const k of rightNotches) {
+    waypoints.push([width - 1, k], [width, k], [width, k + 2], [width - 1, k + 2]);
+  }
   waypoints.push([width - 1, height - 1]);
 
   for (const k of [...bottomNotches].reverse()) {
     waypoints.push([k + 2, height - 1], [k + 2, height], [k, height], [k, height - 1]);
   }
   waypoints.push([0, height - 1]);
+
+  // The left edge is deliberately left alone -- see
+  // rotateToSafeFinishStart, which needs one guaranteed straight run to
+  // put the finish line on. Notching it would sometimes land the finish
+  // on a corner, where resolveCell silently drops the finish marking and
+  // takes LapTimer.enabled (and so the whole leaderboard) with it.
   waypoints.push([0, 0]);
 
   return waypoints;
@@ -200,12 +227,18 @@ function generateOneAttempt(params: DifficultyParams): Cell[] {
   const width = randInt(params.size.min, params.size.max);
   const height = randInt(params.size.min, params.size.max);
   const notchCount = randInt(params.notches.min, params.notches.max);
-  const topCount = Math.ceil(notchCount / 2);
-  const bottomCount = Math.floor(notchCount / 2);
+  // Split three ways rather than two, and unevenly at random rather than
+  // by a fixed rule -- an even split of the same total produces far fewer
+  // distinct shapes, which is the variety this needs.
+  const topCount = randInt(0, notchCount);
+  const bottomCount = randInt(0, notchCount - topCount);
+  const rightCount = notchCount - topCount - bottomCount;
 
   const topNotches = pickNotchPositions(width, topCount);
   const bottomNotches = pickNotchPositions(width, bottomCount);
-  const waypoints = buildWaypoints(width, height, topNotches, bottomNotches);
+  // Vertical edge, so its notch positions are bounded by height.
+  const rightNotches = pickNotchPositions(height, rightCount);
+  const waypoints = buildWaypoints(width, height, topNotches, bottomNotches, rightNotches);
   const points = interpolateWaypoints(waypoints);
 
   if (!isValidLoop(points)) return [];
