@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from "node:crypto";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateRandomDailyTrack } from "@/modules/track-format/generate-daily-track";
 import { createEmptyTrackDocument, type Difficulty } from "@/modules/track-format/schema";
