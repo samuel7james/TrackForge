@@ -51,6 +51,20 @@ export default function Home() {
           Drive today&apos;s challenge
         </Button>
       </div>
+      <p
+        className="animate-in fade-in fill-mode-both text-sm text-muted-foreground duration-700"
+        style={{ animationDelay: "300ms" }}
+      >
+        Built by{" "}
+        <a
+          href="https://www.samueljames.dev/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-primary"
+        >
+          Samuel James
+        </a>
+      </p>
     </div>
   );
 }
