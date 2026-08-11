@@ -4,7 +4,18 @@ import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
+    <div className="relative flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
+      <p className="absolute right-4 top-4 animate-in fade-in fill-mode-both text-sm text-muted-foreground duration-700 sm:right-6 sm:top-6">
+        Built by{" "}
+        <a
+          href="https://www.samueljames.dev/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-primary"
+        >
+          Samuel James
+        </a>
+      </p>
       <div className="flex animate-in fade-in slide-in-from-bottom-4 flex-col items-center gap-4 duration-700">
         <h1 className="max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl">
           TrackForge
@@ -51,20 +62,6 @@ export default function Home() {
           Drive today&apos;s challenge
         </Button>
       </div>
-      <p
-        className="animate-in fade-in fill-mode-both text-sm text-muted-foreground duration-700"
-        style={{ animationDelay: "300ms" }}
-      >
-        Built by{" "}
-        <a
-          href="https://www.samueljames.dev/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-primary"
-        >
-          Samuel James
-        </a>
-      </p>
     </div>
   );
 }
