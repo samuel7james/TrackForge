@@ -111,7 +111,3 @@ extended, but the original spark for the idea belongs there.
 
 Also built on [crashcat](https://github.com/isaac-mason/crashcat) for
 physics, and the many open-source packages listed in `package.json`.
-
-## License
-
-MIT — see [LICENSE](LICENSE).
